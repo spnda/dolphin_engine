@@ -1,0 +1,6 @@
+build/*
+
+# We'll include the .vscode launch configurations.
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json

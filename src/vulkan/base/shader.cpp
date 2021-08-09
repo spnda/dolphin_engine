@@ -1,0 +1,10 @@
+#include "shader.hpp"
+
+VkPipelineShaderStageCreateInfo dp::ShaderModule::getShaderStageCreateInfo() {
+    VkPipelineShaderStageCreateInfo stageCreateInfo = {};
+    stageCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stageCreateInfo.stage = static_cast<VkShaderStageFlagBits>(this->shaderStage);
+    stageCreateInfo.module = this->shaderModule;
+    stageCreateInfo.pName = "main"; // We will just use this by default.
+    return stageCreateInfo;
+}
