@@ -13,6 +13,7 @@
 #include "base/device.hpp"
 #include "base/swapchain.hpp"
 #include "resource/buffer.hpp"
+#include "utils.hpp"
 
 #define DEFAULT_FENCE_TIMEOUT 100000000000
 
@@ -79,6 +80,8 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queu
 
     VkFenceCreateInfo fenceInfo = {};
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = 0;
+    
     VkFence fence;
     vkCreateFence(device.device, &fenceInfo, nullptr, &fence);
     vkQueueSubmit(queue, 1, &submitInfo, fence);
@@ -92,36 +95,42 @@ void dp::Context::waitForFrame(const VulkanSwapchain& swapchain) {
     vkResetFences(device.device, 1, &renderFence);
 
     // Acquire next swapchain image
-    swapchain.aquireNextImage(presentSemaphore, &currentImageIndex);
+    swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
 }
 
 void dp::Context::submitFrame(const VulkanSwapchain& swapchain) {
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // ??
+    // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_TRANSFER_BIT };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
+    // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // ??
 
     VkSubmitInfo submitInfo = {};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &presentSemaphore;
+    submitInfo.pWaitSemaphores = &presentCompleteSemaphore;
     submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &renderSemaphore;
+    submitInfo.pSignalSemaphores = &renderCompleteSemaphore;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &drawCommandBuffer;
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFence);
+    VkResult result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFence);
+    if (result != VK_SUCCESS) {
+        printf("vkQueueSubmit: %d\n", result);
+    }
 
-    swapchain.queuePresent(graphicsQueue, currentImageIndex, renderSemaphore);
+    // vkWaitForFences(device.device, 1, &renderFence, true, UINT64_MAX);
+
+    swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
 }
 
-void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, dp::Image storageImage, VkImage destination) {
+void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, VkImage storageImage, VkImage destination) {
     VkImageCopy copyRegion = {};
     copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     copyRegion.srcOffset = { 0, 0, 0 };
     copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     copyRegion.dstOffset = { 0, 0, 0 };
-    printf("Width: %lu, Height: %lu.\n", storageImage.imageExtent.width, storageImage.imageExtent.height);
-    copyRegion.extent = { storageImage.imageExtent.width, storageImage.imageExtent.height, 1 };
+    copyRegion.extent = { imageSize.width, imageSize.height, 1 };
 
-    vkCmdCopyImage(commandBuffer, storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    vkCmdCopyImage(commandBuffer, storageImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void dp::Context::waitForIdle() {
@@ -129,19 +138,16 @@ void dp::Context::waitForIdle() {
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const uint32_t width, const uint32_t height, const uint32_t depth) const {
-	printf("Raygen SBT device address: %zu\n", raygenSbt.address);
-    VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry{};
 	raygenShaderSbtEntry.deviceAddress = raygenSbt.address;
 	raygenShaderSbtEntry.stride = stride;
 	raygenShaderSbtEntry.size = stride;
 
-    printf("Raymiss SBT device address: %zu\n", missSbt.address);
 	VkStridedDeviceAddressRegionKHR missShaderSbtEntry{};
 	missShaderSbtEntry.deviceAddress = missSbt.address;
 	missShaderSbtEntry.stride = stride;
 	missShaderSbtEntry.size = stride;
 
-    printf("Rayhit SBT device address: %zu\n", hitSbt.address);
 	VkStridedDeviceAddressRegionKHR hitShaderSbtEntry{};
 	hitShaderSbtEntry.deviceAddress = hitSbt.address;
 	hitShaderSbtEntry.stride = stride;
@@ -157,6 +163,31 @@ void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffe
         &callableShaderSbtEntry,
         width, height, 1
     );
+}
+
+void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, std::string name) const {
+    setDebugUtilsName<VkSemaphore>(semaphore, name, VK_OBJECT_TYPE_SEMAPHORE);
+}
+
+void dp::Context::setDebugUtilsName(const VkBuffer& buffer, std::string name) const {
+    setDebugUtilsName<VkBuffer>(buffer, name, VK_OBJECT_TYPE_BUFFER);
+}
+
+void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, std::string name) const {
+    setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
+}
+
+template <typename T>
+void dp::Context::setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const {
+    VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+    nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+    nameInfo.pNext = nullptr;
+    nameInfo.objectType = objectType;
+    nameInfo.objectHandle = reinterpret_cast<const uint64_t&>(object);
+    nameInfo.pObjectName = name.c_str();
+
+    reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance.instance, "vkSetDebugUtilsObjectNameEXT"))
+        (device.device, &nameInfo);
 }
 
 
@@ -176,13 +207,16 @@ void ContextBuilder::buildSyncStructures(Context& ctx) {
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
     vkCreateFence(ctx.device.device, &fenceCreateInfo, nullptr, &ctx.renderFence);
 
-    ctx.presentSemaphore = {};
-    ctx.renderSemaphore = {};
+    ctx.presentCompleteSemaphore = {};
+    ctx.renderCompleteSemaphore = {};
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     semaphoreCreateInfo.flags = 0;
-    vkCreateSemaphore(ctx.device.device, &semaphoreCreateInfo, nullptr, &ctx.presentSemaphore);
-    vkCreateSemaphore(ctx.device.device, &semaphoreCreateInfo, nullptr, &ctx.renderSemaphore);
+    vkCreateSemaphore(ctx.device.device, &semaphoreCreateInfo, nullptr, &ctx.presentCompleteSemaphore);
+    vkCreateSemaphore(ctx.device.device, &semaphoreCreateInfo, nullptr, &ctx.renderCompleteSemaphore);
+
+    ctx.setDebugUtilsName(ctx.renderCompleteSemaphore, "renderCompleteSemaphore");
+    ctx.setDebugUtilsName(ctx.presentCompleteSemaphore, "presentCompleteSemaphore");
 }
 
 dp::ContextBuilder::ContextBuilder(std::string name) : name(name) {}

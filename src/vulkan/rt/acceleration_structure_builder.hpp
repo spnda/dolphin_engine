@@ -39,7 +39,7 @@ namespace dp {
         std::vector<class BottomLevelAccelerationStructure> bottomAccelerationStructures;
         std::vector<class TopLevelAccelerationStructure> topAccelerationStructures;
 
-        std::tuple<dp::Buffer&, dp::Buffer&, dp::Buffer&> createMeshBuffers(const AccelerationStructureMesh& mesh);
+        void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const AccelerationStructureMesh& mesh);
 
         void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const;
 

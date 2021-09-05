@@ -6,6 +6,7 @@
 namespace dp {
 
 class TopLevelAccelerationStructure;
+class Buffer;
 
 struct RayTracingPipeline {
     VkPipeline pipeline;
@@ -35,7 +36,7 @@ public:
 
     // Creates the default descriptor sets.
     // Calls useDefaultDescriptorLayout if not already done.
-    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::Image& storageImage, const dp::TopLevelAccelerationStructure& topLevelAS);
+    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::TopLevelAccelerationStructure& topLevelAS);
 
     // Also builds the descriptor set layout.
     RayTracingPipelineBuilder useDefaultDescriptorLayout();

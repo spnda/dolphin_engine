@@ -29,8 +29,8 @@ struct Context {
 
     // Sync structures
     VkFence renderFence;
-    VkSemaphore presentSemaphore;
-    VkSemaphore renderSemaphore;
+    VkSemaphore presentCompleteSemaphore;
+    VkSemaphore renderCompleteSemaphore;
 
     vkb::Instance instance;
     vkb::PhysicalDevice physicalDevice;
@@ -54,11 +54,18 @@ struct Context {
 
     void submitFrame(const VulkanSwapchain& swapchain);
 
-    void copyStorageImage(const VkCommandBuffer commandBuffer, dp::Image storageImage, VkImage destination);
+    void copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, VkImage storageImage, VkImage destination);
 
     void waitForIdle();
 
     void traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const uint32_t width, const uint32_t height, const uint32_t depth) const;
+
+    void setDebugUtilsName(const VkSemaphore& semaphore, std::string name) const;
+    void setDebugUtilsName(const VkBuffer& buffer, std::string name) const;
+    void setDebugUtilsName(const VkAccelerationStructureKHR& as, std::string name) const;
+
+    template <typename T>
+    void setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const;
 };
 
 /// Context builder to create a context with a VkInstance, VkDevice(s), VkSurfaceKHR and window.

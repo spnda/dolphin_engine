@@ -11,6 +11,8 @@ namespace dp {
         VkAccelerationStructureKHR getAccelerationStructure() const;
         const VkAccelerationStructureBuildSizesInfoKHR getBuildSizes() const;
 
+        static void memoryBarrier(const VkCommandBuffer commandBuffer);
+
     protected:
         const dp::Context& context;
 

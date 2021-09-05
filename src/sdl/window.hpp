@@ -35,6 +35,10 @@ public:
         return shouldQuit;
     }
 
+    float getAspectRatio() {
+        return (float)width/(float)height;
+    }
+
     void handleEvents();
 };
 

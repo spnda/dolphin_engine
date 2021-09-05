@@ -2,6 +2,8 @@
 
 #include "rt_pipeline.hpp"
 #include "top_level_acceleration_structure.hpp"
+#include "../resource/buffer.hpp"
+#include "../resource/uniform_data.hpp"
 
 dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& context, std::string pipelineName) {
     dp::RayTracingPipelineBuilder builder(context);
@@ -9,7 +11,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& con
     return builder;
 }
 
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::TopLevelAccelerationStructure& topLevelAS) {
+dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::TopLevelAccelerationStructure& topLevelAS) {
     if (descriptorLayoutBindings.size() == 0) this->useDefaultDescriptorLayout();
 
     static std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -59,12 +61,25 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
 	resultImageWrite.descriptorCount = 1;
 	resultImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     resultImageWrite.pImageInfo = &storageImageDescriptor;
+
+    // UBO image descriptor
+    VkDescriptorBufferInfo uboBufferInfo = {};
+    uboBufferInfo.buffer = uboBuffer.handle;
+    uboBufferInfo.range = sizeof(UniformData);
+
+    VkWriteDescriptorSet uboBufferWrite = {};
+    uboBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    uboBufferWrite.dstSet = descriptorSet;
+    uboBufferWrite.dstBinding = 2;
+    uboBufferWrite.descriptorCount = 1;
+    uboBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboBufferWrite.pBufferInfo = &uboBufferInfo;
 	//VkWriteDescriptorSet uniformBufferWrite = vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &ubo.descriptor);
 
 	std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
 		accelerationStructureWrite,
 		resultImageWrite,
-		//uniformBufferWrite
+		uboBufferWrite
 	};
 	vkUpdateDescriptorSets(ctx.device.device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 

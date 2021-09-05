@@ -10,7 +10,7 @@ namespace dp {
     public:
         TopLevelAccelerationStructure(const dp::Context& context, const VkDeviceAddress instanceAddress, const uint32_t instanceCount);
 
-        void generate(VkCommandBuffer buffer, dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkDeviceSize resultOffset);
+        void generate(VkCommandBuffer buffer, const dp::Buffer& scratchBuffer, const dp::Buffer& resultBuffer, const VkDeviceSize resultOffset);
 
         static VkAccelerationStructureInstanceKHR createInstance(
             const dp::Context& context,

@@ -1,3 +1,9 @@
+#include <chrono>
+#include <thread>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 #include "sdl/window.hpp"
 #include "vulkan/base/instance.hpp"
@@ -5,6 +11,7 @@
 #include "vulkan/base/swapchain.hpp"
 #include "vulkan/resource/buffer.hpp"
 #include "vulkan/resource/scratch_buffer.hpp"
+#include "vulkan/resource/uniform_data.hpp"
 #include "vulkan/rt/acceleration_structure_builder.hpp"
 #include "vulkan/rt/acceleration_structure.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
@@ -12,23 +19,31 @@
 #include "vulkan/context.hpp"
 
 static const std::vector<Vertex> cubeVertices = {
+    // Triangle from https://github.com/SaschaWillems/Vulkan/blob/master/examples/raytracingbasic/raytracingbasic.cpp#L264
+	{ {  1.0f,  1.0f, 0.0f } },
+	{ { -1.0f,  1.0f, 0.0f } },
+	{ {  0.0f, -1.0f, 0.0f } }
+
+    /*{ { -1.0f, -1.0f, -1.0f, } },
+    { { -1.0f, -1.0f,  1.0f, } },
+    { { -1.0f,  1.0f,  1.0f, } },
+
+    { {  1.0f,  1.0f, -1.0f, } },
+    { { -1.0f, -1.0f, -1.0f, } },
+    { { -1.0f,  1.0f, -1.0f, } },
+
+    { {  1.0f, -1.0f,  1.0f, } },
+    { { -1.0f, -1.0f, -1.0f, } },
+    { { 1.0f, -1.0f, -1.0f, } },
+
+    { 1.0f, 1.0f,-1.0f, },
+    { 1.0f,-1.0f,-1.0f, },
     { -1.0f,-1.0f,-1.0f, },
+    { -1.0f,-1.0f,-1.0f, },
+    { -1.0f, 1.0f, 1.0f, },
+    { -1.0f, 1.0f,-1.0f, },
+    { 1.0f,-1.0f, 1.0f, },
     { -1.0f,-1.0f, 1.0f, },
-    { -1.0f, 1.0f, 1.0f, },
-    { 1.0f, 1.0f,-1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { -1.0f, 1.0f,-1.0f, },
-    { 1.0f,-1.0f, 1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { 1.0f,-1.0f,-1.0f, },
-    { 1.0f, 1.0f,-1.0f, },
-    { 1.0f,-1.0f,-1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { -1.0f, 1.0f, 1.0f, },
-    { -1.0f, 1.0f,-1.0f, },
-    { 1.0f,-1.0f, 1.0f, },
-    { -1.0f,-1.0f, 1.0f, },
     { -1.0f,-1.0f,-1.0f, },
     { -1.0f, 1.0f, 1.0f, },
     { -1.0f,-1.0f, 1.0f, },
@@ -47,19 +62,20 @@ static const std::vector<Vertex> cubeVertices = {
     { -1.0f, 1.0f, 1.0f, },
     { 1.0f, 1.0f, 1.0f, },
     { -1.0f, 1.0f, 1.0f, },
-    { 1.0f,-1.0f, 1.0f },
+    { 1.0f,-1.0f, 1.0f },*/
 };
 
-static const std::vector<uint32_t> cubeIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+static const std::vector<uint32_t> cubeIndices = { 0, 1, 2 };
+//static const std::vector<uint32_t> cubeIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::TopLevelAccelerationStructure topLevelAS) {
+dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::TopLevelAccelerationStructure topLevelAS) {
     dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
     dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
     dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
 
     return dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
         .useDefaultDescriptorLayout()
-        .createDefaultDescriptorSets(storageImage, topLevelAS)
+        .createDefaultDescriptorSets(storageImage, uboBuffer, topLevelAS)
         .addShader(raygenShader)
         .addShader(raymissShader)
         .addShader(rayhitShader)
@@ -113,6 +129,21 @@ uint32_t createShaderBindingTable(const dp::Context& context, const VkPipeline p
     return handleSizeAligned;
 }
 
+void initCamera(const dp::Context& ctx, UniformData* data) {
+    auto perspective = glm::perspective(glm::radians(70.0f), ctx.window->getAspectRatio(), 0.1f, 512.0f);
+    data->projInverse = glm::inverse(perspective);
+
+    auto rotation = glm::vec3(0.0f, 0.0f, 0.0f);
+    auto position = glm::vec3(0.0f, 0.0f, -2.5f);
+    auto rotM = glm::mat4(1.0f);
+    glm::mat4 transM;
+    rotM = glm::rotate(rotM, glm::radians(rotation.x * (-1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
+	rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
+	rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
+    transM = glm::translate(glm::mat4(1.0f), position);
+    data->viewInverse = glm::inverse(transM * rotM);
+}
+
 int main(int argc, char* argv[]) {
     uint32_t width = 1920, height = 1080;
 
@@ -126,14 +157,31 @@ int main(int argc, char* argv[]) {
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);
 
+    UniformData uniformData;
+    initCamera(ctx, &uniformData);
+    dp::Buffer uboBuffer(ctx);
+    uboBuffer.create(
+        sizeof(UniformData),
+        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+        VMA_MEMORY_USAGE_CPU_ONLY,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+
     dp::Image storageImage(
         ctx,
         { width, height },
         VK_FORMAT_B8G8R8A8_UNORM,
         // swapchain.getFormat(),
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+    VkCommandBuffer commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
+    dp::Image::changeLayout(
+        storageImage.image, commandBuffer,
+        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
+        0, 0,
+        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
-    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, as);
+    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, uboBuffer, as);
 
     dp::Buffer raygenShaderBindingTable(ctx);
     dp::Buffer missShaderBindingTable(ctx);
@@ -146,15 +194,21 @@ int main(int argc, char* argv[]) {
         ctx.window->handleEvents();
         ctx.waitForFrame(swapchain);
 
+        // vkResetCommandBuffer(ctx.drawCommandBuffer, 0);
+
         // Command buffer begin
         VkCommandBufferBeginInfo bufferBeginInfo = {};
         bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(ctx.drawCommandBuffer, &bufferBeginInfo);
 
-        auto image = swapchain.getImages()[ctx.currentImageIndex];
+        auto image = swapchain.images[ctx.currentImageIndex];
 
         vkCmdBindPipeline(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipeline);
         vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, 0);
+
+        // Update UBO
+        // TODO: Update camera matrices.
+        uboBuffer.memoryCopy(&uniformData, sizeof(UniformData));
 
         ctx.traceRays(
             ctx.drawCommandBuffer,
@@ -177,7 +231,7 @@ int main(int argc, char* argv[]) {
                                 0, VK_ACCESS_TRANSFER_WRITE_BIT,
                                 subresourceRange);
 
-        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage, image);
+        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage.imageExtent, storageImage.image, image);
 
         dp::Image::changeLayout(storageImage.image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
@@ -189,6 +243,8 @@ int main(int argc, char* argv[]) {
                                 subresourceRange);
 
         vkEndCommandBuffer(ctx.drawCommandBuffer);
+
+        // std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         ctx.submitFrame(swapchain);
 

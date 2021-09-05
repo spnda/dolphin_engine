@@ -40,7 +40,7 @@ VkAccelerationStructureBuildSizesInfoKHR dp::AccelerationStructure::getBuildSize
     // TODO: Improve this. See https://github.com/GPSnoopy/RayTracingInVulkan/blob/master/src/Vulkan/RayTracing/AccelerationStructure.cpp#L13
     static const uint64_t accelerationStructureAlignment = 256;
     static const uint64_t scratchBufferAlignment = 128; // This is just my card, RTX 2080. Might differ from other cards.
-    sizeInfo.accelerationStructureSize = roundUp(sizeInfo.accelerationStructureSize, accelerationStructureAlignment);
+    // sizeInfo.accelerationStructureSize = roundUp(sizeInfo.accelerationStructureSize, accelerationStructureAlignment);
     sizeInfo.buildScratchSize = roundUp(sizeInfo.buildScratchSize, scratchBufferAlignment);
     return sizeInfo;
 }
@@ -56,4 +56,18 @@ void dp::AccelerationStructure::build(const VkBuffer resultBuffer, const VkDevic
 
     reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(context.device.device, "vkCreateAccelerationStructureKHR"))
         (context.device.device, &createInfo, nullptr, &accelerationStructure);
+}
+
+void dp::AccelerationStructure::memoryBarrier(const VkCommandBuffer commandBuffer) {
+    VkMemoryBarrier memoryBarrier = {};
+	memoryBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+	memoryBarrier.pNext = nullptr;
+	memoryBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+	memoryBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+		VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+		0, 1, &memoryBarrier, 0, nullptr, 0, nullptr);
 }

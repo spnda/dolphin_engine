@@ -58,5 +58,12 @@ void dp::Image::changeLayout(
 	imageBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	imageBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
-	vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, nullptr, 0, nullptr, 1, &imageBarrier);
+	vkCmdPipelineBarrier(
+		commandBuffer,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+		VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+		0,
+		0, nullptr,
+		0, nullptr,
+		1, &imageBarrier);
 }

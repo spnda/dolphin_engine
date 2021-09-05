@@ -13,13 +13,16 @@ class VulkanSwapchain {
 private:
     dp::Context& ctx;
 
-    vkb::Swapchain swapchain = {};
     VkSurfaceKHR surface;
 
     PFN_vkAcquireNextImageKHR fnAcquireNextImage;
     PFN_vkQueuePresentKHR fnQueuePresent;
 
 public:
+    vkb::Swapchain swapchain = {};
+
+    std::vector<VkImage> images = {};
+
     VulkanSwapchain(Context& context, VkSurfaceKHR surface) : ctx(context), surface(surface) {
         this->create(ctx.device);
         this->fnAcquireNextImage = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(context.device.device, "vkAcquireNextImageKHR"));
@@ -35,7 +38,9 @@ public:
 
     VkResult aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const;
 
-    VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore) const;
+    VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const;
+
+    VkResult queuePresent(VkQueue, VkPresentInfoKHR* presentInfo) const;
 
     VkFormat getFormat() const {
         return swapchain.image_format;

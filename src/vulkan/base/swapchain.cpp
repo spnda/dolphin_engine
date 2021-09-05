@@ -13,6 +13,7 @@ bool VulkanSwapchain::create(vkb::Device device) {
 		.build();
     vkb::destroy_swapchain(this->swapchain);
     swapchain = getFromVkbResult(buildResult);
+	images = getFromVkbResult(swapchain.get_images());
     return true;
 }
 
@@ -27,7 +28,7 @@ VkResult VulkanSwapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, 
     return fnAcquireNextImage(ctx.device.device, swapchain.swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
 }
 
-VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore) const {
+VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.pNext = nullptr;
@@ -40,6 +41,10 @@ VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 		presentInfo.waitSemaphoreCount = 1;
 	}
 	return fnQueuePresent(queue, &presentInfo);
+}
+
+VkResult VulkanSwapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
+	return fnQueuePresent(queue, presentInfo);
 }
 
 std::vector<VkImage> VulkanSwapchain::getImages() {

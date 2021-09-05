@@ -17,6 +17,7 @@ add_files(
 	"vulkan/resource/image.cpp"
 	"vulkan/resource/image.hpp"
 	"vulkan/resource/scratch_buffer.hpp"
+	"vulkan/resource/uniform_data.hpp"
 	"vulkan/resource/vertex.hpp"
 	"vulkan/rt/acceleration_structure_builder.cpp"
 	"vulkan/rt/acceleration_structure_builder.hpp"
@@ -32,5 +33,6 @@ add_files(
 	"vulkan/rt/top_level_acceleration_structure.hpp"
 	"vulkan/context.cpp"
 	"vulkan/context.hpp"
+	"vulkan/utils.cpp"
 	"vulkan/utils.hpp"
 )
