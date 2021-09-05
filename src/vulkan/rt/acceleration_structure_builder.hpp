@@ -50,6 +50,6 @@ namespace dp {
 
         void setInstance(AccelerationStructureInstance instance);
 
-        AccelerationStructure& build();
+        AccelerationStructure build();
     };
 }

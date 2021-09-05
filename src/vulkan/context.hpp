@@ -60,10 +60,11 @@ struct Context {
 
     void traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const uint32_t width, const uint32_t height, const uint32_t depth) const;
 
-    void setDebugUtilsName(const VkSemaphore& semaphore, std::string name) const;
-    void setDebugUtilsName(const VkBuffer& buffer, std::string name) const;
-    void setDebugUtilsName(const VkAccelerationStructureKHR& as, std::string name) const;
-    void setDebugUtilsName(const VkPipeline& pipeline, std::string name) const;
+    void setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const;
+    void setDebugUtilsName(const VkBuffer& buffer, const std::string name) const;
+    void setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const;
+    void setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const;
+    void setDebugUtilsName(const VkImage& image, const std::string name) const;
 
     template <typename T>
     void setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const;

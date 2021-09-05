@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
 
     UniformData uniformData;
     initCamera(ctx, &uniformData);
-    dp::Buffer uboBuffer(ctx);
+    dp::Buffer uboBuffer(ctx, "uboBuffer");
     uboBuffer.create(
         sizeof(UniformData),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -171,6 +171,7 @@ int main(int argc, char* argv[]) {
         VK_FORMAT_B8G8R8A8_UNORM,
         // swapchain.getFormat(),
         VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
+    storageImage.setName("storageImage");
     VkCommandBuffer commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
     dp::Image::changeLayout(
         storageImage.image, commandBuffer,
@@ -181,9 +182,9 @@ int main(int argc, char* argv[]) {
 
     dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, uboBuffer, as);
 
-    dp::Buffer raygenShaderBindingTable(ctx);
-    dp::Buffer missShaderBindingTable(ctx);
-    dp::Buffer hitShaderBindingTable(ctx);
+    dp::Buffer raygenShaderBindingTable(ctx, "raygenShaderBindingTable");
+    dp::Buffer missShaderBindingTable(ctx, "missShaderBindingTable");
+    dp::Buffer hitShaderBindingTable(ctx, "hitShaderBindingTable");
     uint32_t sbtStride = createShaderBindingTable(ctx, pipeline.pipeline, raygenShaderBindingTable, missShaderBindingTable, hitShaderBindingTable);
 
     VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };

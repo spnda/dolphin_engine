@@ -11,6 +11,7 @@ namespace dp {
  */
 class Buffer {
     const Context& context;
+    const std::string name;
 
 public:
     VmaAllocation allocation;
@@ -19,6 +20,8 @@ public:
 
     // Create and allocate a new buffer.
     Buffer(const Context& context);
+
+    Buffer(const Context& context, const std::string name);
 
     template<typename N, typename M>
     static N alignedSize(N value, M alignment) {

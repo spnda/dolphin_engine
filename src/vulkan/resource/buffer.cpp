@@ -3,7 +3,12 @@
 #include "buffer.hpp"
 
 dp::Buffer::Buffer(const dp::Context& context)
-        : context(context) {
+        : context(context), name("") {
+}
+
+dp::Buffer::Buffer(const dp::Context& context, const std::string name)
+        : context(context), name(name) {
+
 }
 
 void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties) {
@@ -19,6 +24,10 @@ void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMe
     if (isFlagSet(bufferUsage, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
         auto addressInfo = getBufferAddressInfo(handle);
         address = vkGetBufferDeviceAddress(context.device.device, &addressInfo);
+    }
+
+    if (!name.empty()) {
+        context.setDebugUtilsName(handle, name);
     }
 }
 

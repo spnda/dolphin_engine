@@ -20,6 +20,8 @@ public:
 
     Image(const Context& context, const VkExtent2D extent, const VkFormat format, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
+    void setName(const std::string name);
+
     static void changeLayout(
 		const VkImage image,
 		const VkCommandBuffer commandBuffer,

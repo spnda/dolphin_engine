@@ -165,20 +165,24 @@ void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffe
     );
 }
 
-void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, std::string name) const {
+void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const {
     setDebugUtilsName<VkSemaphore>(semaphore, name, VK_OBJECT_TYPE_SEMAPHORE);
 }
 
-void dp::Context::setDebugUtilsName(const VkBuffer& buffer, std::string name) const {
+void dp::Context::setDebugUtilsName(const VkBuffer& buffer, const std::string name) const {
     setDebugUtilsName<VkBuffer>(buffer, name, VK_OBJECT_TYPE_BUFFER);
 }
 
-void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, std::string name) const {
+void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const {
     setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
 }
 
-void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, std::string name) const {
+void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const {
     setDebugUtilsName<VkPipeline>(pipeline, name, VK_OBJECT_TYPE_PIPELINE);
+}
+
+void dp::Context::setDebugUtilsName(const VkImage& image, const std::string name) const {
+    setDebugUtilsName<VkImage>(image, name, VK_OBJECT_TYPE_IMAGE);
 }
 
 template <typename T>

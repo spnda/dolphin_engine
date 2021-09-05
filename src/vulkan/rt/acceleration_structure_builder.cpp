@@ -60,7 +60,7 @@ void dp::AccelerationStructureBuilder::setInstance(dp::AccelerationStructureInst
     this->instance = instance;
 }
 
-dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
+dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
     auto cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
 
     // Build the BLAS.
@@ -69,9 +69,9 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
     AccelerationStructure blas = {};
     {
         auto mesh = meshes[0];
-        dp::Buffer vertexBuffer(context);
-        dp::Buffer indexBuffer(context);
-        dp::Buffer transformBuffer(context);
+        dp::Buffer vertexBuffer(context, "blasVertexBuffer");
+        dp::Buffer indexBuffer(context, "blasIndexBuffer");
+        dp::Buffer transformBuffer(context, "blasTransformBuffer");
         this->createMeshBuffers(vertexBuffer, indexBuffer, transformBuffer, mesh);
 
         VkAccelerationStructureGeometryKHR structureGeometry = {};
@@ -107,8 +107,8 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
             &buildSizeInfo);
 
         // Create result and scratch buffers.
-        dp::Buffer resultBuffer(context);
-        dp::Buffer scratchBuffer(context);
+        dp::Buffer resultBuffer(context, "blasResultBuffer");
+        dp::Buffer scratchBuffer(context, "blasScratchBuffer");
         createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
 
         VkAccelerationStructureCreateInfoKHR createInfo = {};
@@ -151,6 +151,8 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
         blas.address =
             reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureDeviceAddressKHR"))
                 (context.device.device, &addressInfo);
+
+        context.setDebugUtilsName(blas.handle, "BLAS");
         
         // blases.push_back(accelerationStructure);
     }
@@ -169,13 +171,12 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
         accelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;
         accelerationStructureInstance.accelerationStructureReference = blas.address;
 
-        dp::Buffer instanceBuffer(context);
+        dp::Buffer instanceBuffer(context, "tlasInstanceBuffer");
         instanceBuffer.create(
             sizeof(VkAccelerationStructureInstanceKHR),
             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
             VMA_MEMORY_USAGE_CPU_ONLY,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        context.setDebugUtilsName(instanceBuffer.handle, "instanceBuffer");
         instanceBuffer.memoryCopy(&accelerationStructureInstance, sizeof(VkAccelerationStructureInstanceKHR));
 
         VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress = {};
@@ -209,8 +210,8 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
             &buildSizeInfo);
         
         // Create result and scratch buffers.
-        dp::Buffer resultBuffer(context);
-        dp::Buffer scratchBuffer(context);
+        dp::Buffer resultBuffer(context, "tlasResultBuffer");
+        dp::Buffer scratchBuffer(context, "tlasScratchBuffer");
         createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
 
         VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = {};
@@ -232,7 +233,7 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
         accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer.address;
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
-        accelerationStructureBuildRangeInfo.primitiveCount = 1;
+        accelerationStructureBuildRangeInfo.primitiveCount = primitiveCount;
         accelerationStructureBuildRangeInfo.primitiveOffset = 0;
         accelerationStructureBuildRangeInfo.firstVertex = 0;
         accelerationStructureBuildRangeInfo.transformOffset = 0;
@@ -250,6 +251,8 @@ dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
         accelerationDeviceAddressInfo.accelerationStructure = tlas.handle;
         tlas.address = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureDeviceAddressKHR"))
                 (context.device.device, &accelerationDeviceAddressInfo);
+
+        context.setDebugUtilsName(tlas.handle, "TLAS");
     }
 
     return tlas;
