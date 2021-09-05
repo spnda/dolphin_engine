@@ -2,6 +2,7 @@
 
 #include "../context.hpp"
 #include "../base/shader.hpp"
+#include "./acceleration_structure_builder.hpp"
 
 namespace dp {
 
@@ -36,7 +37,7 @@ public:
 
     // Creates the default descriptor sets.
     // Calls useDefaultDescriptorLayout if not already done.
-    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::TopLevelAccelerationStructure& topLevelAS);
+    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::AccelerationStructure& topLevelAS);
 
     // Also builds the descriptor set layout.
     RayTracingPipelineBuilder useDefaultDescriptorLayout();

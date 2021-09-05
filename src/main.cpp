@@ -13,9 +13,7 @@
 #include "vulkan/resource/scratch_buffer.hpp"
 #include "vulkan/resource/uniform_data.hpp"
 #include "vulkan/rt/acceleration_structure_builder.hpp"
-#include "vulkan/rt/acceleration_structure.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
-#include "vulkan/rt/top_level_acceleration_structure.hpp"
 #include "vulkan/context.hpp"
 
 static const std::vector<Vertex> cubeVertices = {
@@ -68,7 +66,7 @@ static const std::vector<Vertex> cubeVertices = {
 static const std::vector<uint32_t> cubeIndices = { 0, 1, 2 };
 //static const std::vector<uint32_t> cubeIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::TopLevelAccelerationStructure topLevelAS) {
+dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::AccelerationStructure& topLevelAS) {
     dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
     dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
     dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
@@ -82,7 +80,7 @@ dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storag
         .build();
 }
 
-dp::TopLevelAccelerationStructure buildAccelerationStructures(dp::Context& context) {
+dp::AccelerationStructure buildAccelerationStructures(dp::Context& context) {
     auto builder = dp::AccelerationStructureBuilder::create(context);
     uint32_t meshDeviceAddress = builder.addMesh(dp::AccelerationStructureMesh {
         .vertices = cubeVertices,
@@ -153,7 +151,7 @@ int main(int argc, char* argv[]) {
         .setDimensions(width, height)
         .build();
 
-    dp::TopLevelAccelerationStructure as = buildAccelerationStructures(ctx);
+    dp::AccelerationStructure as = buildAccelerationStructures(ctx);
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);
 

@@ -1,8 +1,5 @@
 #include "acceleration_structure_builder.hpp"
 
-#include "bottom_level_acceleration_structure.hpp"
-#include "top_level_acceleration_structure.hpp"
-
 dp::AccelerationStructureBuilder::AccelerationStructureBuilder(const dp::Context& context)
         : context(context) {
     
@@ -44,7 +41,7 @@ void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuf
     scratchBuffer.create(
         sizeInfo.buildScratchSize,
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_UNKNOWN,
+        VMA_MEMORY_USAGE_CPU_TO_GPU,
         VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR
     );
 }
@@ -63,7 +60,202 @@ void dp::AccelerationStructureBuilder::setInstance(dp::AccelerationStructureInst
     this->instance = instance;
 }
 
-dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
+dp::AccelerationStructure& dp::AccelerationStructureBuilder::build() {
+    auto cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
+
+    // Build the BLAS.
+    // std::vector<AccelerationStructure> blases = {};
+    // for (const auto& mesh : meshes) {
+    AccelerationStructure blas = {};
+    {
+        auto mesh = meshes[0];
+        dp::Buffer vertexBuffer(context);
+        dp::Buffer indexBuffer(context);
+        dp::Buffer transformBuffer(context);
+        this->createMeshBuffers(vertexBuffer, indexBuffer, transformBuffer, mesh);
+
+        VkAccelerationStructureGeometryKHR structureGeometry = {};
+        structureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        structureGeometry.pNext = nullptr;
+        structureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
+        structureGeometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+        structureGeometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        structureGeometry.geometry.triangles.vertexData.deviceAddress = vertexBuffer.address;
+        structureGeometry.geometry.triangles.maxVertex = 3;
+        structureGeometry.geometry.triangles.vertexStride = sizeof(Vertex);
+        structureGeometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
+        structureGeometry.geometry.triangles.indexData.deviceAddress = indexBuffer.address;
+        structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
+        structureGeometry.geometry.triangles.transformData.deviceAddress = transformBuffer.address;
+        
+        // Get the sizes.
+        VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {};
+        buildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+        buildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        buildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        buildGeometryInfo.geometryCount = 1;
+        buildGeometryInfo.pGeometries = &structureGeometry;
+
+        const uint32_t numTriangles = mesh.indices.size();
+        VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
+        buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureBuildSizesKHR"))
+            (context.device.device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &buildGeometryInfo,
+            &numTriangles,
+            &buildSizeInfo);
+
+        // Create result and scratch buffers.
+        dp::Buffer resultBuffer(context);
+        dp::Buffer scratchBuffer(context);
+        createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
+
+        VkAccelerationStructureCreateInfoKHR createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+        createInfo.buffer = resultBuffer.handle;
+        createInfo.size = buildSizeInfo.accelerationStructureSize;
+        createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(context.device.device, "vkCreateAccelerationStructureKHR"))
+            (context.device.device, &createInfo, nullptr, &blas.handle);
+
+        VkAccelerationStructureBuildGeometryInfoKHR buildScratchGeometryInfo = {};
+        buildScratchGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+        buildScratchGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+        buildScratchGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        buildScratchGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+        buildScratchGeometryInfo.dstAccelerationStructure = blas.handle;
+        buildScratchGeometryInfo.geometryCount = 1;
+        buildScratchGeometryInfo.pGeometries = &structureGeometry;
+        buildScratchGeometryInfo.scratchData.deviceAddress = scratchBuffer.address;
+
+        VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
+        accelerationStructureBuildRangeInfo.primitiveCount = numTriangles;
+        accelerationStructureBuildRangeInfo.primitiveOffset = 0;
+        accelerationStructureBuildRangeInfo.firstVertex = 0;
+        accelerationStructureBuildRangeInfo.transformOffset = 0;
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos = { &accelerationStructureBuildRangeInfo };
+
+        reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(context.device.device, "vkCmdBuildAccelerationStructuresKHR"))(
+            cmdBuffer,
+            1,
+            &buildScratchGeometryInfo,
+            buildRangeInfos.data()
+        );
+        context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
+
+        // Get AS device address
+        VkAccelerationStructureDeviceAddressInfoKHR addressInfo = {};
+        addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+        addressInfo.accelerationStructure = blas.handle;
+        blas.address =
+            reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureDeviceAddressKHR"))
+                (context.device.device, &addressInfo);
+        
+        // blases.push_back(accelerationStructure);
+    }
+
+    // Flush command buffer to ensure BLAS is built before TLAS.
+    cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
+
+    AccelerationStructure tlas = {};
+    {
+        // Create the TLAS.
+        VkAccelerationStructureInstanceKHR accelerationStructureInstance = {};
+        accelerationStructureInstance.transform = instance.transformMatrix;
+        accelerationStructureInstance.instanceCustomIndex = 0;
+        accelerationStructureInstance.mask = 0xFF;
+        accelerationStructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+        accelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;
+        accelerationStructureInstance.accelerationStructureReference = blas.address;
+
+        dp::Buffer instanceBuffer(context);
+        instanceBuffer.create(
+            sizeof(VkAccelerationStructureInstanceKHR),
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
+            VMA_MEMORY_USAGE_CPU_ONLY,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        context.setDebugUtilsName(instanceBuffer.handle, "instanceBuffer");
+        instanceBuffer.memoryCopy(&accelerationStructureInstance, sizeof(VkAccelerationStructureInstanceKHR));
+
+        VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress = {};
+        instanceDataDeviceAddress.deviceAddress = instanceBuffer.address;
+
+        VkAccelerationStructureGeometryKHR accelerationStructureGeometry = {};
+        accelerationStructureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+        accelerationStructureGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+        accelerationStructureGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+        accelerationStructureGeometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+        accelerationStructureGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
+        accelerationStructureGeometry.geometry.instances.data = instanceDataDeviceAddress;
+
+        // Get size info
+        VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = {};
+        accelerationStructureBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+        accelerationStructureBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        accelerationStructureBuildGeometryInfo.geometryCount = 1;
+        accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
+
+        uint32_t primitiveCount = 1;
+
+        VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
+        buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+        reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureBuildSizesKHR"))
+            (context.device.device,
+            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+            &accelerationStructureBuildGeometryInfo,
+            &primitiveCount,
+            &buildSizeInfo);
+        
+        // Create result and scratch buffers.
+        dp::Buffer resultBuffer(context);
+        dp::Buffer scratchBuffer(context);
+        createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
+
+        VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = {};
+        accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+        accelerationStructureCreateInfo.buffer = resultBuffer.handle;
+        accelerationStructureCreateInfo.size = buildSizeInfo.accelerationStructureSize;
+        accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(context.device.device, "vkCreateAccelerationStructureKHR"))
+            (context.device.device, &accelerationStructureCreateInfo, nullptr, &tlas.handle);
+
+        VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = {};
+        accelerationBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+        accelerationBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+        accelerationBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+        accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+        accelerationBuildGeometryInfo.dstAccelerationStructure = tlas.handle;
+        accelerationBuildGeometryInfo.geometryCount = 1;
+        accelerationBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
+        accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer.address;
+
+        VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
+        accelerationStructureBuildRangeInfo.primitiveCount = 1;
+        accelerationStructureBuildRangeInfo.primitiveOffset = 0;
+        accelerationStructureBuildRangeInfo.firstVertex = 0;
+        accelerationStructureBuildRangeInfo.transformOffset = 0;
+        std::vector<VkAccelerationStructureBuildRangeInfoKHR*> accelerationBuildStructureRangeInfos = { &accelerationStructureBuildRangeInfo };
+
+        reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(context.device.device, "vkCmdBuildAccelerationStructuresKHR"))(
+            cmdBuffer,
+            1,
+            &accelerationBuildGeometryInfo,
+            accelerationBuildStructureRangeInfos.data());
+        context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
+
+        VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo = {};
+        accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+        accelerationDeviceAddressInfo.accelerationStructure = tlas.handle;
+        tlas.address = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureDeviceAddressKHR"))
+                (context.device.device, &accelerationDeviceAddressInfo);
+    }
+
+    return tlas;
+}
+
+/*dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     auto cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
 
     // BLAS.
@@ -86,6 +278,10 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         
     printf("Generating BLAS.\n");
     blas.generate(cmdBuffer, scratchBuffer, resultBuffer, 0);
+
+    context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
+
+    cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
 
     // TLAS.
     auto asInstance = TopLevelAccelerationStructure::createInstance(context, blas, instance.transformMatrix, 0, 0);
@@ -119,7 +315,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
 
     return tlas;
-}
+}*/
 
 /*dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     VkCommandBuffer commandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);

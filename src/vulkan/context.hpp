@@ -63,6 +63,7 @@ struct Context {
     void setDebugUtilsName(const VkSemaphore& semaphore, std::string name) const;
     void setDebugUtilsName(const VkBuffer& buffer, std::string name) const;
     void setDebugUtilsName(const VkAccelerationStructureKHR& as, std::string name) const;
+    void setDebugUtilsName(const VkPipeline& pipeline, std::string name) const;
 
     template <typename T>
     void setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const;

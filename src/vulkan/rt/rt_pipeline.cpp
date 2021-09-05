@@ -1,7 +1,6 @@
 #include <vulkan/vulkan.h>
 
 #include "rt_pipeline.hpp"
-#include "top_level_acceleration_structure.hpp"
 #include "../resource/buffer.hpp"
 #include "../resource/uniform_data.hpp"
 
@@ -11,7 +10,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& con
     return builder;
 }
 
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::TopLevelAccelerationStructure& topLevelAS) {
+dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::AccelerationStructure& topLevelAS) {
     if (descriptorLayoutBindings.size() == 0) this->useDefaultDescriptorLayout();
 
     static std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -38,8 +37,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
 	VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
 	descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
 	descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-    auto as = topLevelAS.getAccelerationStructure();
-	descriptorAccelerationStructureInfo.pAccelerationStructures = &as; // Stupid C++ lvalue
+	descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAS.handle;
 
     VkWriteDescriptorSet accelerationStructureWrite = {};
     accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -178,5 +176,7 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     // Stupid extension shit.
     reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(ctx.device.device, "vkCreateRayTracingPipelinesKHR"))
         (ctx.device.device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipeline.pipeline);
+    
+    ctx.setDebugUtilsName(pipeline.pipeline, pipelineName);
     return pipeline;
 }

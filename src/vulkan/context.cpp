@@ -58,7 +58,7 @@ VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkC
 
     VkCommandBuffer commandBuffer;
     vkAllocateCommandBuffers(device.device, &bufferAllocateInfo, &commandBuffer);
-        
+
     if (begin) {
         VkCommandBufferBeginInfo bufferBeginInfo = {};
         bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -175,6 +175,10 @@ void dp::Context::setDebugUtilsName(const VkBuffer& buffer, std::string name) co
 
 void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, std::string name) const {
     setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
+}
+
+void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, std::string name) const {
+    setDebugUtilsName<VkPipeline>(pipeline, name, VK_OBJECT_TYPE_PIPELINE);
 }
 
 template <typename T>

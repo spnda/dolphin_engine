@@ -3,10 +3,8 @@
 #include <tuple>
 
 #include "../context.hpp"
+#include "../resource/buffer.hpp"
 #include "../resource/vertex.hpp"
-
-#include "bottom_level_acceleration_structure.hpp"
-#include "top_level_acceleration_structure.hpp"
 
 namespace dp {
     struct AccelerationStructureMesh {
@@ -27,6 +25,11 @@ namespace dp {
         uint32_t blasAddress;
     };
 
+    struct AccelerationStructure {
+        VkAccelerationStructureKHR handle;
+        VkDeviceAddress address;
+    };
+
     class AccelerationStructureBuilder {
     private:
         AccelerationStructureBuilder(const dp::Context& context);
@@ -35,9 +38,6 @@ namespace dp {
 
         std::vector<AccelerationStructureMesh> meshes;
         AccelerationStructureInstance instance;
-
-        std::vector<class BottomLevelAccelerationStructure> bottomAccelerationStructures;
-        std::vector<class TopLevelAccelerationStructure> topAccelerationStructures;
 
         void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const AccelerationStructureMesh& mesh);
 
@@ -50,6 +50,6 @@ namespace dp {
 
         void setInstance(AccelerationStructureInstance instance);
 
-        TopLevelAccelerationStructure build();
+        AccelerationStructure& build();
     };
 }
