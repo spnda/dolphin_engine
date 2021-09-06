@@ -13,7 +13,7 @@ dp::Buffer::Buffer(const dp::Context& context, const std::string name)
 
 void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferCreateInfo = createInfo(size, bufferUsage);
-        
+
     VmaAllocationCreateInfo allocationInfo = {};
     allocationInfo.usage = usage;
     allocationInfo.requiredFlags = properties;
@@ -23,7 +23,8 @@ void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMe
 
     if (isFlagSet(bufferUsage, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
         auto addressInfo = getBufferAddressInfo(handle);
-        address = vkGetBufferDeviceAddress(context.device.device, &addressInfo);
+        address = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetBufferDeviceAddressKHR"))
+            (context.device.device, &addressInfo);
     }
 
     if (!name.empty()) {

@@ -132,7 +132,7 @@ void initCamera(const dp::Context& ctx, UniformData* data) {
     data->projInverse = glm::inverse(perspective);
 
     auto rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-    auto position = glm::vec3(0.0f, 0.0f, -2.5f);
+    auto position = glm::vec3(0.0f, 0.0f, -5.0f);
     auto rotM = glm::mat4(1.0f);
     glm::mat4 transM;
     rotM = glm::rotate(rotM, glm::radians(rotation.x * (-1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));

@@ -81,7 +81,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         structureGeometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
         structureGeometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
         structureGeometry.geometry.triangles.vertexData.deviceAddress = vertexBuffer.address;
-        structureGeometry.geometry.triangles.maxVertex = 3;
+        structureGeometry.geometry.triangles.maxVertex = mesh.vertices.size();
         structureGeometry.geometry.triangles.vertexStride = sizeof(Vertex);
         structureGeometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
         structureGeometry.geometry.triangles.indexData.deviceAddress = indexBuffer.address;
