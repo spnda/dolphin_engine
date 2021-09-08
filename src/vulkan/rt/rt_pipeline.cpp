@@ -10,7 +10,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& con
     return builder;
 }
 
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::AccelerationStructure& topLevelAS) {
+dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
     if (descriptorLayoutBindings.size() == 0) this->useDefaultDescriptorLayout();
 
     static std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -60,24 +60,21 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
 	resultImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     resultImageWrite.pImageInfo = &storageImageDescriptor;
 
-    // UBO image descriptor
-    VkDescriptorBufferInfo uboBufferInfo = {};
-    uboBufferInfo.buffer = uboBuffer.handle;
-    uboBufferInfo.range = sizeof(UniformData);
+    // Camera descriptor
+    VkDescriptorBufferInfo cameraBufferInfo = camera.getDescriptorInfo();
 
-    VkWriteDescriptorSet uboBufferWrite = {};
-    uboBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    uboBufferWrite.dstSet = descriptorSet;
-    uboBufferWrite.dstBinding = 2;
-    uboBufferWrite.descriptorCount = 1;
-    uboBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboBufferWrite.pBufferInfo = &uboBufferInfo;
-	//VkWriteDescriptorSet uniformBufferWrite = vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &ubo.descriptor);
+    VkWriteDescriptorSet cameraBufferWrite = {};
+    cameraBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    cameraBufferWrite.dstSet = descriptorSet;
+    cameraBufferWrite.dstBinding = 2;
+    cameraBufferWrite.descriptorCount = 1;
+    cameraBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    cameraBufferWrite.pBufferInfo = &cameraBufferInfo;
 
 	std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
 		accelerationStructureWrite,
 		resultImageWrite,
-		uboBufferWrite
+		cameraBufferWrite
 	};
 	vkUpdateDescriptorSets(ctx.device.device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 

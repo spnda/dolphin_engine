@@ -1,5 +1,7 @@
 add_files(
 	"main.cpp"
+	"render/camera.cpp"
+	"render/camera.hpp"
 	"sdl/window.cpp"
 	"sdl/window.hpp"
 	"vulkan/base/device.cpp"

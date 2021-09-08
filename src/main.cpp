@@ -5,6 +5,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "render/camera.hpp"
 #include "sdl/window.hpp"
 #include "vulkan/base/instance.hpp"
 #include "vulkan/base/device.hpp"
@@ -66,14 +67,14 @@ static const std::vector<Vertex> cubeVertices = {
 static const std::vector<uint32_t> cubeIndices = { 0, 1, 2 };
 //static const std::vector<uint32_t> cubeIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
-dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Buffer& uboBuffer, const dp::AccelerationStructure& topLevelAS) {
+dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
     dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
     dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
     dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
 
     return dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
         .useDefaultDescriptorLayout()
-        .createDefaultDescriptorSets(storageImage, uboBuffer, topLevelAS)
+        .createDefaultDescriptorSets(storageImage, camera, topLevelAS)
         .addShader(raygenShader)
         .addShader(raymissShader)
         .addShader(rayhitShader)
@@ -127,21 +128,6 @@ uint32_t createShaderBindingTable(const dp::Context& context, const VkPipeline p
     return handleSizeAligned;
 }
 
-void initCamera(const dp::Context& ctx, UniformData* data) {
-    auto perspective = glm::perspective(glm::radians(70.0f), ctx.window->getAspectRatio(), 0.1f, 512.0f);
-    data->projInverse = glm::inverse(perspective);
-
-    auto rotation = glm::vec3(0.0f, 0.0f, 0.0f);
-    auto position = glm::vec3(0.0f, 0.0f, -5.0f);
-    auto rotM = glm::mat4(1.0f);
-    glm::mat4 transM;
-    rotM = glm::rotate(rotM, glm::radians(rotation.x * (-1.0f)), glm::vec3(1.0f, 0.0f, 0.0f));
-	rotM = glm::rotate(rotM, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-	rotM = glm::rotate(rotM, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-    transM = glm::translate(glm::mat4(1.0f), position);
-    data->viewInverse = glm::inverse(transM * rotM);
-}
-
 int main(int argc, char* argv[]) {
     uint32_t width = 1920, height = 1080;
 
@@ -155,15 +141,10 @@ int main(int argc, char* argv[]) {
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);
 
-    UniformData uniformData;
-    initCamera(ctx, &uniformData);
-    dp::Buffer uboBuffer(ctx, "uboBuffer");
-    uboBuffer.create(
-        sizeof(UniformData),
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-    );
+    dp::Camera camera(ctx);
+    camera.setPerspective(70.0f, 0.01f, 512.0f);
+    camera.setRotation(glm::vec3(0.0f));
+    camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
 
     dp::Image storageImage(
         ctx,
@@ -180,7 +161,7 @@ int main(int argc, char* argv[]) {
         { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
-    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, uboBuffer, as);
+    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, camera, as);
 
     dp::Buffer raygenShaderBindingTable(ctx, "raygenShaderBindingTable");
     dp::Buffer missShaderBindingTable(ctx, "missShaderBindingTable");
@@ -195,6 +176,9 @@ int main(int argc, char* argv[]) {
 
         // vkResetCommandBuffer(ctx.drawCommandBuffer, 0);
 
+        // Update UBO
+        camera.updateBuffer();
+
         // Command buffer begin
         VkCommandBufferBeginInfo bufferBeginInfo = {};
         bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -204,10 +188,6 @@ int main(int argc, char* argv[]) {
 
         vkCmdBindPipeline(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipeline);
         vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, 0);
-
-        // Update UBO
-        // TODO: Update camera matrices.
-        uboBuffer.memoryCopy(&uniformData, sizeof(UniformData));
 
         ctx.traceRays(
             ctx.drawCommandBuffer,

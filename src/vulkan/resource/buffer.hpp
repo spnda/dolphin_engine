@@ -35,22 +35,31 @@ public:
 
     VkBufferCreateInfo createInfo(VkDeviceSize size, VkBufferUsageFlags bufferUsage);
 
-    VkBufferDeviceAddressInfoKHR getBufferAddressInfo(VkBuffer handle);
+    VkBufferDeviceAddressInfoKHR getBufferAddressInfo(VkBuffer handle) const;
+
+    /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
+    VkDescriptorBufferInfo getDescriptorInfo(const uint32_t size, const uint32_t offset = 0) const;
 
     VkDeviceOrHostAddressConstKHR getHostAddress() {
         return { .deviceAddress = address, };
     }
 
-    void memoryCopy(const void* source, uint64_t size);
+    /**
+     * Copies the memory of size from source into the
+     * mapped memory for this buffer.
+     */
+    void memoryCopy(const void* source, uint64_t size) const;
 
-    // Copies the memory of [size] from [source] into [destination].
-    // This automatically maps and unmaps memory.
-    // TODO: Throws a access violation reading location 0xFFFFFF.... exception.
-    void memoryCopy(void* destination, const void* source, uint64_t size);
+    /**
+     * Copies the memory of size from source into destination.
+     * This automatically maps and unmaps memory.
+     * TODO: Can throw a access violation reading location 0xFFFFFF.... exception.
+     */
+    void memoryCopy(void* destination, const void* source, uint64_t size) const;
 
-    void mapMemory(void** destination);
+    void mapMemory(void** destination) const;
 
-    void unmapMemory();
+    void unmapMemory() const;
 
     // Destroy the buffer
     virtual ~Buffer() {

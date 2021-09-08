@@ -36,7 +36,7 @@ public:
     }
 
     float getAspectRatio() {
-        return (float)width/(float)height;
+        return (float)width / (float)height;
     }
 
     void handleEvents();

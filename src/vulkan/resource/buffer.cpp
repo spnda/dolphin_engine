@@ -65,30 +65,36 @@ VkBufferCreateInfo dp::Buffer::createInfo(VkDeviceSize size, VkBufferUsageFlags 
     return info;
 }
 
-VkBufferDeviceAddressInfoKHR dp::Buffer::getBufferAddressInfo(VkBuffer handle) {
+VkBufferDeviceAddressInfoKHR dp::Buffer::getBufferAddressInfo(VkBuffer handle) const {
     VkBufferDeviceAddressInfoKHR bufferDeviceAddressInfo = {};
     bufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
     bufferDeviceAddressInfo.buffer = handle;
     return bufferDeviceAddressInfo;
 }
 
-void dp::Buffer::memoryCopy(const void* source, uint64_t size) {
+VkDescriptorBufferInfo dp::Buffer::getDescriptorInfo(const uint32_t size, const uint32_t offset) const {
+    VkDescriptorBufferInfo info = {};
+    info.buffer = handle;
+    info.offset = offset;
+    info.range = size;
+    return info;
+}
+
+void dp::Buffer::memoryCopy(const void* source, uint64_t size) const {
     void* dst;
     this->mapMemory(&dst);
     memcpy(dst, source, size);
     this->unmapMemory();
 }
 
-void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) {
-    this->mapMemory(&destination);
+void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) const {
     memcpy(destination, source, size);
-    this->unmapMemory();
 }
 
-void dp::Buffer::mapMemory(void** destination) {
+void dp::Buffer::mapMemory(void** destination) const {
     vmaMapMemory(context.vmaAllocator, allocation, destination);
 }
 
-void dp::Buffer::unmapMemory() {
+void dp::Buffer::unmapMemory() const {
     vmaUnmapMemory(context.vmaAllocator, allocation);
 }

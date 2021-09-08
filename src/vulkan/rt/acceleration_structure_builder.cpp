@@ -87,7 +87,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         structureGeometry.geometry.triangles.indexData.deviceAddress = indexBuffer.address;
         structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
         structureGeometry.geometry.triangles.transformData.deviceAddress = transformBuffer.address;
-        
+
         // Get the sizes.
         VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {};
         buildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -96,7 +96,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         buildGeometryInfo.geometryCount = 1;
         buildGeometryInfo.pGeometries = &structureGeometry;
 
-        const uint32_t numTriangles = mesh.indices.size();
+        const uint32_t numTriangles = mesh.vertices.size() / 3; // TODO!
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
         buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
         reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureBuildSizesKHR"))
