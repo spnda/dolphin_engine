@@ -22,6 +22,10 @@ class VulkanSwapchain;
 // The global vulkan context. Includes the window, surface,
 // Vulkan instance and devices.
 struct Context {
+private:
+    PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+
+public:
     Window* window;
     VkSurfaceKHR surface;
     VkQueue graphicsQueue;

@@ -25,7 +25,7 @@ namespace dp {
             glm::mat4 projectionInverse;
         } cameraBufferData;
 
-        bool flipY;
+        bool flipY = false;
         float fov = 70.0f;
         float zNear = 0.01f, zFar = 512.0f;
         glm::vec3 rotation = glm::vec3();

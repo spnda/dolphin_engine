@@ -5,8 +5,13 @@
 layout(location = 0) rayPayloadInEXT vec4 hitValue;
 hitAttributeEXT vec3 attribs;
 
+const vec4 hello[2] = {
+    vec4(0.9255, 0.8667, 0.0314, 1.0),
+    vec4(0.0, 0.0, 0.0, 1.0),
+};
+
 void main() {
     // See https://github.com/SaschaWillems/Vulkan/blob/master/data/shaders/glsl/raytracingbasic/closesthit.rchit
     // TODO: Fix
-    hitValue = vec4(1.0);
+    hitValue = hello[gl_PrimitiveID%2];
 }

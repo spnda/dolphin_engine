@@ -20,7 +20,7 @@
 namespace dp {
 
 dp::Context::Context() {
-
+    // vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device.device, "vkCmdTraceRaysKHR"));
 }
 
 dp::ShaderModule dp::Context::createShader(std::string filename, dp::ShaderStage shaderStage) {
@@ -138,22 +138,22 @@ void dp::Context::waitForIdle() {
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const uint32_t width, const uint32_t height, const uint32_t depth) const {
-	VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry = {};
 	raygenShaderSbtEntry.deviceAddress = raygenSbt.address;
 	raygenShaderSbtEntry.stride = stride;
 	raygenShaderSbtEntry.size = stride;
 
-	VkStridedDeviceAddressRegionKHR missShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR missShaderSbtEntry = {};
 	missShaderSbtEntry.deviceAddress = missSbt.address;
 	missShaderSbtEntry.stride = stride;
 	missShaderSbtEntry.size = stride;
 
-	VkStridedDeviceAddressRegionKHR hitShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR hitShaderSbtEntry = {};
 	hitShaderSbtEntry.deviceAddress = hitSbt.address;
 	hitShaderSbtEntry.stride = stride;
 	hitShaderSbtEntry.size = stride;
 
-	VkStridedDeviceAddressRegionKHR callableShaderSbtEntry{};
+	VkStridedDeviceAddressRegionKHR callableShaderSbtEntry = {};
 
     reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device.device, "vkCmdTraceRaysKHR"))(
         commandBuffer,

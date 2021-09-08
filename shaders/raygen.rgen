@@ -22,7 +22,7 @@ void main() {
 	float tmin = 0.001;
 	float tmax = 10000.0;
 
-    hitValue = vec4(0.0, 0.0, 0.5, 1.0);
+    hitValue = vec4(0.0, 0.0, 0.25, 1.0);
 
     traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xFF, 0, 0, 0, origin.xyz, tmin, direction.xyz, tmax, 0);
 

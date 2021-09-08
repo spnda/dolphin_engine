@@ -1,7 +1,11 @@
 #include "window.hpp"
 
+#include "../render/camera.hpp"
+
 dp::Window::Window(std::string title, int width, int height) : width(width), height(height) {
     SDL_Init(SDL_INIT_VIDEO);
+
+    SDL_SetRelativeMouseMode(SDL_TRUE); // We want just relative mouse coordinates for movement.
 
     window = SDL_CreateWindow(
         title.c_str(),
@@ -11,6 +15,10 @@ dp::Window::Window(std::string title, int width, int height) : width(width), hei
         windowFlags);
 
     SDL_GetCurrentDisplayMode(0, &this->mode);
+}
+
+dp::Window::~Window() {
+    SDL_Quit();
 }
 
 std::vector<const char*> dp::Window::getExtensions() {
@@ -29,12 +37,28 @@ VkSurfaceKHR dp::Window::createSurface(VkInstance vkInstance) {
     return surface;
 }
 
-void dp::Window::handleEvents() {
+bool dp::Window::shouldClose() {
+    return shouldQuit;
+}
+
+float dp::Window::getAspectRatio() {
+    return (float)width / (float)height;
+}
+
+void dp::Window::handleEvents(dp::Camera& camera) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
             case SDL_QUIT:
                 shouldQuit = true;
+                break;
+            case SDL_MOUSEMOTION:
+                if (!(event.motion.state & SDL_BUTTON_LMASK)) break;
+                glm::vec3 motion = glm::vec3(event.motion.xrel, event.motion.yrel, 0.0f);
+                camera.rotate(motion);
+                break;
+            case SDL_KEYDOWN:
+
                 break;
         }
     }

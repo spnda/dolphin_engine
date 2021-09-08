@@ -18,12 +18,7 @@
 #include "vulkan/context.hpp"
 
 static const std::vector<Vertex> cubeVertices = {
-    // Triangle from https://github.com/SaschaWillems/Vulkan/blob/master/examples/raytracingbasic/raytracingbasic.cpp#L264
-	{ {  1.0f,  1.0f, 0.0f } },
-	{ { -1.0f,  1.0f, 0.0f } },
-	{ {  0.0f, -1.0f, 0.0f } }
-
-    /*{ { -1.0f, -1.0f, -1.0f, } },
+    { { -1.0f, -1.0f, -1.0f, } },
     { { -1.0f, -1.0f,  1.0f, } },
     { { -1.0f,  1.0f,  1.0f, } },
 
@@ -35,7 +30,7 @@ static const std::vector<Vertex> cubeVertices = {
     { { -1.0f, -1.0f, -1.0f, } },
     { { 1.0f, -1.0f, -1.0f, } },
 
-    { 1.0f, 1.0f,-1.0f, },
+    /*{ 1.0f, 1.0f,-1.0f, },
     { 1.0f,-1.0f,-1.0f, },
     { -1.0f,-1.0f,-1.0f, },
     { -1.0f,-1.0f,-1.0f, },
@@ -64,7 +59,7 @@ static const std::vector<Vertex> cubeVertices = {
     { 1.0f,-1.0f, 1.0f },*/
 };
 
-static const std::vector<uint32_t> cubeIndices = { 0, 1, 2 };
+static const std::vector<uint32_t> cubeIndices = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
 //static const std::vector<uint32_t> cubeIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
@@ -108,7 +103,7 @@ dp::AccelerationStructure buildAccelerationStructures(dp::Context& context) {
 // Creates a SBT. Warn: Needs updating if any new shaders are added.
 uint32_t createShaderBindingTable(const dp::Context& context, const VkPipeline pipeline, dp::Buffer& raygenBuffer, dp::Buffer& missBuffer, dp::Buffer& hitBuffer) {
     const uint32_t handleSize = 32; // Might be specific to my RTX 2080.
-    const uint32_t handleSizeAligned = dp::Buffer::alignedSize(handleSize, 64); // Might be specific to my RTX 2080.
+    const uint32_t handleSizeAligned = dp::Buffer::alignedSize(handleSize, 32); // Might be specific to my RTX 2080.
     const uint32_t groupCount = 3; // fix
     const uint32_t sbtSize = groupCount * handleSizeAligned;
 
@@ -171,7 +166,7 @@ int main(int argc, char* argv[]) {
     VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
     uint32_t imageIndex = 0;
     while(!ctx.window->shouldClose()) {
-        ctx.window->handleEvents();
+        ctx.window->handleEvents(camera);
         ctx.waitForFrame(swapchain);
 
         // vkResetCommandBuffer(ctx.drawCommandBuffer, 0);

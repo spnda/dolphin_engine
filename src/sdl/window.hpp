@@ -8,6 +8,9 @@
 
 namespace dp {
 
+// fwd
+class Camera;
+
 /**
  * Simple abstraction over a SDL2 window, including helper
  * functions for various SDL functions.
@@ -21,25 +24,28 @@ private:
     int width;
     int height;
 
+    struct Keys {
+        bool forward_pressed;
+        bool backward_pressed;
+    } keys_pressed;
+
 public:
     SDL_Window* window;
     SDL_DisplayMode mode;
 
     Window(std::string title, int width, int height);
 
+    ~Window();
+
     std::vector<const char*> getExtensions();
 
     VkSurfaceKHR createSurface(VkInstance vkInstance);
 
-    bool shouldClose() {
-        return shouldQuit;
-    }
+    bool shouldClose();
 
-    float getAspectRatio() {
-        return (float)width / (float)height;
-    }
+    float getAspectRatio();
 
-    void handleEvents();
+    void handleEvents(dp::Camera& camera);
 };
 
 } // namespace dp
