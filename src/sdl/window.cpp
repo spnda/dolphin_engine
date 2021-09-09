@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "window.hpp"
 
 #include "../render/camera.hpp"
@@ -54,11 +56,30 @@ void dp::Window::handleEvents(dp::Camera& camera) {
                 break;
             case SDL_MOUSEMOTION:
                 if (!(event.motion.state & SDL_BUTTON_LMASK)) break;
-                glm::vec3 motion = glm::vec3(event.motion.xrel, event.motion.yrel, 0.0f);
+                glm::vec3 motion = glm::vec3(-event.motion.yrel, event.motion.xrel, 0.0f);
                 camera.rotate(motion);
                 break;
+            case SDL_MOUSEWHEEL:
+                camera.setFov(std::clamp(camera.getFov() * (event.wheel.y > 0 ? 0.99f : 1.01f), 0.0f, 140.0f));
+                break;
             case SDL_KEYDOWN:
-
+                if (event.key.keysym.sym == SDLK_w || event.key.keysym.sym == SDLK_UP) {
+                    camera.move([&](glm::vec3& position, const glm::vec3 camFront) {
+                        position += camFront * 1.0f;
+                    });
+                } else if (event.key.keysym.sym == SDLK_s || event.key.keysym.sym == SDLK_DOWN) {
+                    camera.move([&](glm::vec3& position, const glm::vec3 camFront) {
+                        position -= camFront * 1.0f;
+                    });
+                } else if (event.key.keysym.sym == SDLK_a || event.key.keysym.sym == SDLK_LEFT) {
+                    camera.move([&](glm::vec3& position, const glm::vec3 camFront) {
+                        position -= glm::normalize(glm::cross(camFront, camera.vecY)) * 1.0f;
+                    });
+                } else if (event.key.keysym.sym == SDLK_d || event.key.keysym.sym == SDLK_RIGHT) {
+                    camera.move([&](glm::vec3& position, const glm::vec3 camFront) {
+                        position += glm::normalize(glm::cross(camFront, camera.vecY)) * 1.0f;
+                    });
+                }
                 break;
         }
     }

@@ -35,6 +35,10 @@ VkDescriptorBufferInfo dp::Camera::getDescriptorInfo() const {
     return cameraBuffer.getDescriptorInfo(bufferSize, 0);
 }
 
+float dp::Camera::getFov() const {
+    return this->fov;
+}
+
 dp::Camera& dp::Camera::setPerspective(const float fov, const float near, const float far) {
     this->fov = fov; this->zNear = near; this->zFar = far;
     auto perspective = glm::perspective(glm::radians(this->fov), ctx.window->getAspectRatio(), zNear, zFar);
@@ -50,8 +54,22 @@ dp::Camera& dp::Camera::setAspectRatio(const float ratio) {
     return *this;
 }
 
+dp::Camera& dp::Camera::setFov(const float fov) {
+    this->setPerspective(fov, zNear, zFar);
+    return *this;
+}
+
 dp::Camera& dp::Camera::setPosition(const glm::vec3 pos) {
     this->position = pos;
+    return *this;
+}
+
+dp::Camera& dp::Camera::move(std::function<void(glm::vec3&, const glm::vec3)> callback) {
+    glm::vec3 camera;
+    camera.x = -std::cos(glm::radians(rotation.x)) * std::sin(glm::radians(rotation.y));
+    camera.y = std::sin(glm::radians(rotation.x));
+    camera.z = std::cos(glm::radians(rotation.x)) * std::cos(glm::radians(rotation.y));
+    callback(this->position, camera);
     return *this;
 }
 

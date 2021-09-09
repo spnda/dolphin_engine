@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -12,10 +14,6 @@
 namespace dp {
     class Camera {
     private:
-        const glm::vec3 vecX = glm::vec3(1.0f, 0.0f, 0.0f);
-        const glm::vec3 vecY = glm::vec3(0.0f, 1.0f, 0.0f);
-        const glm::vec3 vecZ = glm::vec3(0.0f, 0.0f, 1.0f);
-
         const dp::Context ctx;
         dp::Buffer cameraBuffer;
 
@@ -35,6 +33,10 @@ namespace dp {
         void updateMatrices();
 
     public:
+        const glm::vec3 vecX = glm::vec3(1.0f, 0.0f, 0.0f);
+        const glm::vec3 vecY = glm::vec3(0.0f, 1.0f, 0.0f);
+        const glm::vec3 vecZ = glm::vec3(0.0f, 0.0f, 1.0f);
+
         static const uint32_t bufferSize = sizeof(CameraBufferData);
 
         Camera(const dp::Context ctx);
@@ -44,11 +46,17 @@ namespace dp {
 
         VkDescriptorBufferInfo getDescriptorInfo() const;
 
+        float getFov() const;
+
         Camera& setPerspective(const float fov, const float near, const float far);
 
         Camera& setAspectRatio(const float ratio);
 
+        Camera& setFov(const float fov);
+
         Camera& setPosition(const glm::vec3 pos);
+
+        Camera& move(std::function<void(glm::vec3&, const glm::vec3)> callback);
 
         Camera& setRotation(const glm::vec3 rot);
 

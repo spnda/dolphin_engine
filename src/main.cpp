@@ -139,7 +139,7 @@ int main(int argc, char* argv[]) {
     dp::Camera camera(ctx);
     camera.setPerspective(70.0f, 0.01f, 512.0f);
     camera.setRotation(glm::vec3(0.0f));
-    camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
+    camera.setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
 
     dp::Image storageImage(
         ctx,
