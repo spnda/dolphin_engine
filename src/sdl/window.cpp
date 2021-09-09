@@ -8,6 +8,7 @@ dp::Window::Window(std::string title, int width, int height) : width(width), hei
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_SetRelativeMouseMode(SDL_TRUE); // We want just relative mouse coordinates for movement.
+    SDL_ShowCursor(SDL_ENABLE);
 
     window = SDL_CreateWindow(
         title.c_str(),

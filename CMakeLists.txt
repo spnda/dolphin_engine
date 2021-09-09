@@ -32,6 +32,7 @@ find_package(SDL2 CONFIG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glm REQUIRED)
+find_package(assimp CONFIG REQUIRED)
 
 add_executable(dolphin_engine)
 
@@ -44,6 +45,7 @@ target_link_libraries(dolphin_engine PRIVATE unofficial::vulkan-memory-allocator
 target_link_libraries(dolphin_engine PRIVATE SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
 target_link_libraries(dolphin_engine PRIVATE glm::glm)
+target_link_libraries(dolphin_engine PRIVATE assimp::assimp)
 
 # Compile shaders
 set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen)

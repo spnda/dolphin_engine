@@ -4,7 +4,7 @@
 
 #include "../context.hpp"
 #include "../resource/buffer.hpp"
-#include "../resource/vertex.hpp"
+#include "../../render/vertex.hpp"
 
 namespace dp {
     struct AccelerationStructureMesh {

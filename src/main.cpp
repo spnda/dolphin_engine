@@ -6,6 +6,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "render/camera.hpp"
+#include "render/modelloader.hpp"
 #include "sdl/window.hpp"
 #include "vulkan/base/instance.hpp"
 #include "vulkan/base/device.hpp"
@@ -16,51 +17,6 @@
 #include "vulkan/rt/acceleration_structure_builder.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
 #include "vulkan/context.hpp"
-
-static const std::vector<Vertex> cubeVertices = {
-    { { -1.0f, -1.0f, -1.0f, } },
-    { { -1.0f, -1.0f,  1.0f, } },
-    { { -1.0f,  1.0f,  1.0f, } },
-
-    { {  1.0f,  1.0f, -1.0f, } },
-    { { -1.0f, -1.0f, -1.0f, } },
-    { { -1.0f,  1.0f, -1.0f, } },
-
-    { {  1.0f, -1.0f,  1.0f, } },
-    { { -1.0f, -1.0f, -1.0f, } },
-    { { 1.0f, -1.0f, -1.0f, } },
-
-    /*{ 1.0f, 1.0f,-1.0f, },
-    { 1.0f,-1.0f,-1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { -1.0f, 1.0f, 1.0f, },
-    { -1.0f, 1.0f,-1.0f, },
-    { 1.0f,-1.0f, 1.0f, },
-    { -1.0f,-1.0f, 1.0f, },
-    { -1.0f,-1.0f,-1.0f, },
-    { -1.0f, 1.0f, 1.0f, },
-    { -1.0f,-1.0f, 1.0f, },
-    { 1.0f,-1.0f, 1.0f, },
-    { 1.0f, 1.0f, 1.0f, },
-    { 1.0f,-1.0f,-1.0f, },
-    { 1.0f, 1.0f,-1.0f, },
-    { 1.0f,-1.0f,-1.0f, },
-    { 1.0f, 1.0f, 1.0f, },
-    { 1.0f,-1.0f, 1.0f, },
-    { 1.0f, 1.0f, 1.0f, },
-    { 1.0f, 1.0f,-1.0f, },
-    { -1.0f, 1.0f,-1.0f, },
-    { 1.0f, 1.0f, 1.0f, },
-    { -1.0f, 1.0f,-1.0f, },
-    { -1.0f, 1.0f, 1.0f, },
-    { 1.0f, 1.0f, 1.0f, },
-    { -1.0f, 1.0f, 1.0f, },
-    { 1.0f,-1.0f, 1.0f },*/
-};
-
-static const std::vector<uint32_t> cubeIndices = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
-//static const std::vector<uint32_t> cubeIndices = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
     dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
@@ -76,12 +32,12 @@ dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storag
         .build();
 }
 
-dp::AccelerationStructure buildAccelerationStructures(dp::Context& context) {
+dp::AccelerationStructure buildAccelerationStructures(dp::Context& context, const dp::ModelLoader& loader) {
     auto builder = dp::AccelerationStructureBuilder::create(context);
     uint32_t meshDeviceAddress = builder.addMesh(dp::AccelerationStructureMesh {
-        .vertices = cubeVertices,
+        .vertices = loader.vertices,
         .format = VK_FORMAT_R32G32B32_SFLOAT,
-        .indices = cubeIndices,
+        .indices = loader.indices,
         .indexType = VK_INDEX_TYPE_UINT32,
         .stride = sizeof(Vertex),
         .transformMatrix = {1.0f, 0.0f, 0.0f, 0.0f,
@@ -131,8 +87,10 @@ int main(int argc, char* argv[]) {
         ::create("Dolphin")
         .setDimensions(width, height)
         .build();
+    dp::ModelLoader modelLoader;
+    modelLoader.loadFile("models/monkey_face.obj");
 
-    dp::AccelerationStructure as = buildAccelerationStructures(ctx);
+    dp::AccelerationStructure as = buildAccelerationStructures(ctx, modelLoader);
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);
 
