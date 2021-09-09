@@ -6,7 +6,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "../render/vertex.hpp"
+#include "../vulkan/rt/acceleration_structure_builder.hpp"
+
+#include "mesh.hpp"
 
 namespace dp {
     class ModelLoader {
@@ -17,17 +19,18 @@ namespace dp {
             aiProcess_FlipWindingOrder |
             aiProcess_Triangulate |
             aiProcess_PreTransformVertices |
-            aiProcess_CalcTangentSpace | aiProcess_GenSmoothNormals;
-            // aiProcess_JoinIdenticalVertices; // Reduce memory footprint and use indices.
+            aiProcess_CalcTangentSpace |
+            aiProcess_GenSmoothNormals;
 
-        void loadMesh(const aiMesh* mesh, const aiScene* scene);
+        void loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene);
         void loadNode(const aiNode* node, const aiScene* scene);
     public:
-        std::vector<Vertex> vertices = {};
-        std::vector<Index> indices = {};
+        std::vector<Mesh> meshes = {};
 
         ModelLoader();
 
         bool loadFile(const std::string fileName);
+
+        dp::AccelerationStructure buildAccelerationStructure(const dp::Context& context);
     };
 }

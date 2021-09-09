@@ -32,30 +32,6 @@ dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storag
         .build();
 }
 
-dp::AccelerationStructure buildAccelerationStructures(dp::Context& context, const dp::ModelLoader& loader) {
-    auto builder = dp::AccelerationStructureBuilder::create(context);
-    uint32_t meshDeviceAddress = builder.addMesh(dp::AccelerationStructureMesh {
-        .vertices = loader.vertices,
-        .format = VK_FORMAT_R32G32B32_SFLOAT,
-        .indices = loader.indices,
-        .indexType = VK_INDEX_TYPE_UINT32,
-        .stride = sizeof(Vertex),
-        .transformMatrix = {1.0f, 0.0f, 0.0f, 0.0f,
-                            0.0f, 1.0f, 0.0f, 0.0f,
-                            0.0f, 0.0f, 1.0f, 0.0f},
-    });
-    builder.setInstance(dp::AccelerationStructureInstance {
-        .transformMatrix = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f
-        },
-        .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
-        .blasAddress = meshDeviceAddress,
-    });
-    return builder.build();
-}
-
 // Creates a SBT. Warn: Needs updating if any new shaders are added.
 uint32_t createShaderBindingTable(const dp::Context& context, const VkPipeline pipeline, dp::Buffer& raygenBuffer, dp::Buffer& missBuffer, dp::Buffer& hitBuffer) {
     const uint32_t handleSize = 32; // Might be specific to my RTX 2080.
@@ -87,10 +63,12 @@ int main(int argc, char* argv[]) {
         ::create("Dolphin")
         .setDimensions(width, height)
         .build();
+        
     dp::ModelLoader modelLoader;
-    modelLoader.loadFile("models/monkey_face.obj");
-
-    dp::AccelerationStructure as = buildAccelerationStructures(ctx, modelLoader);
+    // modelLoader.loadFile("models/lost_empire.obj");
+    modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
+    modelLoader.loadFile("models/Bistro/BistroInterior.fbx");
+    dp::AccelerationStructure as = modelLoader.buildAccelerationStructure(ctx);
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);
 

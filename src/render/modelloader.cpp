@@ -6,28 +6,38 @@ dp::ModelLoader::ModelLoader() : importer() {
 
 }
 
-void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiScene* scene) {
+void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene) {
     if (!mesh->HasFaces()) return;
     auto meshVertices = mesh->mVertices;
     auto meshFaces = mesh->mFaces;
 
+    dp::Mesh newMesh;
+    newMesh.name = mesh->mName.data;
+    newMesh.transform = {
+        transform.a1, transform.a2, transform.a3, transform.a4,
+        transform.b1, transform.b2, transform.b3, transform.b4,
+        transform.c1, transform.c2, transform.c3, transform.c4
+    };
+
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vertex;
         vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
-        vertices.push_back(vertex);
+        newMesh.vertices.push_back(vertex);
     }
     
     for (int i = 0; i < mesh->mNumFaces; i++) {
         for (int j = 0; j < meshFaces[i].mNumIndices; j++) {
-            indices.push_back(meshFaces[i].mIndices[j]);
+            newMesh.indices.push_back(meshFaces[i].mIndices[j]);
         }
     }
+
+    meshes.push_back(newMesh);
 }
 
 void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
     if (node->mMeshes != nullptr) {
         for (int i = 0; i < node->mNumMeshes; i++) {
-            loadMesh(scene->mMeshes[node->mMeshes[i]], scene);
+            loadMesh(scene->mMeshes[node->mMeshes[i]], node->mTransformation, scene);
         }
     }
     if (node->mChildren != nullptr) {
@@ -48,4 +58,29 @@ bool dp::ModelLoader::loadFile(const std::string fileName) {
     loadNode(scene->mRootNode, scene);
 
     return true;
+}
+
+dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
+    auto builder = dp::AccelerationStructureBuilder::create(context);
+    printf("%zo\n", meshes.size());
+    for (auto mesh : meshes) {
+        uint32_t meshIndex = builder.addMesh(dp::AccelerationStructureMesh {
+            .vertices = mesh.vertices,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .indices = mesh.indices,
+            .indexType = VK_INDEX_TYPE_UINT32,
+            .stride = sizeof(Vertex),
+            .transformMatrix = mesh.transform,
+        });
+        builder.addInstance(dp::AccelerationStructureInstance {
+            .transformMatrix = {
+                1.0f, 0.0f, 0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f, 0.0f,
+                0.0f, 0.0f, 1.0f, 0.0f
+            },
+            .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
+            .blasIndex = meshIndex,
+        });
+    }
+    return builder.build();
 }

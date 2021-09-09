@@ -4,7 +4,7 @@
 
 #include "../context.hpp"
 #include "../resource/buffer.hpp"
-#include "../../render/vertex.hpp"
+#include "../../render/mesh.hpp"
 
 namespace dp {
     struct AccelerationStructureMesh {
@@ -22,7 +22,7 @@ namespace dp {
     struct AccelerationStructureInstance {
         VkTransformMatrixKHR transformMatrix;
         VkGeometryInstanceFlagBitsKHR flags;
-        uint32_t blasAddress;
+        uint32_t blasIndex; // TODO: Have a better system of referencing the mesh.
     };
 
     struct AccelerationStructure {
@@ -37,7 +37,7 @@ namespace dp {
         const Context& context;
 
         std::vector<AccelerationStructureMesh> meshes;
-        AccelerationStructureInstance instance;
+        std::vector<AccelerationStructureInstance> instances;
 
         void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const AccelerationStructureMesh& mesh);
 
@@ -48,7 +48,7 @@ namespace dp {
 
         uint32_t addMesh(AccelerationStructureMesh mesh);
 
-        void setInstance(AccelerationStructureInstance instance);
+        void addInstance(AccelerationStructureInstance instance);
 
         AccelerationStructure build();
     };

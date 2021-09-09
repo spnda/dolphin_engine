@@ -56,19 +56,18 @@ uint32_t dp::AccelerationStructureBuilder::addMesh(dp::AccelerationStructureMesh
     return this->meshes.size() - 1;
 }
 
-void dp::AccelerationStructureBuilder::setInstance(dp::AccelerationStructureInstance instance) {
-    this->instance = instance;
+void dp::AccelerationStructureBuilder::addInstance(dp::AccelerationStructureInstance instance) {
+    instances.push_back(instance);
 }
 
 dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
-    auto cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
+    VkCommandBuffer cmdBuffer;
 
     // Build the BLAS.
-    // std::vector<AccelerationStructure> blases = {};
-    // for (const auto& mesh : meshes) {
-    AccelerationStructure blas = {};
-    {
-        auto mesh = meshes[0];
+    std::vector<AccelerationStructure> blases = {};
+    for (const auto& mesh : meshes) {
+        cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
+
         dp::Buffer vertexBuffer(context, "blasVertexBuffer");
         dp::Buffer indexBuffer(context, "blasIndexBuffer");
         dp::Buffer transformBuffer(context, "blasTransformBuffer");
@@ -110,6 +109,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         dp::Buffer resultBuffer(context, "blasResultBuffer");
         dp::Buffer scratchBuffer(context, "blasScratchBuffer");
         createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
+        dp::AccelerationStructure blas;
 
         VkAccelerationStructureCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -154,30 +154,36 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         context.setDebugUtilsName(blas.handle, "BLAS");
         
-        // blases.push_back(accelerationStructure);
+        blases.push_back(blas);
     }
 
-    // Flush command buffer to ensure BLAS is built before TLAS.
+    // Flush command buffer to ensure all BLASs are built before building the TLAS.
     cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
 
-    AccelerationStructure tlas = {};
+    dp::AccelerationStructure tlas = {};
     {
-        // Create the TLAS.
-        VkAccelerationStructureInstanceKHR accelerationStructureInstance = {};
-        accelerationStructureInstance.transform = instance.transformMatrix;
-        accelerationStructureInstance.instanceCustomIndex = 0;
-        accelerationStructureInstance.mask = 0xFF;
-        accelerationStructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-        accelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;
-        accelerationStructureInstance.accelerationStructureReference = blas.address;
+        std::vector<VkAccelerationStructureInstanceKHR> asInstances = {};
 
+        for (const auto& instance : this->instances) {
+            VkAccelerationStructureInstanceKHR accelerationStructureInstance = {};
+            accelerationStructureInstance.transform = instance.transformMatrix;
+            accelerationStructureInstance.instanceCustomIndex = 0;
+            accelerationStructureInstance.mask = 0xFF;
+            accelerationStructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+            accelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;
+            accelerationStructureInstance.accelerationStructureReference = blases[instance.blasIndex].address;
+
+            asInstances.push_back(accelerationStructureInstance);
+        }
+
+        uint32_t primitiveCount = asInstances.size();
         dp::Buffer instanceBuffer(context, "tlasInstanceBuffer");
         instanceBuffer.create(
-            sizeof(VkAccelerationStructureInstanceKHR),
+            sizeof(VkAccelerationStructureInstanceKHR) * primitiveCount,
             VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
             VMA_MEMORY_USAGE_CPU_ONLY,
             VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        instanceBuffer.memoryCopy(&accelerationStructureInstance, sizeof(VkAccelerationStructureInstanceKHR));
+        instanceBuffer.memoryCopy(asInstances.data(), sizeof(VkAccelerationStructureInstanceKHR) * primitiveCount);
 
         VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress = {};
         instanceDataDeviceAddress.deviceAddress = instanceBuffer.address;
@@ -197,8 +203,6 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
         accelerationStructureBuildGeometryInfo.geometryCount = 1;
         accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
-
-        uint32_t primitiveCount = 1;
 
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
         buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;

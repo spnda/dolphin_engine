@@ -4,7 +4,7 @@ add_files(
 	"render/camera.hpp"
 	"render/modelloader.cpp"
 	"render/modelloader.hpp"
-	"render/vertex.hpp"
+	"render/mesh.hpp"
 	"sdl/window.cpp"
 	"sdl/window.hpp"
 	"vulkan/base/device.cpp"
