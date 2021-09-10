@@ -1,5 +1,7 @@
 #include "acceleration_structure_builder.hpp"
 
+#include <chrono>
+
 dp::AccelerationStructureBuilder::AccelerationStructureBuilder(const dp::Context& context)
         : context(context) {
     
@@ -61,6 +63,9 @@ void dp::AccelerationStructureBuilder::addInstance(dp::AccelerationStructureInst
 }
 
 dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
+    printf("Building acceleration structures!\n");
+    std::chrono::steady_clock::time_point beginBuild = std::chrono::steady_clock::now();
+
     VkCommandBuffer cmdBuffer;
 
     // Build the BLAS.
@@ -258,6 +263,9 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         context.setDebugUtilsName(tlas.handle, "TLAS");
     }
+
+    std::chrono::steady_clock::time_point endBuild = std::chrono::steady_clock::now();
+    printf("Finished building acceleration structures. Took %zu[ms].\n", std::chrono::duration_cast<std::chrono::milliseconds>(endBuild - beginBuild).count());
 
     return tlas;
 }

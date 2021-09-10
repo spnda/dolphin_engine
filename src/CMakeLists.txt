@@ -22,6 +22,8 @@ add_files(
 	"vulkan/resource/image.cpp"
 	"vulkan/resource/image.hpp"
 	"vulkan/resource/scratch_buffer.hpp"
+	"vulkan/resource/storageimage.cpp"
+	"vulkan/resource/storageimage.hpp"
 	"vulkan/resource/uniform_data.hpp"
 	"vulkan/rt/acceleration_structure_builder.cpp"
 	"vulkan/rt/acceleration_structure_builder.hpp"

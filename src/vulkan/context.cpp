@@ -122,7 +122,7 @@ void dp::Context::submitFrame(const VulkanSwapchain& swapchain) {
     swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
 }
 
-void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, VkImage storageImage, VkImage destination) {
+void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) {
     VkImageCopy copyRegion = {};
     copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     copyRegion.srcOffset = { 0, 0, 0 };
@@ -130,7 +130,7 @@ void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent
     copyRegion.dstOffset = { 0, 0, 0 };
     copyRegion.extent = { imageSize.width, imageSize.height, 1 };
 
-    vkCmdCopyImage(commandBuffer, storageImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    vkCmdCopyImage(commandBuffer, storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void dp::Context::waitForIdle() {

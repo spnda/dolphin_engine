@@ -38,6 +38,10 @@ dp::Image::Image(const Context& context, const VkExtent2D extent, const VkFormat
     vkCreateImageView(context.device.device, &imageViewCreateInfo, nullptr, &imageView);
 }
 
+dp::Image::operator VkImage() {
+	return this->image;
+}
+
 void dp::Image::setName(const std::string name) {
 	context.setDebugUtilsName(image, name);
 }

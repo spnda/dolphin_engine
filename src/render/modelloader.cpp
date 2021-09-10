@@ -1,5 +1,6 @@
 #include "modelloader.hpp"
 
+#include <chrono>
 #include <iostream>
 
 dp::ModelLoader::ModelLoader() : importer() {
@@ -48,6 +49,9 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
 }
 
 bool dp::ModelLoader::loadFile(const std::string fileName) {
+    printf("Importing file %s!\n", fileName.c_str());
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
     const aiScene* scene = importer.ReadFile(fileName, importFlags);
 
     if (!scene || scene->mRootNode == nullptr) {
@@ -57,12 +61,14 @@ bool dp::ModelLoader::loadFile(const std::string fileName) {
 
     loadNode(scene->mRootNode, scene);
 
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    printf("Finished importing file. Took %zu[ms].\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+
     return true;
 }
 
 dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
     auto builder = dp::AccelerationStructureBuilder::create(context);
-    printf("%zo\n", meshes.size());
     for (auto mesh : meshes) {
         uint32_t meshIndex = builder.addMesh(dp::AccelerationStructureMesh {
             .vertices = mesh.vertices,

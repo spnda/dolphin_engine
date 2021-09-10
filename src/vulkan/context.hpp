@@ -58,7 +58,7 @@ public:
 
     void submitFrame(const VulkanSwapchain& swapchain);
 
-    void copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, VkImage storageImage, VkImage destination);
+    void copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination);
 
     void waitForIdle();
 

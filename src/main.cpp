@@ -13,6 +13,7 @@
 #include "vulkan/base/swapchain.hpp"
 #include "vulkan/resource/buffer.hpp"
 #include "vulkan/resource/scratch_buffer.hpp"
+#include "vulkan/resource/storageimage.hpp"
 #include "vulkan/resource/uniform_data.hpp"
 #include "vulkan/rt/acceleration_structure_builder.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
@@ -65,9 +66,9 @@ int main(int argc, char* argv[]) {
         .build();
         
     dp::ModelLoader modelLoader;
-    // modelLoader.loadFile("models/lost_empire.obj");
-    modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
-    modelLoader.loadFile("models/Bistro/BistroInterior.fbx");
+    modelLoader.loadFile("models/lost_empire.obj");
+    // modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
+    // modelLoader.loadFile("models/Bistro/BistroInterior.fbx");
     dp::AccelerationStructure as = modelLoader.buildAccelerationStructure(ctx);
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);
@@ -77,22 +78,12 @@ int main(int argc, char* argv[]) {
     camera.setRotation(glm::vec3(0.0f));
     camera.setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
 
-    dp::Image storageImage(
-        ctx,
-        { width, height },
-        VK_FORMAT_B8G8R8A8_UNORM,
-        // swapchain.getFormat(),
-        VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT);
-    storageImage.setName("storageImage");
+    dp::StorageImage storageImage(ctx, { width, height });
     VkCommandBuffer commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
-    dp::Image::changeLayout(
-        storageImage.image, commandBuffer,
-        VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL,
-        0, 0,
-        { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
-    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, camera, as);
+    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage.image, camera, as);
 
     dp::Buffer raygenShaderBindingTable(ctx, "raygenShaderBindingTable");
     dp::Buffer missShaderBindingTable(ctx, "missShaderBindingTable");
@@ -132,29 +123,21 @@ int main(int argc, char* argv[]) {
         );
 
         // Move storage image to swapchain image.
-        dp::Image::changeLayout(storageImage.image, ctx.drawCommandBuffer,
-                                VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                0, VK_ACCESS_TRANSFER_READ_BIT,
-                                subresourceRange);
+        storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                 0, VK_ACCESS_TRANSFER_WRITE_BIT,
                                 subresourceRange);
 
-        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage.imageExtent, storageImage.image, image);
+        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage.image.imageExtent, storageImage.image, image);
 
-        dp::Image::changeLayout(storageImage.image, ctx.drawCommandBuffer,
-                                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
-                                VK_ACCESS_TRANSFER_READ_BIT, 0,
-                                subresourceRange);
+        storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_GENERAL);
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                 VK_ACCESS_TRANSFER_WRITE_BIT, 0,
                                 subresourceRange);
 
         vkEndCommandBuffer(ctx.drawCommandBuffer);
-
-        // std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
         ctx.submitFrame(swapchain);
 
