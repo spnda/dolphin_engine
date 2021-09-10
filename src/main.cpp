@@ -19,7 +19,7 @@
 #include "vulkan/rt/rt_pipeline.hpp"
 #include "vulkan/context.hpp"
 
-dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
+dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
     dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
     dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
     dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
@@ -41,8 +41,7 @@ uint32_t createShaderBindingTable(const dp::Context& context, const VkPipeline p
     const uint32_t sbtSize = groupCount * handleSizeAligned;
 
     std::vector<uint8_t> shaderHandleStorage(sbtSize);
-    reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetRayTracingShaderGroupHandlesKHR"))
-        (context.device.device, pipeline, 0, groupCount, sbtSize, shaderHandleStorage.data());
+    context.getRayTracingShaderGroupHandles(pipeline, groupCount, sbtSize, shaderHandleStorage);
 
     const VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
     const VmaMemoryUsage memoryUsageFlags = VMA_MEMORY_USAGE_CPU_ONLY;
@@ -64,7 +63,7 @@ int main(int argc, char* argv[]) {
         ::create("Dolphin")
         .setDimensions(width, height)
         .build();
-        
+
     dp::ModelLoader modelLoader;
     modelLoader.loadFile("models/lost_empire.obj");
     // modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
@@ -83,7 +82,7 @@ int main(int argc, char* argv[]) {
     storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
-    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage.image, camera, as);
+    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, camera, as);
 
     dp::Buffer raygenShaderBindingTable(ctx, "raygenShaderBindingTable");
     dp::Buffer missShaderBindingTable(ctx, "missShaderBindingTable");
@@ -117,9 +116,7 @@ int main(int argc, char* argv[]) {
             missShaderBindingTable,
             hitShaderBindingTable,
             sbtStride,
-            width,
-            height,
-            1
+            { width, height, 1 }
         );
 
         // Move storage image to swapchain image.

@@ -35,7 +35,7 @@ dp::Image::Image(const Context& context, const VkExtent2D extent, const VkFormat
 	imageViewCreateInfo.subresourceRange.layerCount = 1;
 	imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
-    vkCreateImageView(context.device.device, &imageViewCreateInfo, nullptr, &imageView);
+    vkCreateImageView(context.device, &imageViewCreateInfo, nullptr, &imageView);
 }
 
 dp::Image::operator VkImage() {

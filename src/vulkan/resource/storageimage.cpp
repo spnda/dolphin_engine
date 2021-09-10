@@ -13,6 +13,10 @@ dp::StorageImage::operator VkImage() {
     return image.image;
 }
 
+const VkImageLayout dp::StorageImage::getCurrentLayout() const {
+    return currentLayout;
+}
+
 void dp::StorageImage::changeLayout(const VkCommandBuffer commandBuffer, const VkImageLayout newLayout) {
     if (currentLayout == newLayout) return;
 

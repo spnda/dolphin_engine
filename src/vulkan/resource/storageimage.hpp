@@ -23,6 +23,8 @@ namespace dp {
         operator dp::Image();
         operator VkImage();
 
+        const VkImageLayout getCurrentLayout() const;
+
         void changeLayout(const VkCommandBuffer commandBuffer, const VkImageLayout newLayout);
     };
 }

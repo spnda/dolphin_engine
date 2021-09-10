@@ -23,8 +23,8 @@ void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMe
 
     if (isFlagSet(bufferUsage, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
         auto addressInfo = getBufferAddressInfo(handle);
-        address = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetBufferDeviceAddressKHR"))
-            (context.device.device, &addressInfo);
+        address = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(context.device, "vkGetBufferDeviceAddressKHR"))
+            (context.device, &addressInfo);
     }
 
     if (!name.empty()) {
@@ -39,10 +39,10 @@ void dp::Buffer::createForAccelerationStructure(VkAccelerationStructureBuildSize
     bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferCreateInfo.size = buildSizeInfo.accelerationStructureSize;
     bufferCreateInfo.usage = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    vkCreateBuffer(context.device.device, &bufferCreateInfo, nullptr, &handle);
+    vkCreateBuffer(context.device, &bufferCreateInfo, nullptr, &handle);
     
     VkMemoryRequirements memoryRequirements = {};
-    vkGetBufferMemoryRequirements(context.device.device, handle, &memoryRequirements);
+    vkGetBufferMemoryRequirements(context.device, handle, &memoryRequirements);
 
     VmaAllocationCreateInfo allocationCreateInfo = {};
     allocationCreateInfo.memoryTypeBits = memoryRequirements.memoryTypeBits;
@@ -51,7 +51,7 @@ void dp::Buffer::createForAccelerationStructure(VkAccelerationStructureBuildSize
     vmaBindBufferMemory(context.vmaAllocator, allocation, handle);
 
     auto addressInfo = getBufferAddressInfo(handle);
-    address = vkGetBufferDeviceAddress(context.device.device, &addressInfo);
+    address = vkGetBufferDeviceAddress(context.device, &addressInfo);
 }
 
 VkBufferCreateInfo dp::Buffer::createInfo(VkDeviceSize size, VkBufferUsageFlags bufferUsage) {

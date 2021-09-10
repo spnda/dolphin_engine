@@ -6,7 +6,7 @@ namespace dp {
 
 Device::Device(vkb::Instance &instance, Surface &surface) {
     this->physicalDevice = getPhysicalDevice(instance, surface.surface);
-    this->device = getLogicalDevice(instance.instance, this->physicalDevice);
+    this->device = getLogicalDevice(instance, this->physicalDevice);
 };
 
 /**
@@ -58,7 +58,7 @@ VkCommandPool Device::createDefaultCommandPool(vkb::Device device, uint32_t queu
     comandPoolInfo.queueFamilyIndex = queueFamilyIndex;
     comandPoolInfo.flags = flags;
     VkCommandPool cmdPool;
-    vkCreateCommandPool(device.device, &comandPoolInfo, nullptr, &cmdPool);
+    vkCreateCommandPool(device, &comandPoolInfo, nullptr, &cmdPool);
     return cmdPool;
 }
 
@@ -67,7 +67,7 @@ vkb::Device Device::getDevice() {
 }
 
 void Device::waitForIdle() {
-    vkDeviceWaitIdle(this->device.device);
+    vkDeviceWaitIdle(this->device);
 }
 
 } // namespace dp

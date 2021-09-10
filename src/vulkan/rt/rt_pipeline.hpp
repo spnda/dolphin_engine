@@ -1,16 +1,20 @@
 #pragma once
 
 #include "../../render/camera.hpp"
+#include "../resource/storageimage.hpp"
 #include "../context.hpp"
 #include "../base/shader.hpp"
 #include "./acceleration_structure_builder.hpp"
 
 namespace dp {
 
-class TopLevelAccelerationStructure;
 class Buffer;
 
 struct RayTracingPipeline {
+private:
+    PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
+
+public:
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
 
@@ -20,6 +24,7 @@ struct RayTracingPipeline {
 };
 
 class RayTracingPipelineBuilder {
+private:
     Context& ctx;
     std::string pipelineName;
     
@@ -38,7 +43,7 @@ public:
 
     // Creates the default descriptor sets.
     // Calls useDefaultDescriptorLayout if not already done.
-    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS);
+    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS);
 
     // Also builds the descriptor set layout.
     RayTracingPipelineBuilder useDefaultDescriptorLayout();

@@ -20,7 +20,18 @@
 namespace dp {
 
 dp::Context::Context() {
-    // vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device.device, "vkCmdTraceRaysKHR"));
+}
+
+void dp::Context::getVulkanFunctions() {
+    vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(device, "vkCreateAccelerationStructureKHR"));
+    vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR"));
+    vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(device, "vkCmdBuildAccelerationStructuresKHR"));
+    vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device, "vkCmdTraceRaysKHR"));
+    vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(device, "vkGetAccelerationStructureBuildSizesKHR"));
+    vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetAccelerationStructureDeviceAddressKHR"));
+    vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR"));
+    vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(device, "vkGetRayTracingShaderGroupHandlesKHR"));
+    vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
 }
 
 dp::ShaderModule dp::Context::createShader(std::string filename, dp::ShaderStage shaderStage) {
@@ -40,7 +51,7 @@ dp::ShaderModule dp::Context::createShader(std::string filename, dp::ShaderStage
         moduleCreateInfo.codeSize = shaderCode.size();
         moduleCreateInfo.pCode = (uint32_t*)shaderCode.c_str();
 
-        vkCreateShaderModule(this->device.device, &moduleCreateInfo, nullptr, &shaderModule);
+        vkCreateShaderModule(this->device, &moduleCreateInfo, nullptr, &shaderModule);
 
         return *new dp::ShaderModule(shaderModule, shaderStage);
     } else {
@@ -57,7 +68,7 @@ VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkC
     bufferAllocateInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device.device, &bufferAllocateInfo, &commandBuffer);
+    vkAllocateCommandBuffers(device, &bufferAllocateInfo, &commandBuffer);
 
     if (begin) {
         VkCommandBufferBeginInfo bufferBeginInfo = {};
@@ -83,16 +94,16 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queu
     fenceInfo.flags = 0;
     
     VkFence fence;
-    vkCreateFence(device.device, &fenceInfo, nullptr, &fence);
+    vkCreateFence(device, &fenceInfo, nullptr, &fence);
     vkQueueSubmit(queue, 1, &submitInfo, fence);
-    vkWaitForFences(device.device, 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT);
-    vkDestroyFence(device.device, fence, nullptr);
+    vkWaitForFences(device, 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT);
+    vkDestroyFence(device, fence, nullptr);
 }
 
 void dp::Context::waitForFrame(const VulkanSwapchain& swapchain) {
     // Wait for fences.
-    vkWaitForFences(device.device, 1, &renderFence, true, UINT64_MAX);
-    vkResetFences(device.device, 1, &renderFence);
+    vkWaitForFences(device, 1, &renderFence, true, UINT64_MAX);
+    vkResetFences(device, 1, &renderFence);
 
     // Acquire next swapchain image
     swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
@@ -117,12 +128,22 @@ void dp::Context::submitFrame(const VulkanSwapchain& swapchain) {
         printf("vkQueueSubmit: %d\n", result);
     }
 
-    // vkWaitForFences(device.device, 1, &renderFence, true, UINT64_MAX);
+    // vkWaitForFences(device, 1, &renderFence, true, UINT64_MAX);
 
     swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
 }
 
-void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) {
+
+void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const {
+    vkCmdBuildAccelerationStructuresKHR(
+        commandBuffer,
+        buildGeometryInfos.size(),
+        buildGeometryInfos.data(),
+        buildRangeInfos.data()
+    );
+}
+
+void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) const {
     VkImageCopy copyRegion = {};
     copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     copyRegion.srcOffset = { 0, 0, 0 };
@@ -133,11 +154,7 @@ void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent
     vkCmdCopyImage(commandBuffer, storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
-void dp::Context::waitForIdle() {
-    vkDeviceWaitIdle(device.device);
-}
-
-void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const uint32_t width, const uint32_t height, const uint32_t depth) const {
+void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
 	VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry = {};
 	raygenShaderSbtEntry.deviceAddress = raygenSbt.address;
 	raygenShaderSbtEntry.stride = stride;
@@ -155,15 +172,67 @@ void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffe
 
 	VkStridedDeviceAddressRegionKHR callableShaderSbtEntry = {};
 
-    reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device.device, "vkCmdTraceRaysKHR"))(
+    vkCmdTraceRaysKHR(
         commandBuffer,
         &raygenShaderSbtEntry,
         &missShaderSbtEntry,
         &hitShaderSbtEntry,
         &callableShaderSbtEntry,
-        width, height, 1
+        size.width, size.height, size.depth
     );
 }
+
+
+void dp::Context::buildRayTracingPipeline(VkPipeline* pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR> createInfos) const {
+    vkCreateRayTracingPipelinesKHR(
+        device,
+        VK_NULL_HANDLE,
+        VK_NULL_HANDLE,
+        createInfos.size(),
+        createInfos.data(),
+        nullptr,
+        pPipelines
+    );
+}
+
+void dp::Context::createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const {
+    vkCreateAccelerationStructureKHR(
+        device, &createInfo, nullptr, accelerationStructure);
+}
+
+VkAccelerationStructureBuildSizesInfoKHR dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const {
+    VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
+    buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+
+    vkGetAccelerationStructureBuildSizesKHR(
+        device,
+        VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
+        &buildGeometryInfo,
+        &primitiveCount,
+        &buildSizeInfo);
+
+    return buildSizeInfo;
+}
+
+VkDeviceAddress dp::Context::getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const {
+    VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo = {};
+    accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+    accelerationDeviceAddressInfo.accelerationStructure = handle;
+    return vkGetAccelerationStructureDeviceAddressKHR(device, &accelerationDeviceAddressInfo);
+}
+
+void dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const {
+    vkGetBufferDeviceAddressKHR(device, &addressInfo);
+}
+
+void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {
+    vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, shaderHandles.size(), shaderHandles.data());
+}
+
+void dp::Context::waitForIdle() const {
+    vkDeviceWaitIdle(device);
+}
+
 
 void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const {
     setDebugUtilsName<VkSemaphore>(semaphore, name, VK_OBJECT_TYPE_SEMAPHORE);
@@ -194,16 +263,15 @@ void dp::Context::setDebugUtilsName(const T& object, std::string name, VkObjectT
     nameInfo.objectHandle = reinterpret_cast<const uint64_t&>(object);
     nameInfo.pObjectName = name.c_str();
 
-    reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance.instance, "vkSetDebugUtilsObjectNameEXT"))
-        (device.device, &nameInfo);
+    vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
 }
 
 
 void ContextBuilder::buildAllocator(Context& ctx) {
     VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = ctx.physicalDevice.physical_device;
-    allocatorInfo.device = ctx.device.device;
-    allocatorInfo.instance = ctx.instance.instance;
+    allocatorInfo.physicalDevice = ctx.physicalDevice;
+    allocatorInfo.device = ctx.device;
+    allocatorInfo.instance = ctx.instance;
     allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
     vmaCreateAllocator(&allocatorInfo, &ctx.vmaAllocator);
 }
@@ -213,15 +281,15 @@ void ContextBuilder::buildSyncStructures(Context& ctx) {
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    vkCreateFence(ctx.device.device, &fenceCreateInfo, nullptr, &ctx.renderFence);
+    vkCreateFence(ctx.device, &fenceCreateInfo, nullptr, &ctx.renderFence);
 
     ctx.presentCompleteSemaphore = {};
     ctx.renderCompleteSemaphore = {};
     VkSemaphoreCreateInfo semaphoreCreateInfo = {};
     semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     semaphoreCreateInfo.flags = 0;
-    vkCreateSemaphore(ctx.device.device, &semaphoreCreateInfo, nullptr, &ctx.presentCompleteSemaphore);
-    vkCreateSemaphore(ctx.device.device, &semaphoreCreateInfo, nullptr, &ctx.renderCompleteSemaphore);
+    vkCreateSemaphore(ctx.device, &semaphoreCreateInfo, nullptr, &ctx.presentCompleteSemaphore);
+    vkCreateSemaphore(ctx.device, &semaphoreCreateInfo, nullptr, &ctx.renderCompleteSemaphore);
 
     ctx.setDebugUtilsName(ctx.renderCompleteSemaphore, "renderCompleteSemaphore");
     ctx.setDebugUtilsName(ctx.presentCompleteSemaphore, "presentCompleteSemaphore");
@@ -234,7 +302,7 @@ dp::ContextBuilder dp::ContextBuilder::create(std::string name) {
     return builder;
 }
 
-dp::ContextBuilder ContextBuilder::setDimensions(uint32_t width, uint32_t height) {
+dp::ContextBuilder& ContextBuilder::setDimensions(uint32_t width, uint32_t height) {
     this->width = width; this->height = height;
     return *this;
 }
@@ -247,10 +315,11 @@ Context ContextBuilder::build() {
     Context context;
     context.window = new Window(name, width, height);
     context.instance = dp::VulkanInstance::buildInstance(name, version, context.window->getExtensions());
-    context.surface = context.window->createSurface(context.instance.instance);
+    context.surface = context.window->createSurface(context.instance);
     context.physicalDevice = dp::Device::getPhysicalDevice(context.instance, context.surface);
-    context.device = dp::Device::getLogicalDevice(context.instance.instance, context.physicalDevice);
+    context.device = dp::Device::getLogicalDevice(context.instance, context.physicalDevice);
     context.graphicsQueue = getFromVkbResult(context.device.get_queue(vkb::QueueType::graphics));
+    context.getVulkanFunctions();
     // We want the pool to have resettable command buffers.
     context.commandPool = dp::Device::createDefaultCommandPool(context.device, getFromVkbResult(context.device.get_queue_index(vkb::QueueType::graphics)), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     context.drawCommandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, false);;

@@ -25,8 +25,8 @@ public:
 
     VulkanSwapchain(Context& context, VkSurfaceKHR surface) : ctx(context), surface(surface) {
         this->create(ctx.device);
-        this->fnAcquireNextImage = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(context.device.device, "vkAcquireNextImageKHR"));
-        this->fnQueuePresent = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(context.device.device, "vkQueuePresentKHR"));
+        this->fnAcquireNextImage = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(context.device, "vkAcquireNextImageKHR"));
+        this->fnQueuePresent = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(context.device, "vkQueuePresentKHR"));
     }
 
     // Creates a new swapchain.

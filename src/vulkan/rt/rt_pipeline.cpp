@@ -10,7 +10,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& con
     return builder;
 }
 
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::Image& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
+dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
     if (descriptorLayoutBindings.size() == 0) this->useDefaultDescriptorLayout();
 
     static std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -24,14 +24,14 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
     descriptorPoolCreateInfo.maxSets = 1;
     descriptorPoolCreateInfo.poolSizeCount = 1;
     descriptorPoolCreateInfo.pPoolSizes = poolSizes.data();
-    vkCreateDescriptorPool(ctx.device.device, &descriptorPoolCreateInfo, nullptr, &descriptorPool);
+    vkCreateDescriptorPool(ctx.device, &descriptorPoolCreateInfo, nullptr, &descriptorPool);
 
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
     descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     descriptorSetAllocateInfo.descriptorPool = descriptorPool;
     descriptorSetAllocateInfo.descriptorSetCount = 1;
     descriptorSetAllocateInfo.pSetLayouts = &descriptorSetLayout;
-    vkAllocateDescriptorSets(ctx.device.device, &descriptorSetAllocateInfo, &descriptorSet);
+    vkAllocateDescriptorSets(ctx.device, &descriptorSetAllocateInfo, &descriptorSet);
 
     // Acceleration structure descriptor
 	VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
@@ -49,8 +49,8 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
 
     // Storage image descriptor
 	VkDescriptorImageInfo storageImageDescriptor{};
-	storageImageDescriptor.imageView = storageImage.imageView;
-	storageImageDescriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+	storageImageDescriptor.imageView = storageImage.image.imageView;
+	storageImageDescriptor.imageLayout = storageImage.getCurrentLayout();
 
     VkWriteDescriptorSet resultImageWrite = {};
     resultImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -76,7 +76,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
 		resultImageWrite,
 		cameraBufferWrite
 	};
-	vkUpdateDescriptorSets(ctx.device.device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
+	vkUpdateDescriptorSets(ctx.device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 
     return *this;
 }
@@ -108,7 +108,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::useDefaultDescripto
     descriptorLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     descriptorLayoutCreateInfo.bindingCount = static_cast<uint32_t>(descriptorLayoutBindings.size());
     descriptorLayoutCreateInfo.pBindings = descriptorLayoutBindings.data();
-    vkCreateDescriptorSetLayout(ctx.device.device, &descriptorLayoutCreateInfo, nullptr, &descriptorSetLayout);
+    vkCreateDescriptorSetLayout(ctx.device, &descriptorLayoutCreateInfo, nullptr, &descriptorSetLayout);
 
     return *this;
 }
@@ -147,11 +147,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::addShader(dp::Shade
 
 dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     dp::RayTracingPipeline pipeline = {};
-
     pipeline.descriptorSet = descriptorSet;
-    // pipeline.descriptorSets.push_back(descriptorSet);
-    // std::copy(descriptorSets.begin(), descriptorSets.end(), std::inserter(pipeline.descriptorSets, pipeline.descriptorSets.end()));
-
     pipeline.descriptorLayout = descriptorSetLayout;
 
     // Create pipeline layout
@@ -159,7 +155,7 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &pipeline.descriptorLayout;
-    vkCreatePipelineLayout(ctx.device.device, &pipelineLayoutCreateInfo, nullptr, &pipeline.pipelineLayout);
+    vkCreatePipelineLayout(ctx.device, &pipelineLayoutCreateInfo, nullptr, &pipeline.pipelineLayout);
 
     // Create RT pipeline
     VkRayTracingPipelineCreateInfoKHR pipelineCreateInfo = {};
@@ -170,10 +166,8 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     pipelineCreateInfo.pGroups = shaderGroups.data();
     pipelineCreateInfo.layout = pipeline.pipelineLayout;
 
-    // Stupid extension shit.
-    reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(ctx.device.device, "vkCreateRayTracingPipelinesKHR"))
-        (ctx.device.device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipeline.pipeline);
-    
+    ctx.buildRayTracingPipeline(&pipeline.pipeline, { pipelineCreateInfo });
+
     ctx.setDebugUtilsName(pipeline.pipeline, pipelineName);
     return pipeline;
 }

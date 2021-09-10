@@ -101,14 +101,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         buildGeometryInfo.pGeometries = &structureGeometry;
 
         const uint32_t numTriangles = mesh.vertices.size() / 3; // TODO!
-        VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
-        buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-        reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureBuildSizesKHR"))
-            (context.device.device,
-            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-            &buildGeometryInfo,
-            &numTriangles,
-            &buildSizeInfo);
+        VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(numTriangles, buildGeometryInfo);
 
         // Create result and scratch buffers.
         dp::Buffer resultBuffer(context, "blasResultBuffer");
@@ -121,8 +114,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         createInfo.buffer = resultBuffer.handle;
         createInfo.size = buildSizeInfo.accelerationStructureSize;
         createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-        reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(context.device.device, "vkCreateAccelerationStructureKHR"))
-            (context.device.device, &createInfo, nullptr, &blas.handle);
+        context.createAccelerationStructure(createInfo, &blas.handle);
 
         VkAccelerationStructureBuildGeometryInfoKHR buildScratchGeometryInfo = {};
         buildScratchGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -141,21 +133,11 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureBuildRangeInfo.transformOffset = 0;
         std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos = { &accelerationStructureBuildRangeInfo };
 
-        reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(context.device.device, "vkCmdBuildAccelerationStructuresKHR"))(
-            cmdBuffer,
-            1,
-            &buildScratchGeometryInfo,
-            buildRangeInfos.data()
-        );
+        context.buildAccelerationStructures(cmdBuffer, { buildScratchGeometryInfo }, buildRangeInfos);
         context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
 
         // Get AS device address
-        VkAccelerationStructureDeviceAddressInfoKHR addressInfo = {};
-        addressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-        addressInfo.accelerationStructure = blas.handle;
-        blas.address =
-            reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureDeviceAddressKHR"))
-                (context.device.device, &addressInfo);
+        blas.address = context.getAccelerationStructureDeviceAddress(blas.handle);
 
         context.setDebugUtilsName(blas.handle, "BLAS");
         
@@ -209,14 +191,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureBuildGeometryInfo.geometryCount = 1;
         accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
 
-        VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
-        buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-        reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureBuildSizesKHR"))
-            (context.device.device,
-            VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-            &accelerationStructureBuildGeometryInfo,
-            &primitiveCount,
-            &buildSizeInfo);
+        VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(primitiveCount, accelerationStructureBuildGeometryInfo);
         
         // Create result and scratch buffers.
         dp::Buffer resultBuffer(context, "tlasResultBuffer");
@@ -228,8 +203,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureCreateInfo.buffer = resultBuffer.handle;
         accelerationStructureCreateInfo.size = buildSizeInfo.accelerationStructureSize;
         accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-        reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(context.device.device, "vkCreateAccelerationStructureKHR"))
-            (context.device.device, &accelerationStructureCreateInfo, nullptr, &tlas.handle);
+        context.createAccelerationStructure(accelerationStructureCreateInfo, &tlas.handle);
 
         VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = {};
         accelerationBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -248,18 +222,13 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureBuildRangeInfo.transformOffset = 0;
         std::vector<VkAccelerationStructureBuildRangeInfoKHR*> accelerationBuildStructureRangeInfos = { &accelerationStructureBuildRangeInfo };
 
-        reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(context.device.device, "vkCmdBuildAccelerationStructuresKHR"))(
+        context.buildAccelerationStructures(
             cmdBuffer,
-            1,
-            &accelerationBuildGeometryInfo,
-            accelerationBuildStructureRangeInfos.data());
+            { accelerationBuildGeometryInfo },
+            accelerationBuildStructureRangeInfos);
         context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
 
-        VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo = {};
-        accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-        accelerationDeviceAddressInfo.accelerationStructure = tlas.handle;
-        tlas.address = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(context.device.device, "vkGetAccelerationStructureDeviceAddressKHR"))
-                (context.device.device, &accelerationDeviceAddressInfo);
+        tlas.address = context.getAccelerationStructureDeviceAddress(tlas.handle);
 
         context.setDebugUtilsName(tlas.handle, "TLAS");
     }
@@ -269,116 +238,3 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
 
     return tlas;
 }
-
-/*dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
-    auto cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
-
-    // BLAS.
-    auto mesh = meshes[0];
-    dp::Buffer vertexBuffer(context);
-    dp::Buffer indexBuffer(context);
-    dp::Buffer transformBuffer(context);
-    this->createMeshBuffers(vertexBuffer, indexBuffer, transformBuffer, mesh);
-
-    BottomLevelGeometry geometry;
-    geometry.addGeometryTriangles(vertexBuffer, mesh.vertices.size(), indexBuffer, mesh.indices.size(), false);
-
-    // Note to future self: We can't use the ret value of emplace_back!
-    dp::BottomLevelAccelerationStructure blas(context, geometry);
-    dp::Buffer resultBuffer(context);
-    dp::Buffer scratchBuffer(context);
-    createBuildBuffers(scratchBuffer, resultBuffer, blas.getBuildSizes());
-    context.setDebugUtilsName(scratchBuffer.handle, "blasScratchBuffer");
-    context.setDebugUtilsName(resultBuffer.handle, "blasResultBuffer");
-        
-    printf("Generating BLAS.\n");
-    blas.generate(cmdBuffer, scratchBuffer, resultBuffer, 0);
-
-    context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
-
-    cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
-
-    // TLAS.
-    auto asInstance = TopLevelAccelerationStructure::createInstance(context, blas, instance.transformMatrix, 0, 0);
-    
-    dp::Buffer instanceBuffer(context);
-    instanceBuffer.create(
-        sizeof(VkAccelerationStructureInstanceKHR),
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    context.setDebugUtilsName(instanceBuffer.handle, "instanceBuffer");
-    instanceBuffer.memoryCopy(&asInstance, sizeof(VkAccelerationStructureInstanceKHR));
-
-    // We need a memory barrier, as we have to properly wait for the BLASs
-    // to have been built.
-    dp::AccelerationStructure::memoryBarrier(cmdBuffer);
-
-    dp::TopLevelAccelerationStructure tlas(context, instanceBuffer.address, 1);
-
-    dp::Buffer tlasResultBuffer(context);
-    dp::Buffer tlasScratchBuffer(context);
-    const auto total = tlas.getBuildSizes();
-    createBuildBuffers(tlasScratchBuffer, tlasResultBuffer, total);
-    context.setDebugUtilsName(tlasScratchBuffer.handle, "tlasScratchBuffer");
-    context.setDebugUtilsName(tlasResultBuffer.handle, "tlasResultBuffer");
-
-    printf("Generating TLAS.\n");
-    tlas.generate(cmdBuffer, tlasScratchBuffer, tlasResultBuffer, 0);
-    context.setDebugUtilsName(tlas.getAccelerationStructure(), "TLAS");
-
-    context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
-
-    return tlas;
-}*/
-
-/*dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
-    VkCommandBuffer commandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
-
-    // TODO: We should use a single result buffer and scratch buffer for all the BLASs.
-    // We would just have to implement the offsets for the blas#generate function call.
-    for (const auto& mesh : meshes) {
-        static const uint32_t bufferSize = 3;
-        dp::Buffer vertexBuffer(context);
-        dp::Buffer indexBuffer(context);
-        dp::Buffer transformBuffer(context);
-        this->createMeshBuffers(vertexBuffer, indexBuffer, transformBuffer, mesh);
-
-        BottomLevelGeometry geometry;
-        geometry.addGeometryTriangles(vertexBuffer, mesh.vertices.size(), indexBuffer, mesh.indices.size(), false);
-
-        // Note to future self: We can't use the ret value of emplace_back!
-        bottomAccelerationStructures.emplace_back(context, geometry); // Implicit ctor call
-        dp::Buffer resultBuffer(context);
-        dp::Buffer scratchBuffer(context);
-        createBuildBuffers(scratchBuffer, resultBuffer, bottomAccelerationStructures[0].getBuildSizes());
-        
-        printf("Generating BLAS.\n");
-        bottomAccelerationStructures[0].generate(commandBuffer, scratchBuffer, resultBuffer, 0);
-    }
-
-    // We only have one TLAS for now.
-    // TODO: Make it work with more than one BLAS.
-    auto asInstance = TopLevelAccelerationStructure::createInstance(context, bottomAccelerationStructures[0], instance.transformMatrix, 0, 0);
-    
-    dp::Buffer instanceBuffer(context);
-    instanceBuffer.create(
-        sizeof(VkAccelerationStructureInstanceKHR),
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    // Note to future self: We can't use the ret value of emplace_back!
-    topAccelerationStructures.emplace_back(context, instanceBuffer.address, 1);
-
-    dp::Buffer resultBuffer(context);
-    dp::Buffer scratchBuffer(context);
-    const auto total = topAccelerationStructures[0].getBuildSizes();
-    createBuildBuffers(scratchBuffer, resultBuffer, total);
-
-    printf("Generating TLAS.\n");
-    topAccelerationStructures[0].generate(commandBuffer, scratchBuffer, resultBuffer, 0);
-
-    context.flushCommandBuffer(commandBuffer, context.graphicsQueue);
-
-    return topAccelerationStructures[0];
-}*/

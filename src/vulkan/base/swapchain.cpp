@@ -20,12 +20,12 @@ bool VulkanSwapchain::create(vkb::Device device) {
 void VulkanSwapchain::destroy() {
     ctx.waitForIdle();
     
-    vkDestroySurfaceKHR(ctx.instance.instance, surface, nullptr);
+    vkDestroySurfaceKHR(ctx.instance, surface, nullptr);
     surface = VK_NULL_HANDLE;
 }
 
 VkResult VulkanSwapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const {
-    return fnAcquireNextImage(ctx.device.device, swapchain.swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
+    return fnAcquireNextImage(ctx.device, swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
 }
 
 VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
