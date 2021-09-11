@@ -20,7 +20,9 @@ public:
 
     Image(const Context& context, const VkExtent2D extent, const VkFormat format, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
-    operator VkImage();
+    operator VkImage() const;
+
+    void destroy();
 
     void setName(const std::string name);
 

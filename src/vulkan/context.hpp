@@ -27,6 +27,7 @@ private:
     PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
     PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR;
     PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR;
+    PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR;
     PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR;
     PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR;
     PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
@@ -56,6 +57,8 @@ public:
 
     Context();
 
+    void destroy();
+
     void getVulkanFunctions();
 
     ShaderModule createShader(std::string filename, dp::ShaderStage shaderStage);
@@ -71,14 +74,16 @@ public:
     void buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
     void copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) const;
     void traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const;
-    
+
     void buildRayTracingPipeline(VkPipeline *pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR> createInfos) const;
     void createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;
     void createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const;
+    void destroyAccelerationStructure(const VkAccelerationStructureKHR handle) const;
     VkAccelerationStructureBuildSizesInfoKHR getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const;
     VkDeviceAddress getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const;
     void getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const;
     void getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const;
+    void waitForFence(const VkFence* fence) const;
     void waitForIdle() const;
 
     void setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const;

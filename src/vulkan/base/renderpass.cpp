@@ -7,6 +7,10 @@ dp::RenderPass::RenderPass(const dp::Context& context, const dp::VulkanSwapchain
 
 }
 
+void dp::RenderPass::destroy() {
+	vkDestroyRenderPass(ctx.device, handle, nullptr);
+}
+
 void dp::RenderPass::create(const VkAttachmentLoadOp colorBufferLoadOp, const std::string name) {
 	VkAttachmentDescription colorAttachment = {
 		.format = swapchain.swapchain.image_format,

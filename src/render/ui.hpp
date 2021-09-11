@@ -16,9 +16,9 @@ namespace dp {
         void initFramebuffers();
     public:
         Ui(const dp::Context& context, const dp::VulkanSwapchain& vkSwapchain);
-        ~Ui();
 
         void init();
+        void destroy();
 
         void prepare();
         void draw(const VkCommandBuffer cmdBuffer);

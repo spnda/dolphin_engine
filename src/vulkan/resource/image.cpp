@@ -38,8 +38,13 @@ dp::Image::Image(const Context& context, const VkExtent2D extent, const VkFormat
     vkCreateImageView(context.device, &imageViewCreateInfo, nullptr, &imageView);
 }
 
-dp::Image::operator VkImage() {
+dp::Image::operator VkImage() const {
 	return this->image;
+}
+
+void dp::Image::destroy() {
+	vmaDestroyImage(context.vmaAllocator, image, allocation);
+	image = VK_NULL_HANDLE;
 }
 
 void dp::Image::setName(const std::string name) {

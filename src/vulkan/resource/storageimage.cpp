@@ -5,11 +5,11 @@ dp::StorageImage::StorageImage(const dp::Context& context, const VkExtent2D size
     image.setName("storageImage");
 }
 
-dp::StorageImage::operator dp::Image() {
+dp::StorageImage::operator dp::Image() const {
     return image;
 }
 
-dp::StorageImage::operator VkImage() {
+dp::StorageImage::operator VkImage() const {
     return image.image;
 }
 

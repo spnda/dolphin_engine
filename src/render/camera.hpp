@@ -41,6 +41,8 @@ namespace dp {
 
         Camera(const dp::Context ctx);
 
+        void destroy();
+
         /** Updates the descriptor buffer with new matrices */
         void updateBuffer();
 

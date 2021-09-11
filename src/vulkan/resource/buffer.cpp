@@ -11,6 +11,8 @@ dp::Buffer::Buffer(const dp::Context& context, const std::string name)
 
 }
 
+dp::Buffer::~Buffer() {}
+
 void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferCreateInfo = createInfo(size, bufferUsage);
 
@@ -30,6 +32,11 @@ void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMe
     if (!name.empty()) {
         context.setDebugUtilsName(handle, name);
     }
+}
+
+void dp::Buffer::destroy() {
+    vmaDestroyBuffer(context.vmaAllocator, handle, allocation);
+    handle = VK_NULL_HANDLE;
 }
 
 void dp::Buffer::createForAccelerationStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo) {
@@ -78,6 +85,10 @@ VkDescriptorBufferInfo dp::Buffer::getDescriptorInfo(const uint32_t size, const 
     info.offset = offset;
     info.range = size;
     return info;
+}
+
+VkDeviceOrHostAddressConstKHR dp::Buffer::getHostAddress() {
+    return { .deviceAddress = address, };
 }
 
 void dp::Buffer::memoryCopy(const void* source, uint64_t size) const {

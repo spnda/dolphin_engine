@@ -13,6 +13,10 @@ dp::Camera::Camera(const dp::Context context)
     );
 }
 
+void dp::Camera::destroy() {
+    cameraBuffer.destroy();
+}
+
 void dp::Camera::updateMatrices() {
     // We won't update the projection matrix as that doesn't change, unless
     // setPerspective or setAspectRatio is called, which do it themselves anyway.

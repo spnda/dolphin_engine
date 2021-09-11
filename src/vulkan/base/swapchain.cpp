@@ -20,6 +20,9 @@ bool VulkanSwapchain::create(vkb::Device device) {
 
 void VulkanSwapchain::destroy() {
     ctx.waitForIdle();
+
+	swapchain.destroy_image_views(views);
+    vkb::destroy_swapchain(this->swapchain);
     
     vkDestroySurfaceKHR(ctx.instance, surface, nullptr);
     surface = VK_NULL_HANDLE;

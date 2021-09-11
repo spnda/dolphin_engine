@@ -53,6 +53,13 @@ dp::AccelerationStructureBuilder dp::AccelerationStructureBuilder::create(const 
     return builder;
 }
 
+void dp::AccelerationStructureBuilder::destroyAllStructures(const dp::Context& ctx) {
+    for (auto& structure : structures) {
+        ctx.destroyAccelerationStructure(structure.handle);
+        structure.resultBuffer.destroy();
+    }
+}
+
 uint32_t dp::AccelerationStructureBuilder::addMesh(dp::AccelerationStructureMesh mesh) {
     this->meshes.emplace_back(mesh);
     return this->meshes.size() - 1;
@@ -104,14 +111,13 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(numTriangles, buildGeometryInfo);
 
         // Create result and scratch buffers.
-        dp::Buffer resultBuffer(context, "blasResultBuffer");
+        dp::AccelerationStructure blas(context);
         dp::Buffer scratchBuffer(context, "blasScratchBuffer");
-        createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
-        dp::AccelerationStructure blas;
+        createBuildBuffers(scratchBuffer, blas.resultBuffer, buildSizeInfo);
 
         VkAccelerationStructureCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-        createInfo.buffer = resultBuffer.handle;
+        createInfo.buffer = blas.resultBuffer.handle;
         createInfo.size = buildSizeInfo.accelerationStructureSize;
         createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         context.createAccelerationStructure(createInfo, &blas.handle);
@@ -142,12 +148,18 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         context.setDebugUtilsName(blas.handle, "BLAS");
         
         blases.push_back(blas);
+        structures.push_back(blas);
+
+        vertexBuffer.destroy();
+        indexBuffer.destroy();
+        transformBuffer.destroy();
+        scratchBuffer.destroy();
     }
 
     // Flush command buffer to ensure all BLASs are built before building the TLAS.
     cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, true);
 
-    dp::AccelerationStructure tlas = {};
+    dp::AccelerationStructure tlas(context);
     {
         std::vector<VkAccelerationStructureInstanceKHR> asInstances = {};
 
@@ -194,13 +206,12 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(primitiveCount, accelerationStructureBuildGeometryInfo);
         
         // Create result and scratch buffers.
-        dp::Buffer resultBuffer(context, "tlasResultBuffer");
         dp::Buffer scratchBuffer(context, "tlasScratchBuffer");
-        createBuildBuffers(scratchBuffer, resultBuffer, buildSizeInfo);
+        createBuildBuffers(scratchBuffer, tlas.resultBuffer, buildSizeInfo);
 
         VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = {};
         accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-        accelerationStructureCreateInfo.buffer = resultBuffer.handle;
+        accelerationStructureCreateInfo.buffer = tlas.resultBuffer.handle;
         accelerationStructureCreateInfo.size = buildSizeInfo.accelerationStructureSize;
         accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
         context.createAccelerationStructure(accelerationStructureCreateInfo, &tlas.handle);
@@ -231,6 +242,11 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         tlas.address = context.getAccelerationStructureDeviceAddress(tlas.handle);
 
         context.setDebugUtilsName(tlas.handle, "TLAS");
+        
+        structures.push_back(tlas);
+
+        scratchBuffer.destroy();
+        instanceBuffer.destroy();
     }
 
     std::chrono::steady_clock::time_point endBuild = std::chrono::steady_clock::now();

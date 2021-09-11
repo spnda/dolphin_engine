@@ -28,6 +28,10 @@ namespace dp {
     struct AccelerationStructure {
         VkAccelerationStructureKHR handle;
         VkDeviceAddress address;
+        dp::Buffer resultBuffer;
+
+        AccelerationStructure(const dp::Context& context)
+                : resultBuffer(context, "blasResultBuffer") {}
     };
 
     class AccelerationStructureBuilder {
@@ -35,6 +39,9 @@ namespace dp {
         AccelerationStructureBuilder(const dp::Context& context);
 
         const Context& context;
+
+        // Static vector used to delete all structures.
+        inline static std::vector<AccelerationStructure> structures;
 
         std::vector<AccelerationStructureMesh> meshes;
         std::vector<AccelerationStructureInstance> instances;
@@ -45,6 +52,7 @@ namespace dp {
 
     public:
         static AccelerationStructureBuilder create(const Context& context);
+        static void destroyAllStructures(const dp::Context& ctx);
 
         uint32_t addMesh(AccelerationStructureMesh mesh);
 

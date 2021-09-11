@@ -23,6 +23,8 @@ public:
 
     Buffer(const Context& context, const std::string name);
 
+    ~Buffer();
+
     template<typename N, typename M>
     static N alignedSize(N value, M alignment) {
         // static_assert(std::is_base_of<int, N>::value, "N is not derived from int.");
@@ -30,6 +32,8 @@ public:
     }
 
     void create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties);
+
+    void destroy();
 
     void createForAccelerationStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
 
@@ -40,9 +44,7 @@ public:
     /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
     VkDescriptorBufferInfo getDescriptorInfo(const uint32_t size, const uint32_t offset = 0) const;
 
-    VkDeviceOrHostAddressConstKHR getHostAddress() {
-        return { .deviceAddress = address, };
-    }
+    VkDeviceOrHostAddressConstKHR getHostAddress();
 
     /**
      * Copies the memory of size from source into the
@@ -60,14 +62,6 @@ public:
     void mapMemory(void** destination) const;
 
     void unmapMemory() const;
-
-    // Destroy the buffer
-    virtual ~Buffer() {
-        // The destructor is called really often because of
-        // ending lifetimes we don't actually want to end...
-        // So, we'll just not destroy the buffer in here.
-        // vmaDestroyBuffer(context.vmaAllocator, handle, allocation);
-    }
 };
 
 } // namespace dp

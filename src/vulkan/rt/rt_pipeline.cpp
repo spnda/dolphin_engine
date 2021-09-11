@@ -4,6 +4,13 @@
 #include "../resource/buffer.hpp"
 #include "../resource/uniform_data.hpp"
 
+void dp::RayTracingPipeline::destroy(const dp::Context& ctx) {
+    vkDestroyPipeline(ctx.device, pipeline, nullptr);
+    vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
+    vkDestroyDescriptorPool(ctx.device, descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(ctx.device, descriptorLayout, nullptr);
+}
+
 dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& context, std::string pipelineName) {
     dp::RayTracingPipelineBuilder builder(context);
     builder.pipelineName = pipelineName;

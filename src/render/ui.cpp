@@ -9,9 +9,11 @@ dp::Ui::Ui(const dp::Context& context, const dp::VulkanSwapchain& vkSwapchain)
 
 }
 
-dp::Ui::~Ui() {
-	ImGui_ImplVulkan_Shutdown();
+void dp::Ui::destroy() {
+	renderPass.destroy();
+
 	ImGui_ImplSDL2_Shutdown();
+	ImGui_ImplVulkan_Shutdown();
 	ImGui::DestroyContext();
 }
 

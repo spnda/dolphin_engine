@@ -20,8 +20,8 @@ namespace dp {
 
         StorageImage(const dp::Context& context, const VkExtent2D size);
 
-        operator dp::Image();
-        operator VkImage();
+        operator dp::Image() const;
+        operator VkImage() const;
 
         const VkImageLayout getCurrentLayout() const;
 

@@ -22,11 +22,23 @@ namespace dp {
 dp::Context::Context() {
 }
 
+void dp::Context::destroy() {
+    vkDestroySemaphore(device, presentCompleteSemaphore, nullptr);
+    vkDestroySemaphore(device, renderCompleteSemaphore, nullptr);
+    vkDestroyFence(device, renderFence, nullptr);
+
+    vkDestroyCommandPool(device, commandPool, nullptr);
+
+    vkb::destroy_device(device);
+    vkb::destroy_instance(instance);
+}
+
 void dp::Context::getVulkanFunctions() {
     vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(device, "vkCreateAccelerationStructureKHR"));
     vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR"));
     vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(device, "vkCmdBuildAccelerationStructuresKHR"));
     vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device, "vkCmdTraceRaysKHR"));
+    vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(vkGetDeviceProcAddr(device, "vkDestroyAccelerationStructureKHR"));
     vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(device, "vkGetAccelerationStructureBuildSizesKHR"));
     vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetAccelerationStructureDeviceAddressKHR"));
     vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR"));
@@ -100,16 +112,13 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queu
     VkFence fence;
     vkCreateFence(device, &fenceInfo, nullptr, &fence);
     vkQueueSubmit(queue, 1, &submitInfo, fence);
-    vkWaitForFences(device, 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT);
+    waitForFence(&fence);
     vkDestroyFence(device, fence, nullptr);
 }
 
 void dp::Context::waitForFrame(const VulkanSwapchain& swapchain) {
-    // Wait for fences.
-    vkWaitForFences(device, 1, &renderFence, true, UINT64_MAX);
-    vkResetFences(device, 1, &renderFence);
-
-    // Acquire next swapchain image
+    // Wait for fences, then acquire next image.
+    waitForFence(&renderFence);
     swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
 }
 
@@ -155,7 +164,7 @@ void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent
     copyRegion.dstOffset = { 0, 0, 0 };
     copyRegion.extent = { imageSize.width, imageSize.height, 1 };
 
-    vkCmdCopyImage(commandBuffer, storageImage.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    vkCmdCopyImage(commandBuffer, storageImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
@@ -213,6 +222,10 @@ void dp::Context::createDescriptorPool(const uint32_t maxSets, const std::vector
     vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, nullptr, descriptorPool);
 }
 
+void dp::Context::destroyAccelerationStructure(const VkAccelerationStructureKHR handle) const {
+    vkDestroyAccelerationStructureKHR(device, handle, nullptr);
+}
+
 VkAccelerationStructureBuildSizesInfoKHR dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const {
     VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
     buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
@@ -240,6 +253,11 @@ void dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addr
 
 void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {
     vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, shaderHandles.size(), shaderHandles.data());
+}
+
+void dp::Context::waitForFence(const VkFence* fence) const {
+    vkWaitForFences(device, 1, fence, true, DEFAULT_FENCE_TIMEOUT);
+    vkResetFences(device, 1, fence);
 }
 
 void dp::Context::waitForIdle() const {

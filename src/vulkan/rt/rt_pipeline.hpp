@@ -21,6 +21,8 @@ public:
     VkDescriptorPool descriptorPool;
     VkDescriptorSetLayout descriptorLayout;
     VkDescriptorSet descriptorSet;
+
+    void destroy(const dp::Context& ctx);
 };
 
 class RayTracingPipelineBuilder {

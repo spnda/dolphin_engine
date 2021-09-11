@@ -21,6 +21,7 @@ dp::Window::Window(std::string title, int width, int height) : width(width), hei
 }
 
 dp::Window::~Window() {
+    SDL_DestroyWindow(window);
     SDL_Quit();
 }
 

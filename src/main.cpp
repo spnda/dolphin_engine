@@ -171,8 +171,29 @@ int main(int argc, char* argv[]) {
         ctx.submitFrame(swapchain);
 
         vkQueueWaitIdle(ctx.graphicsQueue);
-        // ctx.waitForIdle();
     }
+
+    ctx.waitForFence(&ctx.renderFence);
+
+    ctx.waitForIdle();
+
+    interface.destroy();
+
+    camera.destroy();
+
+    pipeline.destroy(ctx);
+
+    raygenShaderBindingTable.destroy();
+    missShaderBindingTable.destroy();
+    hitShaderBindingTable.destroy();
+
+    storageImage.image.destroy();
+
+    swapchain.destroy();
+
+    dp::AccelerationStructureBuilder::destroyAllStructures(ctx);
+
+    ctx.destroy();
 
     return 0;
 }
