@@ -18,10 +18,14 @@ private:
     PFN_vkAcquireNextImageKHR fnAcquireNextImage;
     PFN_vkQueuePresentKHR fnQueuePresent;
 
+    std::vector<VkImage> getImages();
+    std::vector<VkImageView> getImageViews();
+    
 public:
     vkb::Swapchain swapchain = {};
 
     std::vector<VkImage> images = {};
+    std::vector<VkImageView> views = {};
 
     VulkanSwapchain(Context& context, VkSurfaceKHR surface) : ctx(context), surface(surface) {
         this->create(ctx.device);
@@ -42,12 +46,8 @@ public:
 
     VkResult queuePresent(VkQueue, VkPresentInfoKHR* presentInfo) const;
 
-    VkFormat getFormat() const {
-        return swapchain.image_format;
-    }
-
-    std::vector<VkImage> getImages();
-    std::vector<VkImageView> getImageViews();
+    VkFormat getFormat() const;
+    VkExtent2D getExtent() const;
 };
 
 } // namespace dp

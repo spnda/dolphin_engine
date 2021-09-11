@@ -3,11 +3,11 @@
 #include "window.hpp"
 
 #include "../render/camera.hpp"
+#include "../render/ui.hpp"
 
 dp::Window::Window(std::string title, int width, int height) : width(width), height(height) {
     SDL_Init(SDL_INIT_VIDEO);
 
-    SDL_SetRelativeMouseMode(SDL_TRUE); // We want just relative mouse coordinates for movement.
     SDL_ShowCursor(SDL_ENABLE);
 
     window = SDL_CreateWindow(
@@ -57,10 +57,12 @@ void dp::Window::handleEvents(dp::Camera& camera) {
                 break;
             case SDL_MOUSEMOTION:
                 if (!(event.motion.state & SDL_BUTTON_LMASK)) break;
+                if (dp::Ui::isInputting()) break; // If the user is currently using the UI.
                 glm::vec3 motion = glm::vec3(-event.motion.yrel, event.motion.xrel, 0.0f);
                 camera.rotate(motion);
                 break;
             case SDL_MOUSEWHEEL:
+                if (dp::Ui::isInputting()) break;
                 camera.setFov(std::clamp(camera.getFov() * (event.wheel.y > 0 ? 0.99f : 1.01f), 0.0f, 140.0f));
                 break;
             case SDL_KEYDOWN:

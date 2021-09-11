@@ -60,7 +60,7 @@ public:
 
     ShaderModule createShader(std::string filename, dp::ShaderStage shaderStage);
 
-    VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin) const;
+    VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name = {}) const;
 
     void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const;
 
@@ -74,6 +74,7 @@ public:
     
     void buildRayTracingPipeline(VkPipeline *pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR> createInfos) const;
     void createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;
+    void createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const;
     VkAccelerationStructureBuildSizesInfoKHR getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const;
     VkDeviceAddress getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const;
     void getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const;
@@ -85,6 +86,8 @@ public:
     void setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const;
     void setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const;
     void setDebugUtilsName(const VkImage& image, const std::string name) const;
+    void setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const;
+    void setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const;
 
     template <typename T>
     void setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const;

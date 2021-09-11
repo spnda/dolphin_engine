@@ -7,6 +7,7 @@
 
 #include "render/camera.hpp"
 #include "render/modelloader.hpp"
+#include "render/ui.hpp"
 #include "sdl/window.hpp"
 #include "vulkan/base/instance.hpp"
 #include "vulkan/base/device.hpp"
@@ -89,6 +90,10 @@ int main(int argc, char* argv[]) {
     dp::Buffer hitShaderBindingTable(ctx, "hitShaderBindingTable");
     uint32_t sbtStride = createShaderBindingTable(ctx, pipeline.pipeline, raygenShaderBindingTable, missShaderBindingTable, hitShaderBindingTable);
 
+    // Create UI
+    dp::Ui interface(ctx, swapchain);
+    interface.init();
+
     VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
     uint32_t imageIndex = 0;
     while(!ctx.window->shouldClose()) {
@@ -133,6 +138,10 @@ int main(int argc, char* argv[]) {
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
                                 VK_ACCESS_TRANSFER_WRITE_BIT, 0,
                                 subresourceRange);
+
+        // Draw UI
+        interface.prepare();
+        interface.draw(ctx.drawCommandBuffer);
 
         vkEndCommandBuffer(ctx.drawCommandBuffer);
 

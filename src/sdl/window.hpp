@@ -17,7 +17,8 @@ class Camera;
  */
 class Window {
 private:
-    static const SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN;
+    static const SDL_WindowFlags windowFlags =
+        SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
     bool shouldQuit = false;
 

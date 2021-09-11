@@ -9,11 +9,12 @@ bool VulkanSwapchain::create(vkb::Device device) {
     vkb::SwapchainBuilder swapchainBuilder(device);
     auto buildResult = swapchainBuilder
 		.set_old_swapchain(this->swapchain)
-		.set_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT) // We need this when switching layouts to copy the storage image.
+		.set_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) // We need this when switching layouts to copy the storage image.
 		.build();
     vkb::destroy_swapchain(this->swapchain);
     swapchain = getFromVkbResult(buildResult);
-	images = getFromVkbResult(swapchain.get_images());
+	images = getImages();
+	views = getImageViews();
     return true;
 }
 
@@ -45,6 +46,14 @@ VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 
 VkResult VulkanSwapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
 	return fnQueuePresent(queue, presentInfo);
+}
+
+VkFormat VulkanSwapchain::getFormat() const {
+	return swapchain.image_format;
+}
+
+VkExtent2D VulkanSwapchain::getExtent() const {
+	return swapchain.extent;
 }
 
 std::vector<VkImage> VulkanSwapchain::getImages() {

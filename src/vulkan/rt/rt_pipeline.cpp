@@ -19,12 +19,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescri
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
     };
 
-    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
-    descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptorPoolCreateInfo.maxSets = 1;
-    descriptorPoolCreateInfo.poolSizeCount = 1;
-    descriptorPoolCreateInfo.pPoolSizes = poolSizes.data();
-    vkCreateDescriptorPool(ctx.device, &descriptorPoolCreateInfo, nullptr, &descriptorPool);
+    ctx.createDescriptorPool(1, poolSizes, &descriptorPool);
 
     VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
     descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;

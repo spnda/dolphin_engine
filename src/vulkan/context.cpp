@@ -59,7 +59,7 @@ dp::ShaderModule dp::Context::createShader(std::string filename, dp::ShaderStage
     }
 }
 
-VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin) const {
+VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name) const {
     VkCommandBufferAllocateInfo bufferAllocateInfo = {};
     bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     bufferAllocateInfo.pNext = nullptr;
@@ -74,6 +74,10 @@ VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkC
         VkCommandBufferBeginInfo bufferBeginInfo = {};
         bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         vkBeginCommandBuffer(commandBuffer, &bufferBeginInfo);
+    }
+
+    if (name.size() != 0) {
+        setDebugUtilsName(commandBuffer, name);
     }
 
     return commandBuffer;
@@ -200,6 +204,15 @@ void dp::Context::createAccelerationStructure(const VkAccelerationStructureCreat
         device, &createInfo, nullptr, accelerationStructure);
 }
 
+void dp::Context::createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const {
+    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
+    descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    descriptorPoolCreateInfo.maxSets = maxSets;
+    descriptorPoolCreateInfo.poolSizeCount = poolSizes.size();
+    descriptorPoolCreateInfo.pPoolSizes = poolSizes.data();
+    vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, nullptr, descriptorPool);
+}
+
 VkAccelerationStructureBuildSizesInfoKHR dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const {
     VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
     buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
@@ -252,6 +265,14 @@ void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::strin
 
 void dp::Context::setDebugUtilsName(const VkImage& image, const std::string name) const {
     setDebugUtilsName<VkImage>(image, name, VK_OBJECT_TYPE_IMAGE);
+}
+
+void dp::Context::setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const {
+    setDebugUtilsName<VkRenderPass>(renderPass, name, VK_OBJECT_TYPE_RENDER_PASS);
+}
+
+void dp::Context::setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const {
+    setDebugUtilsName<VkCommandBuffer>(cmdBuffer, name, VK_OBJECT_TYPE_COMMAND_BUFFER);   
 }
 
 template <typename T>
@@ -322,7 +343,7 @@ Context ContextBuilder::build() {
     context.getVulkanFunctions();
     // We want the pool to have resettable command buffers.
     context.commandPool = dp::Device::createDefaultCommandPool(context.device, getFromVkbResult(context.device.get_queue_index(vkb::QueueType::graphics)), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    context.drawCommandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, false);;
+    context.drawCommandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, false, "drawCommandBuffer");
     buildSyncStructures(context);
     buildAllocator(context);
     return context;
