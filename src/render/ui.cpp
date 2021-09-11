@@ -9,6 +9,12 @@ dp::Ui::Ui(const dp::Context& context, const dp::VulkanSwapchain& vkSwapchain)
 
 }
 
+dp::Ui::~Ui() {
+	ImGui_ImplVulkan_Shutdown();
+	ImGui_ImplSDL2_Shutdown();
+	ImGui::DestroyContext();
+}
+
 void dp::Ui::initFramebuffers() {
 	auto extent = swapchain.getExtent();
 	VkFramebufferCreateInfo frameBufferCreateInfo = {
@@ -68,7 +74,7 @@ void dp::Ui::init() {
 		.MSAASamples = VK_SAMPLE_COUNT_1_BIT
 	};
 
-	ImGui_ImplVulkan_Init(&initInfo, renderPass); // TODO
+	ImGui_ImplVulkan_Init(&initInfo, renderPass);
 
 	ImGui::StyleColorsDark();
 
@@ -89,7 +95,11 @@ void dp::Ui::draw(const VkCommandBuffer cmdBuffer) {
 
 	ImGui::Render();
 
-	renderPass.begin(cmdBuffer, framebuffers[ctx.currentImageIndex]);
+	static const std::vector<VkClearValue> clearValues = {
+		{ .color = { 0.0f, 0.0f, 0.2f, 0.0f }, }
+	};
+
+	renderPass.begin(cmdBuffer, framebuffers[ctx.currentImageIndex], clearValues);
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuffer);
 	renderPass.end(cmdBuffer);
 }

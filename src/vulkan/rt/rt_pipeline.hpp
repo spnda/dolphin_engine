@@ -35,20 +35,17 @@ private:
     VkDescriptorSet descriptorSet;
     VkDescriptorSetLayout descriptorSetLayout;
     std::vector<VkDescriptorSetLayoutBinding> descriptorLayoutBindings;
+    std::vector<VkWriteDescriptorSet> descriptorWrites;
 
     RayTracingPipelineBuilder(Context& context) : ctx(context) {}
 
 public:
     static RayTracingPipelineBuilder create(Context& context, std::string pipelineName);
 
-    // Creates the default descriptor sets.
-    // Calls useDefaultDescriptorLayout if not already done.
-    RayTracingPipelineBuilder createDefaultDescriptorSets(const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS);
-
-    // Also builds the descriptor set layout.
-    RayTracingPipelineBuilder useDefaultDescriptorLayout();
-
-    RayTracingPipelineBuilder addShader(ShaderModule module);
+    RayTracingPipelineBuilder& addShader(ShaderModule module);
+    RayTracingPipelineBuilder& addImageDescriptor(const uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+    RayTracingPipelineBuilder& addBufferDescriptor(const uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+    RayTracingPipelineBuilder& addAccelerationStructureDescriptor(const uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
 
     // Builds the descriptor set layout and pipeline layout, then creates
     // a VkRayTracingPipeline based on that.

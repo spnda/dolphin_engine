@@ -10,105 +10,7 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& con
     return builder;
 }
 
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::createDefaultDescriptorSets(const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
-    if (descriptorLayoutBindings.size() == 0) this->useDefaultDescriptorLayout();
-
-    static std::vector<VkDescriptorPoolSize> poolSizes = {
-		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 },
-		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
-    };
-
-    ctx.createDescriptorPool(1, poolSizes, &descriptorPool);
-
-    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
-    descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    descriptorSetAllocateInfo.descriptorPool = descriptorPool;
-    descriptorSetAllocateInfo.descriptorSetCount = 1;
-    descriptorSetAllocateInfo.pSetLayouts = &descriptorSetLayout;
-    vkAllocateDescriptorSets(ctx.device, &descriptorSetAllocateInfo, &descriptorSet);
-
-    // Acceleration structure descriptor
-	VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
-	descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-	descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-	descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAS.handle;
-
-    VkWriteDescriptorSet accelerationStructureWrite = {};
-    accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo;
-	accelerationStructureWrite.dstSet = descriptorSet;
-	accelerationStructureWrite.dstBinding = 0;
-	accelerationStructureWrite.descriptorCount = 1;
-	accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-
-    // Storage image descriptor
-	VkDescriptorImageInfo storageImageDescriptor{};
-	storageImageDescriptor.imageView = storageImage.image.imageView;
-	storageImageDescriptor.imageLayout = storageImage.getCurrentLayout();
-
-    VkWriteDescriptorSet resultImageWrite = {};
-    resultImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	resultImageWrite.dstSet = descriptorSet;
-	resultImageWrite.dstBinding = 1;
-	resultImageWrite.descriptorCount = 1;
-	resultImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    resultImageWrite.pImageInfo = &storageImageDescriptor;
-
-    // Camera descriptor
-    VkDescriptorBufferInfo cameraBufferInfo = camera.getDescriptorInfo();
-
-    VkWriteDescriptorSet cameraBufferWrite = {};
-    cameraBufferWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    cameraBufferWrite.dstSet = descriptorSet;
-    cameraBufferWrite.dstBinding = 2;
-    cameraBufferWrite.descriptorCount = 1;
-    cameraBufferWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    cameraBufferWrite.pBufferInfo = &cameraBufferInfo;
-
-	std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-		accelerationStructureWrite,
-		resultImageWrite,
-		cameraBufferWrite
-	};
-	vkUpdateDescriptorSets(ctx.device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
-
-    return *this;
-}
-
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::useDefaultDescriptorLayout() {
-    VkDescriptorSetLayoutBinding accelerationStructureLayoutBinding = {};
-    accelerationStructureLayoutBinding.binding = 0;
-    accelerationStructureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-    accelerationStructureLayoutBinding.descriptorCount = 1;
-    accelerationStructureLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-    VkDescriptorSetLayoutBinding resultImageLayoutBinding = {};
-    resultImageLayoutBinding.binding = 1;
-    resultImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    resultImageLayoutBinding.descriptorCount = 1;
-    resultImageLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-    VkDescriptorSetLayoutBinding uniformBufferBinding = {};
-    uniformBufferBinding.binding = 2;
-    uniformBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniformBufferBinding.descriptorCount = 1;
-    uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-    descriptorLayoutBindings.push_back(accelerationStructureLayoutBinding);
-    descriptorLayoutBindings.push_back(resultImageLayoutBinding);
-    descriptorLayoutBindings.push_back(uniformBufferBinding);
-
-    VkDescriptorSetLayoutCreateInfo descriptorLayoutCreateInfo = {};
-    descriptorLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorLayoutCreateInfo.bindingCount = static_cast<uint32_t>(descriptorLayoutBindings.size());
-    descriptorLayoutCreateInfo.pBindings = descriptorLayoutBindings.data();
-    vkCreateDescriptorSetLayout(ctx.device, &descriptorLayoutCreateInfo, nullptr, &descriptorSetLayout);
-
-    return *this;
-}
-
-dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::addShader(dp::ShaderModule module) {
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShader(dp::ShaderModule module) {
     shaderStages.push_back(module.getShaderStageCreateInfo());
 
     // Create the shader group for this shader.
@@ -140,7 +42,108 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::addShader(dp::Shade
     return *this;
 }
 
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addImageDescriptor(const uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags) {
+    VkDescriptorSetLayoutBinding newBinding = {
+        .binding = binding,
+        .descriptorType = type,
+        .descriptorCount = 1,
+        .stageFlags = stageFlags,
+        .pImmutableSamplers = nullptr,
+    };
+
+    descriptorLayoutBindings.push_back(newBinding);
+
+    VkWriteDescriptorSet newWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstBinding = binding,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pImageInfo = imageInfo,
+    };
+    descriptorWrites.push_back(newWrite);
+
+    return *this;
+}
+
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addBufferDescriptor(const uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, VkShaderStageFlags stageFlags) {
+    VkDescriptorSetLayoutBinding newBinding = {
+        .binding = binding,
+        .descriptorType = type,
+        .descriptorCount = 1,
+        .stageFlags = stageFlags,
+        .pImmutableSamplers = nullptr,
+    };
+
+    descriptorLayoutBindings.push_back(newBinding);
+
+    VkWriteDescriptorSet newWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstBinding = binding,
+        .descriptorCount = 1,
+        .descriptorType = type,
+        .pBufferInfo = bufferInfo,
+    };
+    descriptorWrites.push_back(newWrite);
+
+    return *this;
+}
+
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addAccelerationStructureDescriptor(const uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, VkShaderStageFlags stageFlags) {
+    VkDescriptorSetLayoutBinding newBinding = {
+        .binding = binding,
+        .descriptorType = type,
+        .descriptorCount = 1,
+        .stageFlags = stageFlags,
+        .pImmutableSamplers = nullptr,
+    };
+
+    descriptorLayoutBindings.push_back(newBinding);
+
+    VkWriteDescriptorSet newWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = asInfo,
+        .dstBinding = binding,
+        .descriptorCount = 1,
+        .descriptorType = type,
+    };
+    descriptorWrites.push_back(newWrite);
+
+    return *this;
+}
+
 dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
+    // Create the descriptor set layout.
+    VkDescriptorSetLayoutCreateInfo descriptorLayoutCreateInfo = {};
+    descriptorLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorLayoutCreateInfo.bindingCount = static_cast<uint32_t>(descriptorLayoutBindings.size());
+    descriptorLayoutCreateInfo.pBindings = descriptorLayoutBindings.data();
+    vkCreateDescriptorSetLayout(ctx.device, &descriptorLayoutCreateInfo, nullptr, &descriptorSetLayout);
+
+    // Create descriptor pool and allocate sets.
+    static std::vector<VkDescriptorPoolSize> poolSizes = {
+		{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 },
+		{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+    };
+
+    ctx.createDescriptorPool(1, poolSizes, &descriptorPool);
+
+    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
+    descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    descriptorSetAllocateInfo.descriptorPool = descriptorPool;
+    descriptorSetAllocateInfo.descriptorSetCount = 1;
+    descriptorSetAllocateInfo.pSetLayouts = &descriptorSetLayout;
+    vkAllocateDescriptorSets(ctx.device, &descriptorSetAllocateInfo, &descriptorSet);
+
+    // Copy the just allocated descriptor set to the write descriptors.
+    // Then update the sets.
+    for (auto& write : descriptorWrites) {
+        write.dstSet = descriptorSet;
+    }
+    vkUpdateDescriptorSets(ctx.device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, VK_NULL_HANDLE);
+
     dp::RayTracingPipeline pipeline = {};
     pipeline.descriptorSet = descriptorSet;
     pipeline.descriptorLayout = descriptorSetLayout;

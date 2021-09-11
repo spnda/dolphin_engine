@@ -57,17 +57,17 @@ void dp::RenderPass::create(const VkAttachmentLoadOp colorBufferLoadOp, const st
 		ctx.setDebugUtilsName(handle, name);
 }
 
-void dp::RenderPass::begin(const VkCommandBuffer cmdBuffer, const VkFramebuffer framebuffer) {
+void dp::RenderPass::begin(const VkCommandBuffer cmdBuffer, const VkFramebuffer framebuffer, std::vector<VkClearValue> clearValues) {
 	VkRenderPassBeginInfo renderPassInfo = {
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderPass = handle,
-		.framebuffer = framebuffer, // TODO
+		.framebuffer = framebuffer,
 		.renderArea = {
 			.offset = { 0, 0 },
 			.extent = swapchain.getExtent(),
 		},
-		.clearValueCount = 0,
-		.pClearValues = nullptr,
+		.clearValueCount = static_cast<uint32_t>(clearValues.size()),
+		.pClearValues = clearValues.data(),
 	};
 
 	vkCmdBeginRenderPass(cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);

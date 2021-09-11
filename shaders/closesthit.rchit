@@ -1,8 +1,11 @@
 #version 460
+#extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(location = 0) rayPayloadInEXT vec4 hitValue;
+#include "include/raycommon.glsl"
+
+layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
 hitAttributeEXT vec3 attribs;
 
 const vec4 hello[2] = {
@@ -13,5 +16,5 @@ const vec4 hello[2] = {
 void main() {
     // See https://github.com/SaschaWillems/Vulkan/blob/master/data/shaders/glsl/raytracingbasic/closesthit.rchit
     // TODO: Fix
-    hitValue = hello[gl_PrimitiveID%2];
+    hitPayload.hitValue = hello[gl_PrimitiveID%2];
 }

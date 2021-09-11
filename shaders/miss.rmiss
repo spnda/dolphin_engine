@@ -1,8 +1,11 @@
 #version 460
+#extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_ray_tracing : enable
 
-layout(location = 0) rayPayloadInEXT vec4 hitValue;
+#include "include/raycommon.glsl"
+
+layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
 
 void main() {
-    hitValue = vec4(0.25, 0.25, 0.25, 1.0);
+    hitPayload.hitValue = vec4(0.25, 0.25, 0.25, 1.0);
 }

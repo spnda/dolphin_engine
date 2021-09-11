@@ -24,6 +24,8 @@ namespace dp {
 
         void loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene);
         void loadNode(const aiNode* node, const aiScene* scene);
+
+        void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec3* vec) const;
     public:
         std::vector<Mesh> meshes = {};
 

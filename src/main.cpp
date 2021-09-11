@@ -25,13 +25,36 @@ dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::StorageImage&
     dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
     dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
 
-    return dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
-        .useDefaultDescriptorLayout()
-        .createDefaultDescriptorSets(storageImage, camera, topLevelAS)
+    auto builder = dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
         .addShader(raygenShader)
         .addShader(raymissShader)
-        .addShader(rayhitShader)
-        .build();
+        .addShader(rayhitShader);
+
+    VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
+    descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
+    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
+    descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAS.handle;
+    builder.addAccelerationStructureDescriptor(
+        0, &descriptorAccelerationStructureInfo,
+        VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+    );
+
+    VkDescriptorImageInfo storageImageDescriptor = {
+        .imageView = storageImage.image.imageView,
+        .imageLayout = storageImage.getCurrentLayout()
+    };
+    builder.addImageDescriptor(
+        1, &storageImageDescriptor,
+        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+    );
+
+    VkDescriptorBufferInfo cameraBufferInfo = camera.getDescriptorInfo();
+    builder.addBufferDescriptor(
+        2, &cameraBufferInfo,
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+    );
+
+    return builder.build();
 }
 
 // Creates a SBT. Warn: Needs updating if any new shaders are added.

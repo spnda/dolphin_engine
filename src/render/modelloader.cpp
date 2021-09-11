@@ -25,11 +25,18 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
         vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
         newMesh.vertices.push_back(vertex);
     }
-    
+
     for (int i = 0; i < mesh->mNumFaces; i++) {
         for (int j = 0; j < meshFaces[i].mNumIndices; j++) {
-            newMesh.indices.push_back(meshFaces[i].mIndices[j]);
+            aiFace face = meshFaces[i];
+            newMesh.indices.push_back(face.mIndices[j]);
         }
+    }
+
+    if (scene->HasMaterials() && mesh->mMaterialIndex < scene->mNumMaterials) {
+        aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
+        getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &newMesh.material.diffuse);
+        getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &newMesh.material.emissive);
     }
 
     meshes.push_back(newMesh);
@@ -46,6 +53,14 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
             loadNode(node->mChildren[i], scene);
         }
     }
+}
+
+void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec3* vec) const {
+    aiColor3D diffuse(0.0f, 0.0f, 0.0f);
+    material->Get(key, type, idx, &diffuse, nullptr);
+    vec->b = diffuse.b;
+    vec->r = diffuse.r;
+    vec->g = diffuse.g;
 }
 
 bool dp::ModelLoader::loadFile(const std::string fileName) {
