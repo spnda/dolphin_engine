@@ -3,7 +3,8 @@
 #include <chrono>
 #include <iostream>
 
-dp::ModelLoader::ModelLoader() : importer() {
+dp::ModelLoader::ModelLoader(const dp::Context& context)
+        : ctx(context), importer(), materialBuffer(ctx, "materialBuffer") {
 
 }
 
@@ -23,6 +24,7 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vertex;
         vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
+        vertex.materialIndex = mesh->mMaterialIndex;
         newMesh.vertices.push_back(vertex);
     }
 
@@ -31,12 +33,6 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
             aiFace face = meshFaces[i];
             newMesh.indices.push_back(face.mIndices[j]);
         }
-    }
-
-    if (scene->HasMaterials() && mesh->mMaterialIndex < scene->mNumMaterials) {
-        aiMaterial* mat = scene->mMaterials[mesh->mMaterialIndex];
-        getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &newMesh.material.diffuse);
-        getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &newMesh.material.emissive);
     }
 
     meshes.push_back(newMesh);
@@ -55,7 +51,7 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
     }
 }
 
-void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec3* vec) const {
+void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) const {
     aiColor3D diffuse(0.0f, 0.0f, 0.0f);
     material->Get(key, type, idx, &diffuse, nullptr);
     vec->b = diffuse.b;
@@ -74,12 +70,34 @@ bool dp::ModelLoader::loadFile(const std::string fileName) {
         return false;
     }
 
+    // Load Meshes
     loadNode(scene->mRootNode, scene);
+    
+    // Load Materials
+    if (scene->HasMaterials()) {
+        for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
+            dp::Material material;
+            aiMaterial* mat = scene->mMaterials[i];
+            getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &material.diffuse);
+            getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &material.emissive);
+            materials.push_back(material);
+        }
+    }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     printf("Finished importing file. Took %zu[ms].\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
 
     return true;
+}
+
+void dp::ModelLoader::createMaterialBuffer() {
+    materialBuffer.create(
+        materials.size() * sizeof(Material),
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_CPU_TO_GPU,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT 
+    );
+    materialBuffer.memoryCopy(materials.data(), materials.size() * sizeof(Material));
 }
 
 dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {

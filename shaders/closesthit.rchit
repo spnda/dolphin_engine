@@ -8,6 +8,8 @@
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
 hitAttributeEXT vec3 attribs;
 
+layout(binding = 3, set = 0) buffer Materials { Material material[]; } materials;
+
 const vec4 hello[2] = {
     vec4(0.9255, 0.8667, 0.0314, 1.0),
     vec4(0.0, 0.0, 0.0, 1.0),

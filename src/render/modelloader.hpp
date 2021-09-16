@@ -13,25 +13,33 @@
 namespace dp {
     class ModelLoader {
     private:
-        Assimp::Importer importer;
+        const dp::Context& ctx;
 
-        uint32_t importFlags =
+        static const uint32_t importFlags =
             aiProcess_FlipWindingOrder |
             aiProcess_Triangulate |
             aiProcess_PreTransformVertices |
             aiProcess_CalcTangentSpace |
             aiProcess_GenSmoothNormals;
 
+        Assimp::Importer importer;
+
         void loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene);
         void loadNode(const aiNode* node, const aiScene* scene);
 
-        void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec3* vec) const;
+        void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec4* vec) const;
     public:
+        dp::Buffer materialBuffer;
+        dp::Buffer vertexBuffer;
+
+        std::vector<Material> materials = {};
         std::vector<Mesh> meshes = {};
 
-        ModelLoader();
+        ModelLoader(const dp::Context& context);
 
         bool loadFile(const std::string fileName);
+
+        void createMaterialBuffer();
 
         dp::AccelerationStructure buildAccelerationStructure(const dp::Context& context);
     };

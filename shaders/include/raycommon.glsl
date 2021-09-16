@@ -3,6 +3,6 @@ struct HitPayload {
 };
 
 struct Material {
-    vec3 diffuse;
-    vec3 emissive;
+    vec4 diffuse;
+    vec4 emissive;
 };

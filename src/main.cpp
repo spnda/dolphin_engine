@@ -20,7 +20,7 @@
 #include "vulkan/rt/rt_pipeline.hpp"
 #include "vulkan/context.hpp"
 
-dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS) {
+dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::StorageImage& storageImage, const dp::Camera& camera, const dp::AccelerationStructure& topLevelAS, dp::ModelLoader& modelLoader) {
     dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
     dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
     dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
@@ -52,6 +52,17 @@ dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::StorageImage&
     builder.addBufferDescriptor(
         2, &cameraBufferInfo,
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+    );
+
+    modelLoader.createMaterialBuffer();
+    VkDescriptorBufferInfo materialBufferInfo = {
+        .buffer = modelLoader.materialBuffer.handle,
+        .offset = 0,
+        .range = VK_WHOLE_SIZE,
+    };
+    builder.addBufferDescriptor(
+        3, &materialBufferInfo,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
     );
 
     return builder.build();
@@ -88,8 +99,8 @@ int main(int argc, char* argv[]) {
         .setDimensions(width, height)
         .build();
 
-    dp::ModelLoader modelLoader;
-    modelLoader.loadFile("models/lost_empire.obj");
+    dp::ModelLoader modelLoader(ctx);
+    modelLoader.loadFile("models/pflanzenzelle.fbx");
     // modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
     // modelLoader.loadFile("models/Bistro/BistroInterior.fbx");
     dp::AccelerationStructure as = modelLoader.buildAccelerationStructure(ctx);
@@ -106,7 +117,7 @@ int main(int argc, char* argv[]) {
     storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
-    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, camera, as);
+    dp::RayTracingPipeline pipeline = buildRTPipeline(ctx, storageImage, camera, as, modelLoader);
 
     dp::Buffer raygenShaderBindingTable(ctx, "raygenShaderBindingTable");
     dp::Buffer missShaderBindingTable(ctx, "missShaderBindingTable");
