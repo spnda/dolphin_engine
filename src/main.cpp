@@ -55,11 +55,7 @@ dp::RayTracingPipeline buildRTPipeline(dp::Context& ctx, const dp::StorageImage&
     );
 
     modelLoader.createMaterialBuffer();
-    VkDescriptorBufferInfo materialBufferInfo = {
-        .buffer = modelLoader.materialBuffer.handle,
-        .offset = 0,
-        .range = VK_WHOLE_SIZE,
-    };
+    VkDescriptorBufferInfo materialBufferInfo = modelLoader.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE, 0);
     builder.addBufferDescriptor(
         3, &materialBufferInfo,
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
@@ -100,9 +96,9 @@ int main(int argc, char* argv[]) {
         .build();
 
     dp::ModelLoader modelLoader(ctx);
-    modelLoader.loadFile("models/pflanzenzelle.fbx");
-    // modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
-    // modelLoader.loadFile("models/Bistro/BistroInterior.fbx");
+    // modelLoader.loadFile("models/pflanzenzelle.fbx");
+    modelLoader.loadFile("models/Bistro/BistroExterior.fbx");
+    modelLoader.loadFile("models/Bistro/BistroInterior.fbx");
     dp::AccelerationStructure as = modelLoader.buildAccelerationStructure(ctx);
 
     dp::VulkanSwapchain swapchain(ctx, ctx.surface);

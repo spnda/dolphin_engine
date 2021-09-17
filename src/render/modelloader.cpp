@@ -24,7 +24,6 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vertex;
         vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
-        vertex.materialIndex = mesh->mMaterialIndex;
         newMesh.vertices.push_back(vertex);
     }
 
@@ -34,6 +33,8 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
             newMesh.indices.push_back(face.mIndices[j]);
         }
     }
+
+    newMesh.materialIndex = mesh->mMaterialIndex;
 
     meshes.push_back(newMesh);
 }
@@ -51,12 +52,12 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
     }
 }
 
-void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) const {
-    aiColor3D diffuse(0.0f, 0.0f, 0.0f);
-    material->Get(key, type, idx, &diffuse, nullptr);
-    vec->b = diffuse.b;
-    vec->r = diffuse.r;
-    vec->g = diffuse.g;
+inline void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) const {
+    aiColor4D vec4;
+    const aiReturn ret = aiGetMaterialColor(material, key, type, idx, &vec4);
+    vec->b = vec4.b;
+    vec->r = vec4.r;
+    vec->g = vec4.g;
 }
 
 bool dp::ModelLoader::loadFile(const std::string fileName) {
@@ -79,13 +80,14 @@ bool dp::ModelLoader::loadFile(const std::string fileName) {
             dp::Material material;
             aiMaterial* mat = scene->mMaterials[i];
             getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &material.diffuse);
+            getMatColor3(mat, AI_MATKEY_COLOR_SPECULAR, &material.specular);
             getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &material.emissive);
             materials.push_back(material);
         }
     }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("Finished importing file. Took %zu[ms].\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+    printf("Finished importing file. Took %zums.\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
 
     return true;
 }
@@ -103,14 +105,8 @@ void dp::ModelLoader::createMaterialBuffer() {
 dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
     auto builder = dp::AccelerationStructureBuilder::create(context);
     for (auto mesh : meshes) {
-        uint32_t meshIndex = builder.addMesh(dp::AccelerationStructureMesh {
-            .vertices = mesh.vertices,
-            .format = VK_FORMAT_R32G32B32_SFLOAT,
-            .indices = mesh.indices,
-            .indexType = VK_INDEX_TYPE_UINT32,
-            .stride = sizeof(Vertex),
-            .transformMatrix = mesh.transform,
-        });
+        uint32_t meshIndex = builder.addMesh(mesh);
+
         builder.addInstance(dp::AccelerationStructureInstance {
             .transformMatrix = {
                 1.0f, 0.0f, 0.0f, 0.0f,

@@ -7,18 +7,6 @@
 #include "../../render/mesh.hpp"
 
 namespace dp {
-    struct AccelerationStructureMesh {
-        std::vector<Vertex> vertices;
-        VkFormat format;
-
-        std::vector<uint32_t> indices;
-        VkIndexType indexType;
-
-        uint32_t stride;
-
-        VkTransformMatrixKHR transformMatrix;
-    };
-
     struct AccelerationStructureInstance {
         VkTransformMatrixKHR transformMatrix;
         VkGeometryInstanceFlagBitsKHR flags;
@@ -43,10 +31,10 @@ namespace dp {
         // Static vector used to delete all structures.
         inline static std::vector<AccelerationStructure> structures;
 
-        std::vector<AccelerationStructureMesh> meshes;
+        std::vector<Mesh> meshes;
         std::vector<AccelerationStructureInstance> instances;
 
-        void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const AccelerationStructureMesh& mesh);
+        void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const Mesh& mesh);
 
         void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const;
 
@@ -54,7 +42,7 @@ namespace dp {
         static AccelerationStructureBuilder create(const Context& context);
         static void destroyAllStructures(const dp::Context& ctx);
 
-        uint32_t addMesh(AccelerationStructureMesh mesh);
+        uint32_t addMesh(Mesh mesh);
 
         void addInstance(AccelerationStructureInstance instance);
 

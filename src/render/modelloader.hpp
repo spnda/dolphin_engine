@@ -30,7 +30,6 @@ namespace dp {
         void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec4* vec) const;
     public:
         dp::Buffer materialBuffer;
-        dp::Buffer vertexBuffer;
 
         std::vector<Material> materials = {};
         std::vector<Mesh> meshes = {};

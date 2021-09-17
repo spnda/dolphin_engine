@@ -7,30 +7,21 @@ dp::AccelerationStructureBuilder::AccelerationStructureBuilder(const dp::Context
     
 }
 
-void dp::AccelerationStructureBuilder::createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const dp::AccelerationStructureMesh& mesh) {
-    vertexBuffer.create(
-        mesh.vertices.size() * sizeof(Vertex),
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+void dp::AccelerationStructureBuilder::createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const dp::Mesh& mesh) {
+    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    VmaMemoryUsage usage = VMA_MEMORY_USAGE_CPU_ONLY;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
+    vertexBuffer.create(mesh.vertices.size() * sizeof(Vertex), bufferUsage, usage, properties);
     vertexBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
 
     // Create the index buffer
-    indexBuffer.create(
-        mesh.indices.size() * sizeof(uint32_t),
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    indexBuffer.create(mesh.indices.size() * sizeof(uint32_t), bufferUsage, usage, properties);
     indexBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
 
     // Create the index buffer
-    transformBuffer.create(
-        sizeof(VkTransformMatrixKHR),
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-        VMA_MEMORY_USAGE_CPU_ONLY,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    transformBuffer.memoryCopy(&mesh.transformMatrix, sizeof(VkTransformMatrixKHR));
+    transformBuffer.create(sizeof(VkTransformMatrixKHR), bufferUsage, usage, properties);
+    transformBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
 }
 
 void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const {
@@ -60,7 +51,7 @@ void dp::AccelerationStructureBuilder::destroyAllStructures(const dp::Context& c
     }
 }
 
-uint32_t dp::AccelerationStructureBuilder::addMesh(dp::AccelerationStructureMesh mesh) {
+uint32_t dp::AccelerationStructureBuilder::addMesh(dp::Mesh mesh) {
     this->meshes.emplace_back(mesh);
     return this->meshes.size() - 1;
 }
@@ -166,7 +157,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         for (const auto& instance : this->instances) {
             VkAccelerationStructureInstanceKHR accelerationStructureInstance = {};
             accelerationStructureInstance.transform = instance.transformMatrix;
-            accelerationStructureInstance.instanceCustomIndex = 0;
+            accelerationStructureInstance.instanceCustomIndex = this->meshes[instance.blasIndex].materialIndex;
             accelerationStructureInstance.mask = 0xFF;
             accelerationStructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
             accelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;

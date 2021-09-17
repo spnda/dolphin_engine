@@ -18,5 +18,6 @@ const vec4 hello[2] = {
 void main() {
     // See https://github.com/SaschaWillems/Vulkan/blob/master/data/shaders/glsl/raytracingbasic/closesthit.rchit
     // TODO: Fix
-    hitPayload.hitValue = hello[gl_PrimitiveID%2];
+    Material material = materials.material[gl_InstanceCustomIndexEXT];
+    hitPayload.hitValue = material.diffuse;
 }
