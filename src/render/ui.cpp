@@ -106,6 +106,13 @@ void dp::Ui::draw(const VkCommandBuffer cmdBuffer) {
 	renderPass.end(cmdBuffer);
 }
 
+void dp::Ui::resize() {
+	for (const auto& framebuffer : framebuffers) {
+		vkDestroyFramebuffer(ctx.device, framebuffer, nullptr);
+	}
+	initFramebuffers();
+}
+
 bool dp::Ui::isInputting() {
 	return ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) || ImGui::IsAnyItemActive();
 }

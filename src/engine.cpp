@@ -2,9 +2,9 @@
 
 dp::Engine::Engine(dp::Context& context)
         : ctx(context), modelLoader(ctx), swapchain(ctx, ctx.surface),
-          camera(ctx), ui(ctx, swapchain), storageImage(ctx, { ctx.width, ctx.height }), topLevelAccelerationStructure(ctx),
+          camera(ctx), ui(ctx, swapchain), storageImage(ctx), topLevelAccelerationStructure(ctx),
           raygenShaderBindingTable(ctx, "raygenShaderBindingTable"), missShaderBindingTable(ctx, "missShaderBindingTable"), hitShaderBindingTable(ctx, "hitShaderBindingTable") {
-    getProperties();
+    this->getProperties();
     
     camera.setPerspective(70.0f, 0.01f, 512.0f);
     camera.setRotation(glm::vec3(0.0f));
@@ -51,10 +51,7 @@ void dp::Engine::buildPipeline() {
         VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR
     );
 
-    VkDescriptorImageInfo storageImageDescriptor = {
-        .imageView = storageImage.image.imageView,
-        .imageLayout = storageImage.getCurrentLayout()
-    };
+    VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
     builder.addImageDescriptor(
         1, &storageImageDescriptor,
         VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR
@@ -97,11 +94,18 @@ void dp::Engine::buildSBT() {
 }
 
 void dp::Engine::renderLoop() {
+    VkResult result;
     uint32_t imageIndex = 0;
     while (!ctx.window->shouldClose()) {
         // Handle SDL events and wait for when we can render the next frame.
-        ctx.window->handleEvents(camera);
-        ctx.waitForFrame(swapchain);
+        ctx.window->handleEvents(*this);
+        if (!needsResize) {
+            result = ctx.waitForFrame(swapchain);
+            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                needsResize = true;
+            }
+        }
+        if (needsResize) break;
 
         // Update the camera buffer.
         camera.updateBuffer();
@@ -142,7 +146,46 @@ void dp::Engine::renderLoop() {
 
         // End the command buffer and submit.
         vkEndCommandBuffer(ctx.drawCommandBuffer);
-        ctx.submitFrame(swapchain);
+        result = ctx.submitFrame(swapchain);
+        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+            needsResize = true;
+        }
         vkQueueWaitIdle(ctx.graphicsQueue);
     }
+}
+
+void dp::Engine::resize(const uint32_t width, const uint32_t height) {
+    ctx.waitForIdle();
+    ctx.width = width;
+    ctx.height = height;
+    printf("CTX SIZE: %lu, %lu", ctx.width, ctx.height);
+
+    // Re-create the swapchain.
+    swapchain.create(ctx.device);
+    
+    // Creates a new image and image view.
+    storageImage.recreateImage();
+
+    // Change the layout of the new image.
+    VkCommandBuffer commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
+    storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
+    ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
+
+    // Re-bind the storage image.
+	VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
+	VkWriteDescriptorSet resultImageWrite = {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = pipeline.descriptorSet,
+        .dstBinding = 1,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+        .pImageInfo = &storageImageDescriptor,
+    };
+	vkUpdateDescriptorSets(ctx.device, 1, &resultImageWrite, 0, nullptr);
+
+    // Let the UI resize.
+    ui.resize();
+
+    needsResize = false;
 }

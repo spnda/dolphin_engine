@@ -2,18 +2,12 @@
 
 #include "../utils.hpp"
 
-namespace dp {
-
-Device::Device(vkb::Instance &instance, Surface &surface) {
+dp::Device::Device(const vkb::Instance& instance, Surface &surface) {
     this->physicalDevice = getPhysicalDevice(instance, surface.surface);
     this->device = getLogicalDevice(instance, this->physicalDevice);
 };
 
-/**
- * Get the physical device per vkb::PhysicalDeviceSelector from
- * the given instance and surface.
- */
-vkb::PhysicalDevice Device::getPhysicalDevice(vkb::Instance instance, VkSurfaceKHR surface) {
+vkb::PhysicalDevice dp::Device::getPhysicalDevice(const vkb::Instance& instance, const VkSurfaceKHR& surface) {
     // Get the physical device.
     vkb::PhysicalDeviceSelector physicalDeviceSelector(instance);
     
@@ -43,16 +37,13 @@ vkb::PhysicalDevice Device::getPhysicalDevice(vkb::Instance instance, VkSurfaceK
     return getFromVkbResult(physicalDeviceSelector.set_surface(surface).select());
 }
 
-/**
- * Get the logical device for the given physical device.
- */
-vkb::Device Device::getLogicalDevice(VkInstance instance, vkb::PhysicalDevice physicalDevice) {
+vkb::Device dp::Device::getLogicalDevice(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice) {
     // Get the logical device.
     vkb::DeviceBuilder deviceBuilder(physicalDevice);
     return getFromVkbResult(deviceBuilder.build());
 }
 
-VkCommandPool Device::createDefaultCommandPool(vkb::Device device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags) {
+VkCommandPool dp::Device::createDefaultCommandPool(const vkb::Device& device, const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags) {
     VkCommandPoolCreateInfo comandPoolInfo = {};
     comandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     comandPoolInfo.queueFamilyIndex = queueFamilyIndex;
@@ -62,12 +53,6 @@ VkCommandPool Device::createDefaultCommandPool(vkb::Device device, uint32_t queu
     return cmdPool;
 }
 
-vkb::Device Device::getDevice() {
+vkb::Device& dp::Device::getDevice() {
     return this->device;
 }
-
-void Device::waitForIdle() {
-    vkDeviceWaitIdle(this->device);
-}
-
-} // namespace dp

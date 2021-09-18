@@ -37,6 +37,5 @@ add_files(
 	"vulkan/rt/rt_pipeline.hpp"
 	"vulkan/context.cpp"
 	"vulkan/context.hpp"
-	"vulkan/utils.cpp"
 	"vulkan/utils.hpp"
 )

@@ -26,20 +26,24 @@ private:
     vkb::PhysicalDevice physicalDevice = {};
     vkb::Device device = {};
 
+
 public:
-    Device(vkb::Instance &instance, Surface &surface);
+    Device(const vkb::Instance& instance, Surface &surface);
 
-    static vkb::PhysicalDevice getPhysicalDevice(vkb::Instance instance, VkSurfaceKHR surface);
+    /**
+     * Get the physical device per vkb::PhysicalDeviceSelector from
+     * the given instance and surface.
+     */
+    static vkb::PhysicalDevice getPhysicalDevice(const vkb::Instance& instance, const VkSurfaceKHR& surface);
 
-    static vkb::Device getLogicalDevice(VkInstance instance, vkb::PhysicalDevice physicalDevice);
+    /**
+     * Get the logical device for the given physical device.
+     */
+    static vkb::Device getLogicalDevice(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice);
 
-    static VkCommandPool createDefaultCommandPool(vkb::Device device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags);
+    static VkCommandPool createDefaultCommandPool(const vkb::Device& device, const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags);
 
-    vkb::Device getDevice();
-
-    // Wait for the device to be idle.
-    // Note: Locks up thread.
-    void waitForIdle();
+    vkb::Device& getDevice();
 };
 
 } // namespace dp

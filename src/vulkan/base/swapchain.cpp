@@ -3,12 +3,11 @@
 #include "swapchain.hpp"
 #include "../utils.hpp"
 
-namespace dp {
-
-bool VulkanSwapchain::create(vkb::Device device) {
+bool dp::VulkanSwapchain::create(vkb::Device device) {
     vkb::SwapchainBuilder swapchainBuilder(device);
     auto buildResult = swapchainBuilder
 		.set_old_swapchain(this->swapchain)
+		.set_desired_extent(ctx.width, ctx.height)
 		.set_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) // We need this when switching layouts to copy the storage image.
 		.build();
     vkb::destroy_swapchain(this->swapchain);
@@ -18,7 +17,7 @@ bool VulkanSwapchain::create(vkb::Device device) {
     return true;
 }
 
-void VulkanSwapchain::destroy() {
+void dp::VulkanSwapchain::destroy() {
     ctx.waitForIdle();
 
 	swapchain.destroy_image_views(views);
@@ -28,11 +27,11 @@ void VulkanSwapchain::destroy() {
     surface = VK_NULL_HANDLE;
 }
 
-VkResult VulkanSwapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const {
+VkResult dp::VulkanSwapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const {
     return fnAcquireNextImage(ctx.device, swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
 }
 
-VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
+VkResult dp::VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
 	VkPresentInfoKHR presentInfo = {};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	presentInfo.pNext = nullptr;
@@ -47,24 +46,22 @@ VkResult VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 	return fnQueuePresent(queue, &presentInfo);
 }
 
-VkResult VulkanSwapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
+VkResult dp::VulkanSwapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
 	return fnQueuePresent(queue, presentInfo);
 }
 
-VkFormat VulkanSwapchain::getFormat() const {
+VkFormat dp::VulkanSwapchain::getFormat() const {
 	return swapchain.image_format;
 }
 
-VkExtent2D VulkanSwapchain::getExtent() const {
+VkExtent2D dp::VulkanSwapchain::getExtent() const {
 	return swapchain.extent;
 }
 
-std::vector<VkImage> VulkanSwapchain::getImages() {
+std::vector<VkImage> dp::VulkanSwapchain::getImages() {
     return getFromVkbResult(swapchain.get_images());
 }
 
-std::vector<VkImageView> VulkanSwapchain::getImageViews() {
+std::vector<VkImageView> dp::VulkanSwapchain::getImageViews() {
     return getFromVkbResult(swapchain.get_image_views());
 }
-
-} // namespace dp

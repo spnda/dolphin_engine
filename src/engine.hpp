@@ -15,7 +15,6 @@ namespace dp {
 
         dp::Context& ctx;
         dp::ModelLoader modelLoader;
-        dp::Camera camera;
         dp::Ui ui;
 
         dp::StorageImage storageImage;
@@ -36,8 +35,13 @@ namespace dp {
         void buildPipeline();
         void buildSBT();
     public:
+        dp::Camera camera;
+
+        bool needsResize = false;
+
         Engine(dp::Context& ctx);
 
         void renderLoop();
+        void resize(const uint32_t width, const uint32_t height);
     };
 }

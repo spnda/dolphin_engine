@@ -23,6 +23,8 @@ namespace dp {
         void prepare();
         void draw(const VkCommandBuffer cmdBuffer);
 
+        void resize();
+
         static bool isInputting();
     };
 }

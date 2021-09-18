@@ -13,18 +13,20 @@ namespace dp {
 
         VkImageLayout currentLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        dp::Context ctx;
+        const dp::Context& ctx;
 
     public:
         dp::Image image;
 
-        StorageImage(const dp::Context& context, const VkExtent2D size);
+        StorageImage(const dp::Context& context);
 
         operator dp::Image() const;
         operator VkImage() const;
 
+        VkDescriptorImageInfo getDescriptorImageInfo() const;
         const VkImageLayout getCurrentLayout() const;
 
+        void recreateImage();
         void changeLayout(const VkCommandBuffer commandBuffer, const VkImageLayout newLayout);
     };
 }

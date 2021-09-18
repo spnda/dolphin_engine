@@ -46,7 +46,7 @@ void dp::Context::getVulkanFunctions() {
     vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
 }
 
-dp::ShaderModule dp::Context::createShader(std::string filename, dp::ShaderStage shaderStage) {
+auto dp::Context::createShader(std::string filename, dp::ShaderStage shaderStage) -> dp::ShaderModule {
     std::ifstream is(filename, std::ios::binary);
 
     if (is.is_open()) {
@@ -71,7 +71,7 @@ dp::ShaderModule dp::Context::createShader(std::string filename, dp::ShaderStage
     }
 }
 
-VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name) const {
+auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name) const -> VkCommandBuffer {
     VkCommandBufferAllocateInfo bufferAllocateInfo = {};
     bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     bufferAllocateInfo.pNext = nullptr;
@@ -120,13 +120,13 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queu
     vkDestroyFence(device, fence, nullptr);
 }
 
-void dp::Context::waitForFrame(const VulkanSwapchain& swapchain) {
+auto dp::Context::waitForFrame(const VulkanSwapchain& swapchain) -> VkResult {
     // Wait for fences, then acquire next image.
     waitForFence(&renderFence);
-    swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
+    return swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
 }
 
-void dp::Context::submitFrame(const VulkanSwapchain& swapchain) {
+auto dp::Context::submitFrame(const VulkanSwapchain& swapchain) -> VkResult {
     // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_TRANSFER_BIT };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
     // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // ??
@@ -145,9 +145,7 @@ void dp::Context::submitFrame(const VulkanSwapchain& swapchain) {
         printf("vkQueueSubmit: %d\n", result);
     }
 
-    // vkWaitForFences(device, 1, &renderFence, true, UINT64_MAX);
-
-    swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
+    return swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
 }
 
 
@@ -230,7 +228,7 @@ void dp::Context::destroyAccelerationStructure(const VkAccelerationStructureKHR 
     vkDestroyAccelerationStructureKHR(device, handle, nullptr);
 }
 
-VkAccelerationStructureBuildSizesInfoKHR dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const {
+auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR {
     VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
     buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
@@ -244,7 +242,7 @@ VkAccelerationStructureBuildSizesInfoKHR dp::Context::getAccelerationStructureBu
     return buildSizeInfo;
 }
 
-VkDeviceAddress dp::Context::getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const {
+auto dp::Context::getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const -> VkDeviceAddress {
     VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo = {};
     accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
     accelerationDeviceAddressInfo.accelerationStructure = handle;
@@ -269,32 +267,36 @@ void dp::Context::waitForIdle() const {
 }
 
 
-void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const {
-    setDebugUtilsName<VkSemaphore>(semaphore, name, VK_OBJECT_TYPE_SEMAPHORE);
+void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const {
+    setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
 }
 
 void dp::Context::setDebugUtilsName(const VkBuffer& buffer, const std::string name) const {
     setDebugUtilsName<VkBuffer>(buffer, name, VK_OBJECT_TYPE_BUFFER);
 }
 
-void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const {
-    setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
-}
-
-void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const {
-    setDebugUtilsName<VkPipeline>(pipeline, name, VK_OBJECT_TYPE_PIPELINE);
+void dp::Context::setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const {
+    setDebugUtilsName<VkCommandBuffer>(cmdBuffer, name, VK_OBJECT_TYPE_COMMAND_BUFFER);   
 }
 
 void dp::Context::setDebugUtilsName(const VkImage& image, const std::string name) const {
     setDebugUtilsName<VkImage>(image, name, VK_OBJECT_TYPE_IMAGE);
 }
 
+void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const {
+    setDebugUtilsName<VkPipeline>(pipeline, name, VK_OBJECT_TYPE_PIPELINE);
+}
+
 void dp::Context::setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const {
     setDebugUtilsName<VkRenderPass>(renderPass, name, VK_OBJECT_TYPE_RENDER_PASS);
 }
 
-void dp::Context::setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const {
-    setDebugUtilsName<VkCommandBuffer>(cmdBuffer, name, VK_OBJECT_TYPE_COMMAND_BUFFER);   
+void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const {
+    setDebugUtilsName<VkSemaphore>(semaphore, name, VK_OBJECT_TYPE_SEMAPHORE);
+}
+
+void dp::Context::setDebugUtilsName(const VkShaderModule& shaderModule, const std::string name) const {
+    setDebugUtilsName<VkShaderModule>(shaderModule, name, VK_OBJECT_TYPE_SHADER_MODULE);
 }
 
 template <typename T>

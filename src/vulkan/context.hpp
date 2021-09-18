@@ -63,15 +63,14 @@ public:
 
     void getVulkanFunctions();
 
-    ShaderModule createShader(std::string filename, dp::ShaderStage shaderStage);
+    auto createShader(std::string filename, dp::ShaderStage shaderStage) -> dp::ShaderModule;
 
-    VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name = {}) const;
+    auto createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name = {}) const -> VkCommandBuffer;
     void beginCommandBuffer(VkCommandBuffer commandBuffer) const;
     void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const;
 
-    void waitForFrame(const VulkanSwapchain& swapchain);
-
-    void submitFrame(const VulkanSwapchain& swapchain);
+    auto waitForFrame(const VulkanSwapchain& swapchain) -> VkResult;
+    auto submitFrame(const VulkanSwapchain& swapchain) -> VkResult;
 
     void buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
     void copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) const;
@@ -81,20 +80,21 @@ public:
     void createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;
     void createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const;
     void destroyAccelerationStructure(const VkAccelerationStructureKHR handle) const;
-    VkAccelerationStructureBuildSizesInfoKHR getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const;
-    VkDeviceAddress getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const;
+    auto getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
+    auto getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
     void getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const;
     void getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const;
     void waitForFence(const VkFence* fence) const;
     void waitForIdle() const;
 
-    void setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const;
-    void setDebugUtilsName(const VkBuffer& buffer, const std::string name) const;
     void setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const;
-    void setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const;
-    void setDebugUtilsName(const VkImage& image, const std::string name) const;
-    void setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const;
+    void setDebugUtilsName(const VkBuffer& buffer, const std::string name) const;
     void setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const;
+    void setDebugUtilsName(const VkImage& image, const std::string name) const;
+    void setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const;
+    void setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const;
+    void setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const;
+    void setDebugUtilsName(const VkShaderModule& shaderModule, const std::string name) const;
 
     template <typename T>
     void setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const;

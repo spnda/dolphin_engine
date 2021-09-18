@@ -42,9 +42,24 @@ dp::Image::operator VkImage() const {
 	return this->image;
 }
 
+dp::Image& dp::Image::operator=(const dp::Image& newImage) {
+	if (this == &newImage) return *this;
+	this->image = newImage.image;
+	this->imageExtent = newImage.imageExtent;
+	this->imageView = newImage.imageView;
+	this->allocation = newImage.allocation;
+	return *this;
+}
+
 void dp::Image::destroy() {
+	vkDestroyImageView(context.device, imageView, nullptr);
 	vmaDestroyImage(context.vmaAllocator, image, allocation);
 	image = VK_NULL_HANDLE;
+}
+
+void dp::Image::free() {
+	vkDestroyImageView(context.device, imageView, nullptr);
+	vmaFreeMemory(context.vmaAllocator, allocation);
 }
 
 void dp::Image::setName(const std::string name) {

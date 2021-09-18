@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
@@ -10,6 +11,9 @@ namespace dp {
 
 // fwd
 class Camera;
+
+// fwd
+class Engine;
 
 /**
  * Simple abstraction over a SDL2 window, including helper
@@ -46,7 +50,7 @@ public:
 
     float getAspectRatio();
 
-    void handleEvents(dp::Camera& camera);
+    void handleEvents(dp::Engine& engine);
 };
 
 } // namespace dp

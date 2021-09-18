@@ -1,9 +1,5 @@
 #include "surface.hpp"
 
-namespace dp {
-
-Surface::Surface(Context& context) {
+dp::Surface::Surface(const dp::Context& context) {
     surface = context.window->createSurface(context.instance);
 }
-
-} // namespace dp

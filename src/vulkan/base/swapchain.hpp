@@ -34,8 +34,8 @@ public:
     }
 
     // Creates a new swapchain.
-    // If this->swapchain already exists, we use it as a base for
-    // re-creation.
+    // If a swapchain already exists, we re-use it and
+    // later destroy it.
     bool create(vkb::Device device);
 
     void destroy();

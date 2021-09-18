@@ -1,7 +1,7 @@
 #include "storageimage.hpp"
 
-dp::StorageImage::StorageImage(const dp::Context& context, const VkExtent2D size)
-        : ctx(context), image(ctx, size, imageFormat, imageUsage) {
+dp::StorageImage::StorageImage(const dp::Context& context)
+        : ctx(context), image(ctx, { ctx.width, ctx.height }, imageFormat, imageUsage) {
     image.setName("storageImage");
 }
 
@@ -13,8 +13,23 @@ dp::StorageImage::operator VkImage() const {
     return image.image;
 }
 
+VkDescriptorImageInfo dp::StorageImage::getDescriptorImageInfo() const {
+    return {
+        .imageView = image.imageView,
+        .imageLayout = currentLayout,
+    };
+}
+
 const VkImageLayout dp::StorageImage::getCurrentLayout() const {
     return currentLayout;
+}
+
+void dp::StorageImage::recreateImage() {
+    image.free();
+    currentLayout = VK_IMAGE_LAYOUT_UNDEFINED; // Reset the image layout
+    dp::Image newImage(ctx, { ctx.width, ctx.height }, imageFormat, imageUsage);
+    image = newImage;
+    image.setName("storageImage");
 }
 
 void dp::StorageImage::changeLayout(const VkCommandBuffer commandBuffer, const VkImageLayout newLayout) {

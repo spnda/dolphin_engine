@@ -16,13 +16,11 @@ private:
     dp::ShaderStage shaderStage;
 
 public:
-    ShaderModule(VkShaderModule module, dp::ShaderStage shaderStage) : shaderModule(module), shaderStage(shaderStage) {}
+    ShaderModule(VkShaderModule module, dp::ShaderStage shaderStage);
 
     VkPipelineShaderStageCreateInfo getShaderStageCreateInfo();
 
-    dp::ShaderStage getShaderStage() {
-        return shaderStage;
-    }
+    dp::ShaderStage getShaderStage();
 };
 
 } // namespace dp
