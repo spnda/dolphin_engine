@@ -2,6 +2,23 @@
 
 #include <chrono>
 
+dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const std::string asName)
+        : ctx(context), name(asName),
+          resultBuffer(context, name + " resultBuffer") {
+}
+
+dp::AccelerationStructure& dp::AccelerationStructure::operator=(const dp::AccelerationStructure& structure) {
+    this->address = structure.address;
+    this->handle = structure.handle;
+    this->name = structure.name;
+    this->resultBuffer = structure.resultBuffer;
+    return *this;
+}
+
+void dp::AccelerationStructure::setName() {
+    ctx.setDebugUtilsName(handle, name);
+}
+
 dp::AccelerationStructureBuilder::AccelerationStructureBuilder(const dp::Context& context)
         : context(context) {
     
@@ -102,8 +119,8 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(numTriangles, buildGeometryInfo);
 
         // Create result and scratch buffers.
-        dp::AccelerationStructure blas(context);
-        dp::Buffer scratchBuffer(context, "blasScratchBuffer");
+        dp::AccelerationStructure blas(context, mesh.name);
+        dp::Buffer scratchBuffer(context, mesh.name + " scratchBuffer");
         createBuildBuffers(scratchBuffer, blas.resultBuffer, buildSizeInfo);
 
         VkAccelerationStructureCreateInfoKHR createInfo = {};
@@ -136,8 +153,8 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         // Get AS device address
         blas.address = context.getAccelerationStructureDeviceAddress(blas.handle);
 
-        context.setDebugUtilsName(blas.handle, "BLAS");
-        
+        blas.setName();
+
         blases.push_back(blas);
         structures.push_back(blas);
 

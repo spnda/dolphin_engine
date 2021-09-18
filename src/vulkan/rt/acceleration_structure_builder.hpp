@@ -14,12 +14,20 @@ namespace dp {
     };
 
     struct AccelerationStructure {
+    private:
+        const dp::Context& ctx;
+    
+    public:
+        std::string name;
         VkAccelerationStructureKHR handle;
         VkDeviceAddress address;
         dp::Buffer resultBuffer;
 
-        AccelerationStructure(const dp::Context& context)
-                : resultBuffer(context, "blasResultBuffer") {}
+        AccelerationStructure(const dp::Context& context, const std::string asName = "blas");
+
+        AccelerationStructure& operator=(const dp::AccelerationStructure &);
+
+        void setName();
     };
 
     class AccelerationStructureBuilder {

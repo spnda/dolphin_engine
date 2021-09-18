@@ -4,6 +4,10 @@
 #include "../resource/buffer.hpp"
 #include "../resource/uniform_data.hpp"
 
+dp::RayTracingPipeline::operator VkPipeline() const {
+    return pipeline;
+}
+
 void dp::RayTracingPipeline::destroy(const dp::Context& ctx) {
     vkDestroyPipeline(ctx.device, pipeline, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);

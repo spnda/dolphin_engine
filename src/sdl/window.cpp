@@ -56,6 +56,9 @@ void dp::Window::handleEvents(dp::Camera& camera) {
             case SDL_QUIT:
                 shouldQuit = true;
                 break;
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+                
+                break;
             case SDL_MOUSEMOTION:
                 if (!(event.motion.state & SDL_BUTTON_LMASK)) break;
                 if (dp::Ui::isInputting()) break; // If the user is currently using the UI.

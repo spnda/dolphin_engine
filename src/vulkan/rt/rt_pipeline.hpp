@@ -22,6 +22,8 @@ public:
     VkDescriptorSetLayout descriptorLayout;
     VkDescriptorSet descriptorSet;
 
+    operator VkPipeline() const;
+
     void destroy(const dp::Context& ctx);
 };
 

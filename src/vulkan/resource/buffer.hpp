@@ -11,7 +11,7 @@ namespace dp {
  */
 class Buffer {
     const Context& context;
-    const std::string name;
+    std::string name;
 
 public:
     VmaAllocation allocation;
@@ -24,6 +24,8 @@ public:
     Buffer(const Context& context, const std::string name);
 
     ~Buffer();
+
+    Buffer& operator=(const Buffer& buffer);
 
     template<typename N, typename M>
     static N alignedSize(N value, M alignment) {
@@ -42,7 +44,7 @@ public:
     VkBufferDeviceAddressInfoKHR getBufferAddressInfo(VkBuffer handle) const;
 
     /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
-    VkDescriptorBufferInfo getDescriptorInfo(const uint32_t size, const uint32_t offset = 0) const;
+    VkDescriptorBufferInfo getDescriptorInfo(const uint64_t size, const uint64_t offset = 0) const;
 
     VkDeviceOrHostAddressConstKHR getHostAddress();
 

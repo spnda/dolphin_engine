@@ -35,6 +35,8 @@ private:
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT;
 
 public:
+    uint32_t width = 1920, height = 1080;
+
     Window* window;
     VkSurfaceKHR surface;
     VkQueue graphicsQueue;
@@ -64,7 +66,7 @@ public:
     ShaderModule createShader(std::string filename, dp::ShaderStage shaderStage);
 
     VkCommandBuffer createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name = {}) const;
-
+    void beginCommandBuffer(VkCommandBuffer commandBuffer) const;
     void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const;
 
     void waitForFrame(const VulkanSwapchain& swapchain);
@@ -103,8 +105,7 @@ class ContextBuilder {
 private:
     std::string name;
     int version = VK_MAKE_VERSION(1, 0, 0);
-    uint32_t width = 1920;
-    uint32_t height = 1080;
+    uint32_t width = 1920, height = 1080;
 
     void buildAllocator(Context& ctx);
 

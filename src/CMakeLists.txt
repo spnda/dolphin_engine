@@ -1,5 +1,7 @@
 add_files(
 	"main.cpp"
+	"engine.cpp"
+	"engine.hpp"
 	"render/camera.cpp"
 	"render/camera.hpp"
 	"render/mesh.hpp"

@@ -13,6 +13,14 @@ dp::Buffer::Buffer(const dp::Context& context, const std::string name)
 
 dp::Buffer::~Buffer() {}
 
+dp::Buffer& dp::Buffer::operator=(const dp::Buffer& buffer) {
+    this->address = buffer.address;
+    this->allocation = buffer.allocation;
+    this->handle = buffer.handle;
+    this->name = buffer.name;
+    return *this;
+}
+
 void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties) {
     VkBufferCreateInfo bufferCreateInfo = createInfo(size, bufferUsage);
 
@@ -79,7 +87,7 @@ VkBufferDeviceAddressInfoKHR dp::Buffer::getBufferAddressInfo(VkBuffer handle) c
     return bufferDeviceAddressInfo;
 }
 
-VkDescriptorBufferInfo dp::Buffer::getDescriptorInfo(const uint32_t size, const uint32_t offset) const {
+VkDescriptorBufferInfo dp::Buffer::getDescriptorInfo(const uint64_t size, const uint64_t offset) const {
     VkDescriptorBufferInfo info = {};
     info.buffer = handle;
     info.offset = offset;

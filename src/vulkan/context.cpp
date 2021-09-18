@@ -83,9 +83,7 @@ VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkC
     vkAllocateCommandBuffers(device, &bufferAllocateInfo, &commandBuffer);
 
     if (begin) {
-        VkCommandBufferBeginInfo bufferBeginInfo = {};
-        bufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        vkBeginCommandBuffer(commandBuffer, &bufferBeginInfo);
+        beginCommandBuffer(commandBuffer);
     }
 
     if (name.size() != 0) {
@@ -93,6 +91,12 @@ VkCommandBuffer dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkC
     }
 
     return commandBuffer;
+}
+
+void dp::Context::beginCommandBuffer(VkCommandBuffer commandBuffer) const {
+    VkCommandBufferBeginInfo beginInfo = {};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
 }
 
 void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const {
