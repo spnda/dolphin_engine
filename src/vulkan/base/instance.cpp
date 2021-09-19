@@ -1,5 +1,8 @@
 #include "instance.hpp"
 
+#include "../../sdl/window.hpp"
+#include "../utils.hpp"
+
 dp::VulkanInstance::VulkanInstance() {
     window = new Window("Back at it again!", 1920, 1080);
     this->vkInstance = buildInstance("DolphinEngine", VK_MAKE_VERSION(1, 0, 0), requiredExtensions);

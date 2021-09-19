@@ -4,46 +4,41 @@
 
 #include "VkBootstrap.h"
 
-#include "surface.hpp"
-
 namespace dp {
+    const std::vector<const char*> deviceExtensions = {
+        VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
+        VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 
-const std::vector<const char*> deviceExtensions = {
-    VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME,
-    VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
+        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+        VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
+        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+        VK_KHR_SPIRV_1_4_EXTENSION_NAME, // Very important! Our shaders are compiled to SPV1.4 and will not work without.
+        VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+    };
 
-    VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
-    VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-    VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
-    VK_KHR_SPIRV_1_4_EXTENSION_NAME, // Very important! Our shaders are compiled to SPV1.4 and will not work without.
-    VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
-};
+    // fwd
+    class Surface;
 
-class VulkanInstance;
+    class Device {
+        vkb::PhysicalDevice physicalDevice = {};
+        vkb::Device device = {};
 
-class Device {
-private:
-    vkb::PhysicalDevice physicalDevice = {};
-    vkb::Device device = {};
+    public:
+        Device(const vkb::Instance& instance, Surface &surface);
 
+        /**
+         * Get the physical device per vkb::PhysicalDeviceSelector from
+         * the given instance and surface.
+         */
+        static vkb::PhysicalDevice getPhysicalDevice(const vkb::Instance& instance, const VkSurfaceKHR& surface);
 
-public:
-    Device(const vkb::Instance& instance, Surface &surface);
+        /**
+         * Get the logical device for the given physical device.
+         */
+        static vkb::Device getLogicalDevice(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice);
 
-    /**
-     * Get the physical device per vkb::PhysicalDeviceSelector from
-     * the given instance and surface.
-     */
-    static vkb::PhysicalDevice getPhysicalDevice(const vkb::Instance& instance, const VkSurfaceKHR& surface);
+        static VkCommandPool createDefaultCommandPool(const vkb::Device& device, const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags);
 
-    /**
-     * Get the logical device for the given physical device.
-     */
-    static vkb::Device getLogicalDevice(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice);
-
-    static VkCommandPool createDefaultCommandPool(const vkb::Device& device, const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags);
-
-    vkb::Device& getDevice();
-};
-
+        vkb::Device& getDevice();
+    };
 } // namespace dp

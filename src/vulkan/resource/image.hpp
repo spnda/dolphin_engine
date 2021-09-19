@@ -1,43 +1,43 @@
 #pragma once
 
+#include <string>
+
+#include <vulkan/vulkan.h>
+#include <vk_mem_alloc.h>
+
 #include "../context.hpp"
 
 namespace dp {
+    class Image {
+        const Context& context;
 
-// fwd.
-struct Context;
+        VmaAllocation allocation;
 
-class Image {
-    const Context& context;
+    public:
+        VkImage image;
+        VkImageView imageView;
 
-    VmaAllocation allocation;
+        VkExtent2D imageExtent;
 
-public:
-    VkImage image;
-    VkImageView imageView;
+        Image(const Context& context, const VkExtent2D extent, const VkFormat format, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
-    VkExtent2D imageExtent;
+        operator VkImage() const;
+        Image& operator=(const dp::Image& newImage);
 
-    Image(const Context& context, const VkExtent2D extent, const VkFormat format, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
+        /** Destroys the image view, frees all memory and destroys the image. */
+        void destroy();
+        /** Destroys the image view and frees all memory, but does not destroy the image. */
+        void free();
 
-    operator VkImage() const;
-    Image& operator=(const dp::Image& newImage);
+        void setName(const std::string name);
 
-    /** Destroys the image view, frees all memory and destroys the image. */
-    void destroy();
-    /** Destroys the image view and frees all memory, but does not destroy the image. */
-    void free();
-
-    void setName(const std::string name);
-
-    static void changeLayout(
-		const VkImage image,
-		const VkCommandBuffer commandBuffer,
-		const VkImageLayout oldLayout,
-		const VkImageLayout newLayout,
-		const VkAccessFlags srcAccessMask,
-		const VkAccessFlags dstAccessMask,
-		const VkImageSubresourceRange subresourceRange);
-};
-
+        static void changeLayout(
+            const VkImage image,
+            const VkCommandBuffer commandBuffer,
+            const VkImageLayout oldLayout,
+            const VkImageLayout newLayout,
+            const VkAccessFlags srcAccessMask,
+            const VkAccessFlags dstAccessMask,
+            const VkImageSubresourceRange subresourceRange);
+    };
 }

@@ -1,6 +1,8 @@
 #include <vk_mem_alloc.h>
 
+#include "../context.hpp"
 #include "buffer.hpp"
+#include "../utils.hpp"
 
 dp::Buffer::Buffer(const dp::Context& context)
         : context(context), name("") {

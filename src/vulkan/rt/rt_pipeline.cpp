@@ -1,5 +1,6 @@
 #include <vulkan/vulkan.h>
 
+#include "../context.hpp"
 #include "rt_pipeline.hpp"
 #include "../resource/buffer.hpp"
 #include "../resource/uniform_data.hpp"

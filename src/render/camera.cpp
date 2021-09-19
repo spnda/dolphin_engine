@@ -1,5 +1,7 @@
 #include "camera.hpp"
 
+#include "../sdl/window.hpp"
+
 dp::Camera::Camera(const dp::Context context)
         : ctx(context), cameraBuffer(ctx, "cameraBuffer") {
     cameraBufferData.projectionInverse = glm::mat4(1.0f);

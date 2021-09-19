@@ -2,14 +2,13 @@
 
 #include <vulkan/vulkan.h>
 
-#include "../context.hpp"
-
 namespace dp {
+    // fwd
+    class Context;
 
-struct Surface {
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
+    struct Surface {
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
 
-    Surface(const dp::Context& context);
-};
-
+        Surface(const dp::Context& context);
+    };
 } // namespace dp

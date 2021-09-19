@@ -1,20 +1,23 @@
 #pragma once
 
+#include <string>
 #include <tuple>
+#include <vector>
 
-#include "../context.hpp"
 #include "../resource/buffer.hpp"
 #include "../../render/mesh.hpp"
 
 namespace dp {
+    // fwd
+    class Context;
+
     struct AccelerationStructureInstance {
         VkTransformMatrixKHR transformMatrix;
         VkGeometryInstanceFlagBitsKHR flags;
         uint32_t blasIndex; // TODO: Have a better system of referencing the mesh.
     };
 
-    struct AccelerationStructure {
-    private:
+    class AccelerationStructure {
         const dp::Context& ctx;
     
     public:
@@ -31,7 +34,6 @@ namespace dp {
     };
 
     class AccelerationStructureBuilder {
-    private:
         AccelerationStructureBuilder(const dp::Context& context);
 
         const Context& context;

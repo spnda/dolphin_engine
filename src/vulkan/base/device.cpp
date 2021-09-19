@@ -1,6 +1,7 @@
 #include "device.hpp"
 
 #include "../utils.hpp"
+#include "surface.hpp"
 
 dp::Device::Device(const vkb::Instance& instance, Surface &surface) {
     this->physicalDevice = getPhysicalDevice(instance, surface.surface);

@@ -1,9 +1,14 @@
 #pragma once
 
-#include "../context.hpp"
-#include "swapchain.hpp"
+#include <string>
+#include <vector>
+#include <vulkan/vulkan.h>
 
 namespace dp {
+    // fwd
+    class Context;
+    class VulkanSwapchain;
+
     class RenderPass {
         const dp::Context& ctx;
         const dp::VulkanSwapchain& swapchain;

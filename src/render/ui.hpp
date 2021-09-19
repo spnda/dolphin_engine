@@ -1,9 +1,8 @@
 #pragma once
 
-#include "../vulkan/base/device.hpp"
+#include <vector>
+
 #include "../vulkan/base/renderpass.hpp"
-#include "../vulkan/context.hpp"
-#include "../vulkan/utils.hpp"
 
 namespace dp {
     class Ui {

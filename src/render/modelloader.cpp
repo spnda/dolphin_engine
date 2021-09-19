@@ -1,7 +1,11 @@
 #include "modelloader.hpp"
 
+#include <vk_mem_alloc.h>
+
 #include <chrono>
 #include <iostream>
+
+#include "../vulkan/rt/acceleration_structure_builder.hpp"
 
 dp::ModelLoader::ModelLoader(const dp::Context& context)
         : ctx(context), importer(), materialBuffer(ctx, "materialBuffer") {

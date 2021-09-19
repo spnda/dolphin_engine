@@ -2,6 +2,8 @@
 
 #include <chrono>
 
+#include "../context.hpp"
+
 dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const std::string asName)
         : ctx(context), name(asName),
           resultBuffer(context, name + " resultBuffer") {

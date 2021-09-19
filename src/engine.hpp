@@ -7,7 +7,6 @@
 #include "vulkan/resource/storageimage.hpp"
 #include "vulkan/rt/acceleration_structure_builder.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
-#include "vulkan/context.hpp"
 
 namespace dp {
     class Engine {

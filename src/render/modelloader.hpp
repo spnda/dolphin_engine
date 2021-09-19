@@ -6,13 +6,14 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "../vulkan/rt/acceleration_structure_builder.hpp"
-
+#include "../vulkan/resource/buffer.hpp"
 #include "mesh.hpp"
 
 namespace dp {
+    // fwd
+    class AccelerationStructure;
+
     class ModelLoader {
-    private:
         const dp::Context& ctx;
 
         static const uint32_t importFlags =

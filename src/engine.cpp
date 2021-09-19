@@ -1,5 +1,7 @@
 #include "engine.hpp"
 
+#include "sdl/window.hpp"
+
 dp::Engine::Engine(dp::Context& context)
         : ctx(context), modelLoader(ctx), swapchain(ctx, ctx.surface),
           camera(ctx), ui(ctx, swapchain), storageImage(ctx), topLevelAccelerationStructure(ctx),
@@ -172,8 +174,8 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
     // Re-bind the storage image.
-	VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
-	VkWriteDescriptorSet resultImageWrite = {
+    VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
+    VkWriteDescriptorSet resultImageWrite = {
         .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
         .pNext = nullptr,
         .dstSet = pipeline.descriptorSet,
@@ -182,7 +184,7 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
         .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
         .pImageInfo = &storageImageDescriptor,
     };
-	vkUpdateDescriptorSets(ctx.device, 1, &resultImageWrite, 0, nullptr);
+    vkUpdateDescriptorSets(ctx.device, 1, &resultImageWrite, 0, nullptr);
 
     // Let the UI resize.
     ui.resize();

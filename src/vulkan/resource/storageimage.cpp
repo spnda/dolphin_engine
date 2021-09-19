@@ -1,5 +1,8 @@
 #include "storageimage.hpp"
 
+#include "../context.hpp"
+#include "image.hpp"
+
 dp::StorageImage::StorageImage(const dp::Context& context)
         : ctx(context), image(ctx, { ctx.width, ctx.height }, imageFormat, imageUsage) {
     image.setName("storageImage");

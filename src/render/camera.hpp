@@ -13,7 +13,6 @@
 
 namespace dp {
     class Camera {
-    private:
         const dp::Context ctx;
         dp::Buffer cameraBuffer;
 

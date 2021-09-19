@@ -2,55 +2,48 @@
 
 #include <string>
 #include <vector>
-#include <functional>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_vulkan.h>
 
 namespace dp {
+    // fwd
+    class Engine;
 
-// fwd
-class Camera;
+    /**
+     * Simple abstraction over a SDL2 window, including helper
+     * functions for various SDL functions.
+     */
+    class Window {
+        static const SDL_WindowFlags windowFlags =
+            SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
 
-// fwd
-class Engine;
+        bool shouldQuit = false;
 
-/**
- * Simple abstraction over a SDL2 window, including helper
- * functions for various SDL functions.
- */
-class Window {
-private:
-    static const SDL_WindowFlags windowFlags =
-        SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+        int width;
+        int height;
 
-    bool shouldQuit = false;
+        struct Keys {
+            bool forward_pressed;
+            bool backward_pressed;
+        } keys_pressed;
 
-    int width;
-    int height;
+    public:
+        SDL_Window* window;
+        SDL_DisplayMode mode;
 
-    struct Keys {
-        bool forward_pressed;
-        bool backward_pressed;
-    } keys_pressed;
+        Window(std::string title, int width, int height);
 
-public:
-    SDL_Window* window;
-    SDL_DisplayMode mode;
+        ~Window();
 
-    Window(std::string title, int width, int height);
+        std::vector<const char*> getExtensions();
 
-    ~Window();
+        VkSurfaceKHR createSurface(VkInstance vkInstance);
 
-    std::vector<const char*> getExtensions();
+        bool shouldClose();
 
-    VkSurfaceKHR createSurface(VkInstance vkInstance);
+        float getAspectRatio();
 
-    bool shouldClose();
-
-    float getAspectRatio();
-
-    void handleEvents(dp::Engine& engine);
-};
-
+        void handleEvents(dp::Engine& engine);
+    };
 } // namespace dp

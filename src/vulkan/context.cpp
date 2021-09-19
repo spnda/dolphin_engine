@@ -8,16 +8,16 @@
 
 #include "VkBootstrap.h"
 
+#include "../sdl/window.hpp"
 #include "context.hpp"
 #include "base/instance.hpp"
 #include "base/device.hpp"
+#include "resource/image.hpp"
 #include "base/swapchain.hpp"
 #include "resource/buffer.hpp"
 #include "utils.hpp"
 
 #define DEFAULT_FENCE_TIMEOUT 100000000000
-
-namespace dp {
 
 dp::Context::Context() {
 }
@@ -170,22 +170,22 @@ void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
-	VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry = {};
-	raygenShaderSbtEntry.deviceAddress = raygenSbt.address;
-	raygenShaderSbtEntry.stride = stride;
-	raygenShaderSbtEntry.size = stride;
+    VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry = {};
+    raygenShaderSbtEntry.deviceAddress = raygenSbt.address;
+    raygenShaderSbtEntry.stride = stride;
+    raygenShaderSbtEntry.size = stride;
 
-	VkStridedDeviceAddressRegionKHR missShaderSbtEntry = {};
-	missShaderSbtEntry.deviceAddress = missSbt.address;
-	missShaderSbtEntry.stride = stride;
-	missShaderSbtEntry.size = stride;
+    VkStridedDeviceAddressRegionKHR missShaderSbtEntry = {};
+    missShaderSbtEntry.deviceAddress = missSbt.address;
+    missShaderSbtEntry.stride = stride;
+    missShaderSbtEntry.size = stride;
 
-	VkStridedDeviceAddressRegionKHR hitShaderSbtEntry = {};
-	hitShaderSbtEntry.deviceAddress = hitSbt.address;
-	hitShaderSbtEntry.stride = stride;
-	hitShaderSbtEntry.size = stride;
+    VkStridedDeviceAddressRegionKHR hitShaderSbtEntry = {};
+    hitShaderSbtEntry.deviceAddress = hitSbt.address;
+    hitShaderSbtEntry.stride = stride;
+    hitShaderSbtEntry.size = stride;
 
-	VkStridedDeviceAddressRegionKHR callableShaderSbtEntry = {};
+    VkStridedDeviceAddressRegionKHR callableShaderSbtEntry = {};
 
     vkCmdTraceRaysKHR(
         commandBuffer,
@@ -312,7 +312,7 @@ void dp::Context::setDebugUtilsName(const T& object, std::string name, VkObjectT
 }
 
 
-void ContextBuilder::buildAllocator(Context& ctx) {
+void dp::ContextBuilder::buildAllocator(Context& ctx) {
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = ctx.physicalDevice;
     allocatorInfo.device = ctx.device;
@@ -321,7 +321,7 @@ void ContextBuilder::buildAllocator(Context& ctx) {
     vmaCreateAllocator(&allocatorInfo, &ctx.vmaAllocator);
 }
 
-void ContextBuilder::buildSyncStructures(Context& ctx) {
+void dp::ContextBuilder::buildSyncStructures(Context& ctx) {
     ctx.renderFence = {};
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -347,17 +347,17 @@ dp::ContextBuilder dp::ContextBuilder::create(std::string name) {
     return builder;
 }
 
-dp::ContextBuilder& ContextBuilder::setDimensions(uint32_t width, uint32_t height) {
+dp::ContextBuilder& dp::ContextBuilder::setDimensions(uint32_t width, uint32_t height) {
     this->width = width; this->height = height;
     return *this;
 }
 
-void ContextBuilder::setVersion(int version) {
+void dp::ContextBuilder::setVersion(int version) {
     this->version = version;
 }
 
-Context ContextBuilder::build() {
-    Context context;
+dp::Context dp::ContextBuilder::build() {
+    dp::Context context;
     context.window = new Window(name, width, height);
     context.instance = dp::VulkanInstance::buildInstance(name, version, context.window->getExtensions());
     context.surface = context.window->createSurface(context.instance);
@@ -372,5 +372,3 @@ Context ContextBuilder::build() {
     buildAllocator(context);
     return context;
 }
-
-} // namespace dp
