@@ -77,7 +77,7 @@ bool dp::ModelLoader::loadFile(const std::string fileName) {
 
     // Load Meshes
     loadNode(scene->mRootNode, scene);
-    
+
     // Load Materials
     if (scene->HasMaterials()) {
         for (uint32_t i = 0; i < scene->mNumMaterials; i++) {

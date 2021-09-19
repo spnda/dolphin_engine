@@ -12,7 +12,7 @@ namespace dp {
     struct Vertex {
         // The relative vertex position.
         // Has to be at the start because of the AS.
-        glm::vec3 pos;
+        glm::fvec3 pos;
     };
 
     struct Material {

@@ -35,8 +35,8 @@ void dp::AccelerationStructureBuilder::createMeshBuffers(dp::Buffer& vertexBuffe
     vertexBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
 
     // Create the index buffer
-    indexBuffer.create(mesh.indices.size() * sizeof(uint32_t), bufferUsage, usage, properties);
-    indexBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(uint32_t));
+    indexBuffer.create(mesh.indices.size() * sizeof(Index), bufferUsage, usage, properties);
+    indexBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(Index));
 
     // Create the index buffer
     transformBuffer.create(sizeof(VkTransformMatrixKHR), bufferUsage, usage, properties);
@@ -100,11 +100,11 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         structureGeometry.pNext = nullptr;
         structureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         structureGeometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-        structureGeometry.geometry.triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        structureGeometry.geometry.triangles.vertexFormat = mesh.vertexFormat;
         structureGeometry.geometry.triangles.vertexData.deviceAddress = vertexBuffer.address;
         structureGeometry.geometry.triangles.maxVertex = mesh.vertices.size();
-        structureGeometry.geometry.triangles.vertexStride = sizeof(Vertex);
-        structureGeometry.geometry.triangles.indexType = VK_INDEX_TYPE_UINT32;
+        structureGeometry.geometry.triangles.vertexStride = mesh.stride;
+        structureGeometry.geometry.triangles.indexType = mesh.indexType;
         structureGeometry.geometry.triangles.indexData.deviceAddress = indexBuffer.address;
         structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
         structureGeometry.geometry.triangles.transformData.deviceAddress = transformBuffer.address;
@@ -117,7 +117,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         buildGeometryInfo.geometryCount = 1;
         buildGeometryInfo.pGeometries = &structureGeometry;
 
-        const uint32_t numTriangles = mesh.vertices.size() / 3; // TODO!
+        const uint32_t numTriangles = mesh.indices.size() / 3;
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(numTriangles, buildGeometryInfo);
 
         // Create result and scratch buffers.

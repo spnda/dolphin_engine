@@ -17,7 +17,6 @@ namespace dp {
         const dp::Context& ctx;
 
         static const uint32_t importFlags =
-            aiProcess_FlipWindingOrder |
             aiProcess_Triangulate |
             aiProcess_PreTransformVertices |
             aiProcess_CalcTangentSpace |

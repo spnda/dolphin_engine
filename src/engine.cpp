@@ -19,7 +19,7 @@ dp::Engine::Engine(dp::Context& context)
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
     // Load the models and create the pipeline.
-    modelLoader.loadFile("models/pflanzenzelle.fbx");
+    modelLoader.loadFile("models/CornellBox-Original.obj");
     topLevelAccelerationStructure = modelLoader.buildAccelerationStructure(ctx);
     this->buildPipeline();
 

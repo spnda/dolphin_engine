@@ -4,5 +4,6 @@ struct HitPayload {
 
 struct Material {
     vec4 diffuse;
+    vec4 specular;
     vec4 emissive;
 };
