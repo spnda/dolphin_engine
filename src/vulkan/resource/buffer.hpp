@@ -17,36 +17,36 @@ namespace dp {
         std::string name;
 
         mutable std::mutex memoryMutex;
+        VmaAllocation allocation = nullptr;
+        VkDeviceSize size = 0;
+        VkBuffer handle = nullptr;
+
+        auto getCreateInfo(VkBufferUsageFlags bufferUsage) const -> VkBufferCreateInfo;
+        auto getBufferAddressInfo(VkBuffer handle) const -> VkBufferDeviceAddressInfoKHR;
 
     public:
-        VmaAllocation allocation;
-        VkBuffer handle;
-        uint64_t address;
+        VkDeviceAddress address = 0;
 
         // Create and allocate a new buffer.
         Buffer(const Context& context);
         Buffer(const Context& context, const std::string name);
         Buffer(const Buffer& buffer);
-
-        ~Buffer();
+        ~Buffer() = default;
 
         Buffer& operator=(const Buffer& buffer);
 
         static auto alignedSize(size_t value, size_t alignment) -> size_t;
 
-        void create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties);
+        void create(const VkDeviceSize size, const VkBufferUsageFlags bufferUsage, const VmaMemoryUsage usage, const VkMemoryPropertyFlags properties);
         void destroy();
-
-        void createForAccelerationStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
-
-        VkBufferCreateInfo createInfo(VkDeviceSize size, VkBufferUsageFlags bufferUsage);
-        VkBufferDeviceAddressInfoKHR getBufferAddressInfo(VkBuffer handle) const;
-        /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
-        VkDescriptorBufferInfo getDescriptorInfo(const uint64_t size, const uint64_t offset = 0) const;
-        VkDeviceOrHostAddressConstKHR getHostAddress();
-
         void lock() const;
         void unlock() const;
+
+        /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
+        auto getDescriptorInfo(const uint64_t size, const uint64_t offset = 0) const -> VkDescriptorBufferInfo;
+        auto getHandle() const -> const VkBuffer;
+        auto getHostAddress() const -> VkDeviceOrHostAddressConstKHR;
+        auto getSize() const -> VkDeviceSize;
 
         /**
          * Copies the memory of size from source into the
