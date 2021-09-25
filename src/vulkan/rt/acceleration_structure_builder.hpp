@@ -8,35 +8,14 @@
 #include "../../render/mesh.hpp"
 
 namespace dp {
-    // fwd
-    class Context;
-
-    struct AccelerationStructureInstance {
-        VkTransformMatrixKHR transformMatrix;
-        VkGeometryInstanceFlagBitsKHR flags;
-        uint32_t blasIndex; // TODO: Have a better system of referencing the mesh.
-    };
-
-    class AccelerationStructure {
-        const dp::Context& ctx;
-    
-    public:
-        std::string name;
-        VkAccelerationStructureKHR handle;
-        VkDeviceAddress address;
-        dp::Buffer resultBuffer;
-
-        AccelerationStructure(const dp::Context& context, const std::string asName = "blas");
-
-        AccelerationStructure& operator=(const dp::AccelerationStructure &);
-
-        void setName();
-    };
+    class AccelerationStructureInstance;
+    class AccelerationStructure;
 
     class AccelerationStructureBuilder {
-        AccelerationStructureBuilder(const dp::Context& context);
+        AccelerationStructureBuilder(const dp::Context& context, const VkCommandPool commandPool);
 
         const Context& context;
+        const VkCommandPool commandPool;
 
         // Static vector used to delete all structures.
         inline static std::vector<AccelerationStructure> structures;
@@ -49,7 +28,7 @@ namespace dp {
         void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const;
 
     public:
-        static AccelerationStructureBuilder create(const Context& context);
+        static AccelerationStructureBuilder create(const Context& context, const VkCommandPool commandPool);
         static void destroyAllStructures(const dp::Context& ctx);
 
         uint32_t addMesh(Mesh mesh);

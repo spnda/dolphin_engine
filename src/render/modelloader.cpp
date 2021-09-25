@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "../vulkan/rt/acceleration_structure_builder.hpp"
+#include "../vulkan/rt/acceleration_structure.hpp"
 
 dp::ModelLoader::ModelLoader(const dp::Context& context)
         : ctx(context), importer(), materialBuffer(ctx, "materialBuffer") {
@@ -107,7 +108,7 @@ void dp::ModelLoader::createMaterialBuffer() {
 }
 
 dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
-    auto builder = dp::AccelerationStructureBuilder::create(context);
+    auto builder = dp::AccelerationStructureBuilder::create(context, context.commandPool);
     for (auto mesh : meshes) {
         uint32_t meshIndex = builder.addMesh(mesh);
 
