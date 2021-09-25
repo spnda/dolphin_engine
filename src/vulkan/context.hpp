@@ -8,10 +8,13 @@
 #include "VkBootstrap.h"
 
 #include "base/shader.hpp"
+#include "base/fence.hpp"
+#include "base/queue.hpp"
 
 namespace dp {
     // fwd.
     class Buffer;
+    class Fence;
     class Image;
     class VulkanSwapchain;
     class Window;
@@ -30,16 +33,21 @@ namespace dp {
         PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
         PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT;
 
+        void buildAllocator();
+        void buildSyncStructures();
+
     public:
+        std::string name;
+        uint64_t version = VK_MAKE_VERSION(1, 0, 0);
         uint32_t width = 1920, height = 1080;
 
         Window* window;
         VkSurfaceKHR surface;
-        VkQueue graphicsQueue;
+        dp::Queue graphicsQueue;
         VkCommandPool commandPool;
 
         // Sync structures
-        VkFence renderFence;
+        dp::Fence renderFence;
         VkSemaphore presentCompleteSemaphore;
         VkSemaphore renderCompleteSemaphore;
 
@@ -53,8 +61,10 @@ namespace dp {
 
         VmaAllocator vmaAllocator;
 
-        Context();
+        Context(const std::string name);
+        Context(const Context& ctx) = default;
 
+        void init();
         void destroy();
 
         void getVulkanFunctions();
@@ -63,9 +73,10 @@ namespace dp {
 
         auto createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name = {}) const -> VkCommandBuffer;
         void beginCommandBuffer(VkCommandBuffer commandBuffer) const;
-        void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const;
+        void flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const;
 
         auto waitForFrame(const VulkanSwapchain& swapchain) -> VkResult;
+        /** The caller is supposed to lock/unlock the queues. */
         auto submitFrame(const VulkanSwapchain& swapchain) -> VkResult;
 
         void buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
@@ -74,48 +85,28 @@ namespace dp {
 
         void buildRayTracingPipeline(VkPipeline *pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR> createInfos) const;
         void createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;
+        auto createCommandPool(const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags) const -> VkCommandPool;
         void createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const;
         void destroyAccelerationStructure(const VkAccelerationStructureKHR handle) const;
         auto getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
         auto getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
         void getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const;
+        auto getQueueIndex(const vkb::QueueType queueType) const -> uint32_t;
         void getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const;
-        void waitForFence(const VkFence* fence) const;
         void waitForIdle() const;
 
         void setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const;
         void setDebugUtilsName(const VkBuffer& buffer, const std::string name) const;
+        void setDebugUtilsName(const VkFence& fence, const std::string name) const;
         void setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const;
         void setDebugUtilsName(const VkImage& image, const std::string name) const;
         void setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const;
+        void setDebugUtilsName(const VkQueue& queue, const std::string name) const;
         void setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const;
         void setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const;
         void setDebugUtilsName(const VkShaderModule& shaderModule, const std::string name) const;
 
         template <typename T>
         void setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const;
-    };
-
-    /// Context builder to create a context with a VkInstance, VkDevice(s), VkSurfaceKHR and window.
-    class ContextBuilder {
-    private:
-        std::string name;
-        int version = VK_MAKE_VERSION(1, 0, 0);
-        uint32_t width = 1920, height = 1080;
-
-        void buildAllocator(Context& ctx);
-
-        void buildSyncStructures(Context& ctx);
-
-        ContextBuilder(std::string name);
-
-    public:
-        static ContextBuilder create(std::string name);
-
-        ContextBuilder& setDimensions(uint32_t width, uint32_t height);
-
-        void setVersion(int version);
-
-        Context build();
     };
 } // namespace dp

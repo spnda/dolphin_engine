@@ -4,8 +4,8 @@
 #include "vulkan/utils.hpp"
 
 dp::Engine::Engine(dp::Context& context)
-        : ctx(context), modelLoader(ctx), swapchain(ctx, ctx.surface),
-          camera(ctx), ui(ctx, swapchain), storageImage(ctx), topLevelAccelerationStructure(ctx),
+        : ctx(context), modelManager(ctx), swapchain(ctx, ctx.surface),
+          camera(ctx), ui(ctx, swapchain), storageImage(ctx),
           raygenShaderBindingTable(ctx, "raygenShaderBindingTable"), missShaderBindingTable(ctx, "missShaderBindingTable"), hitShaderBindingTable(ctx, "hitShaderBindingTable") {
     this->getProperties();
     
@@ -20,8 +20,11 @@ dp::Engine::Engine(dp::Context& context)
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
     // Load the models and create the pipeline.
-    modelLoader.loadFile("models/CornellBox-Original.obj");
-    topLevelAccelerationStructure = modelLoader.buildAccelerationStructure(ctx);
+    modelManager.loadMeshes({
+        "models/Buddha/buddha.obj",
+        "models/CornellBox/CornellBox-Original.obj",
+        "models/Dragon/dragon.obj"});
+    modelManager.buildTopLevelAccelerationStructure();
     this->buildPipeline();
 
     this->buildSBT();
@@ -48,29 +51,28 @@ void dp::Engine::buildPipeline() {
     VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
     descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
     descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-    descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAccelerationStructure.handle;
+    descriptorAccelerationStructureInfo.pAccelerationStructures = &modelManager.getTLAS().handle;
     builder.addAccelerationStructureDescriptor(
         0, &descriptorAccelerationStructureInfo,
-        VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+        VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, dp::ShaderStage::RayGeneration | dp::ShaderStage::ClosestHit
     );
 
     VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
     builder.addImageDescriptor(
         1, &storageImageDescriptor,
-        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, dp::ShaderStage::RayGeneration
     );
 
     VkDescriptorBufferInfo cameraBufferInfo = camera.getDescriptorInfo();
     builder.addBufferDescriptor(
         2, &cameraBufferInfo,
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, dp::ShaderStage::RayGeneration
     );
 
-    modelLoader.createMaterialBuffer();
-    VkDescriptorBufferInfo materialBufferInfo = modelLoader.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
+    VkDescriptorBufferInfo materialBufferInfo = modelManager.getMaterialBuffer().getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         3, &materialBufferInfo,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
     );
 
     pipeline = builder.build();
@@ -151,13 +153,16 @@ void dp::Engine::renderLoop() {
 
         // End the command buffer and submit.
         vkEndCommandBuffer(ctx.drawCommandBuffer);
+
+        ctx.graphicsQueue.lock();
         result = ctx.submitFrame(swapchain);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             needsResize = true;
         } else {
             checkResult(result, "Failed to submit queue");
         }
-        vkQueueWaitIdle(ctx.graphicsQueue);
+        ctx.graphicsQueue.waitIdle();
+        ctx.graphicsQueue.unlock();
     }
 }
 
@@ -165,7 +170,6 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
     ctx.waitForIdle();
     ctx.width = width;
     ctx.height = height;
-    printf("CTX SIZE: %lu, %lu", ctx.width, ctx.height);
 
     // Re-create the swapchain.
     swapchain.create(ctx.device);

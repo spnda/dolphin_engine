@@ -29,24 +29,34 @@ dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShader(dp::Shad
     // Ray generation and ray miss are both classified as a general shader.
     // As we only use closest hit, we'll simply switch between the two to 
     // use the appropriate data.
+    // https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkRayTracingShaderGroupTypeNV.html#_description
     VkRayTracingShaderGroupCreateInfoKHR shaderGroup = {};
     shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-    shaderGroup.type = module.getShaderStage() == dp::ShaderStage::ClosestHit
-            ? VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR
-            : VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    shaderGroup.generalShader = VK_SHADER_UNUSED_KHR;
+    shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
+    shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
     switch (module.getShaderStage()) {
-        case dp::ShaderStage::RayGeneration:
-        case dp::ShaderStage::RayMiss:
+        using enum dp::ShaderStage;
+        case RayGeneration:
+        case RayMiss:
+        case Callable:
+            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
             shaderGroup.generalShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-            shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
             break;
-        case dp::ShaderStage::ClosestHit:
-            shaderGroup.generalShader = VK_SHADER_UNUSED_KHR;
+        case ClosestHit:
+            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
             shaderGroup.closestHitShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-            shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
+            break;
+        case AnyHit:
+            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
+            shaderGroup.anyHitShader = static_cast<uint32_t>(shaderStages.size()) - 1;
+            break;
+        case Intersection:
+            // This group isn't entirely specific to intersection shaders, however it
+            // must have atleast one of these.
+            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_PROCEDURAL_HIT_GROUP_KHR;
+            shaderGroup.intersectionShader = static_cast<uint32_t>(shaderStages.size()) - 1;
             break;
     }
     shaderGroups.push_back(shaderGroup);
@@ -137,7 +147,8 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     static std::vector<VkDescriptorPoolSize> poolSizes = {
         { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 },
         { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 }
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 }
     };
 
     ctx.createDescriptorPool(1, poolSizes, &descriptorPool);

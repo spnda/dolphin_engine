@@ -44,16 +44,6 @@ vkb::Device dp::Device::getLogicalDevice(const vkb::Instance& instance, const vk
     return getFromVkbResult(deviceBuilder.build());
 }
 
-VkCommandPool dp::Device::createDefaultCommandPool(const vkb::Device& device, const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags) {
-    VkCommandPoolCreateInfo comandPoolInfo = {};
-    comandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    comandPoolInfo.queueFamilyIndex = queueFamilyIndex;
-    comandPoolInfo.flags = flags;
-    VkCommandPool cmdPool;
-    vkCreateCommandPool(device, &comandPoolInfo, nullptr, &cmdPool);
-    return cmdPool;
-}
-
 vkb::Device& dp::Device::getDevice() {
     return this->device;
 }

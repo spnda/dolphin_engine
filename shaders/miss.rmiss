@@ -7,5 +7,5 @@
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
 
 void main() {
-    hitPayload.hitValue = vec4(0.25, 0.25, 0.25, 1.0);
+    hitPayload.hitValue = vec4(0.0, 0.0, 0.0, 1.0);
 }

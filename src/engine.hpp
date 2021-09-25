@@ -1,11 +1,12 @@
 #pragma once
 
 #include "render/camera.hpp"
-#include "render/modelloader.hpp"
+#include "render/modelmanager.hpp"
 #include "render/ui.hpp"
 #include "vulkan/base/swapchain.hpp"
 #include "vulkan/resource/storageimage.hpp"
 #include "vulkan/rt/acceleration_structure_builder.hpp"
+#include "vulkan/rt/acceleration_structure.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
 
 namespace dp {
@@ -13,13 +14,12 @@ namespace dp {
         const VkImageSubresourceRange defaultSubresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
         dp::Context& ctx;
-        dp::ModelLoader modelLoader;
+        dp::ModelManager modelManager;
         dp::Ui ui;
 
         dp::StorageImage storageImage;
         dp::VulkanSwapchain swapchain;
         dp::RayTracingPipeline pipeline;
-        dp::AccelerationStructure topLevelAccelerationStructure;
 
         dp::Buffer raygenShaderBindingTable;
         dp::Buffer missShaderBindingTable;

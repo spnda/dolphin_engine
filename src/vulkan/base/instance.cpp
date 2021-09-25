@@ -21,7 +21,7 @@ vkb::Instance dp::VulkanInstance::buildInstance(const std::string name, const ui
     auto sysInfo = vkb::SystemInfo::get_system_info().value();
     for (auto ext : extensions) {
         if (!sysInfo.is_extension_available(ext)) {
-            printf("%s is not available!\n", ext);
+            std::cout << ext << " is not available!" << std::endl;
             continue;
         }
         instance_builder.enable_extension(ext);

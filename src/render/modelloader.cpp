@@ -9,8 +9,7 @@
 #include "../vulkan/rt/acceleration_structure.hpp"
 
 dp::ModelLoader::ModelLoader(const dp::Context& context)
-        : ctx(context), importer(), materialBuffer(ctx, "materialBuffer") {
-
+        : ctx(context), importer() {
 }
 
 void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene) {
@@ -29,6 +28,9 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vertex;
         vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
+        if (mesh->HasNormals()) {
+            vertex.normals = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
+        }
         newMesh.vertices.push_back(vertex);
     }
 
@@ -66,9 +68,6 @@ inline void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key,
 }
 
 bool dp::ModelLoader::loadFile(const std::string fileName) {
-    printf("Importing file %s!\n", fileName.c_str());
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
     const aiScene* scene = importer.ReadFile(fileName, importFlags);
 
     if (!scene || scene->mRootNode == nullptr) {
@@ -91,36 +90,5 @@ bool dp::ModelLoader::loadFile(const std::string fileName) {
         }
     }
 
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("Finished importing file. Took %zums.\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
-
     return true;
-}
-
-void dp::ModelLoader::createMaterialBuffer() {
-    materialBuffer.create(
-        materials.size() * sizeof(Material),
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VMA_MEMORY_USAGE_CPU_TO_GPU,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT 
-    );
-    materialBuffer.memoryCopy(materials.data(), materials.size() * sizeof(Material));
-}
-
-dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
-    auto builder = dp::AccelerationStructureBuilder::create(context, context.commandPool);
-    for (auto mesh : meshes) {
-        uint32_t meshIndex = builder.addMesh(mesh);
-
-        builder.addInstance(dp::AccelerationStructureInstance {
-            .transformMatrix = {
-                1.0f, 0.0f, 0.0f, 0.0f,
-                0.0f, 1.0f, 0.0f, 0.0f,
-                0.0f, 0.0f, 1.0f, 0.0f
-            },
-            .flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR,
-            .blasIndex = meshIndex,
-        });
-    }
-    return builder.build();
 }

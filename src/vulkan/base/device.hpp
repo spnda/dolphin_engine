@@ -37,8 +37,6 @@ namespace dp {
          */
         static vkb::Device getLogicalDevice(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice);
 
-        static VkCommandPool createDefaultCommandPool(const vkb::Device& device, const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags);
-
         vkb::Device& getDevice();
     };
 } // namespace dp

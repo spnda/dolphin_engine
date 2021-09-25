@@ -62,7 +62,6 @@ void dp::Window::handleEvents(dp::Engine& engine) {
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_RESIZED:
                     case SDL_WINDOWEVENT_SIZE_CHANGED:
-                        printf("SDL SIZE: %l, %l", event.window.data1, event.window.data2);
                         engine.resize(event.window.data1, event.window.data2);
                         break;
                 }

@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <vulkan/vulkan.h>
 
 #include <glm/glm.hpp>
 
@@ -13,6 +14,7 @@ namespace dp {
         // The relative vertex position.
         // Has to be at the start because of the AS.
         glm::fvec3 pos;
+        glm::fvec3 normals;
     };
 
     struct Material {

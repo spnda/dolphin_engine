@@ -8,6 +8,7 @@
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
 hitAttributeEXT vec3 attribs;
 
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 3, set = 0) buffer Materials { Material material[]; } materials;
 
 const vec4 hello[2] = {
