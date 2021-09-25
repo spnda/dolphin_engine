@@ -142,7 +142,7 @@ auto dp::Context::submitFrame(const VulkanSwapchain& swapchain) -> VkResult {
     submitInfo.pCommandBuffers = &drawCommandBuffer;
     VkResult result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFence);
     if (result != VK_SUCCESS) {
-        printf("vkQueueSubmit: %d\n", result);
+        checkResult(result, "Failed to submit queue");
     }
 
     return swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
