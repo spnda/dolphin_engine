@@ -11,11 +11,11 @@ namespace dp {
     class Image {
         const Context& context;
 
-        VmaAllocation allocation;
+        VmaAllocation allocation = nullptr;
 
     public:
-        VkImage image;
-        VkImageView imageView;
+        VkImage image = nullptr;
+        VkImageView imageView = nullptr;
 
         VkExtent2D imageExtent;
 

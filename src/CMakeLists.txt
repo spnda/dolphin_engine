@@ -27,7 +27,6 @@ add_files(
     "vulkan/resource/buffer.hpp"
     "vulkan/resource/image.cpp"
     "vulkan/resource/image.hpp"
-    "vulkan/resource/scratch_buffer.hpp"
     "vulkan/resource/storageimage.cpp"
     "vulkan/resource/storageimage.hpp"
     "vulkan/resource/uniform_data.hpp"
