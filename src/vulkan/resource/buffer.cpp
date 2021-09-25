@@ -13,6 +13,12 @@ dp::Buffer::Buffer(const dp::Context& context, const std::string name)
 
 }
 
+dp::Buffer::Buffer(const dp::Buffer& buffer)
+        : context(buffer.context), name(buffer.name),
+          allocation(buffer.allocation), handle(buffer.handle), address(buffer.address) {
+    
+}
+
 dp::Buffer::~Buffer() {}
 
 dp::Buffer& dp::Buffer::operator=(const dp::Buffer& buffer) {
@@ -21,6 +27,10 @@ dp::Buffer& dp::Buffer::operator=(const dp::Buffer& buffer) {
     this->handle = buffer.handle;
     this->name = buffer.name;
     return *this;
+}
+
+auto dp::Buffer::alignedSize(size_t value, size_t alignment) -> size_t {
+    return (value + alignment - 1) & -alignment;
 }
 
 void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties) {
@@ -45,6 +55,7 @@ void dp::Buffer::create(VkDeviceSize size, VkBufferUsageFlags bufferUsage, VmaMe
 }
 
 void dp::Buffer::destroy() {
+    if (handle == nullptr || allocation == nullptr) return;
     vmaDestroyBuffer(context.vmaAllocator, handle, allocation);
     handle = VK_NULL_HANDLE;
 }
@@ -101,11 +112,21 @@ VkDeviceOrHostAddressConstKHR dp::Buffer::getHostAddress() {
     return { .deviceAddress = address, };
 }
 
+void dp::Buffer::lock() const {
+    memoryMutex.lock();
+}
+
+void dp::Buffer::unlock() const {
+    memoryMutex.unlock();
+}
+
 void dp::Buffer::memoryCopy(const void* source, uint64_t size) const {
+    memoryMutex.lock();
     void* dst;
     this->mapMemory(&dst);
     memcpy(dst, source, size);
     this->unmapMemory();
+    memoryMutex.unlock();
 }
 
 void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) const {
