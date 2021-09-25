@@ -1,6 +1,7 @@
 #include "engine.hpp"
 
 #include "sdl/window.hpp"
+#include "vulkan/utils.hpp"
 
 dp::Engine::Engine(dp::Context& context)
         : ctx(context), modelLoader(ctx), swapchain(ctx, ctx.surface),
@@ -105,6 +106,8 @@ void dp::Engine::renderLoop() {
             result = ctx.waitForFrame(swapchain);
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 needsResize = true;
+            } else {
+                checkResult(result, "Failed to present queue");
             }
         }
         if (needsResize) break;
@@ -151,6 +154,8 @@ void dp::Engine::renderLoop() {
         result = ctx.submitFrame(swapchain);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             needsResize = true;
+        } else {
+            checkResult(result, "Failed to submit queue");
         }
         vkQueueWaitIdle(ctx.graphicsQueue);
     }
