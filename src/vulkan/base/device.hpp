@@ -14,6 +14,7 @@ namespace dp {
         VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
         VK_KHR_SPIRV_1_4_EXTENSION_NAME, // Very important! Our shaders are compiled to SPV1.4 and will not work without.
         VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+        VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
     };
 
     // fwd

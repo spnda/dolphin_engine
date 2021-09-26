@@ -112,10 +112,10 @@ dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addBufferDescripto
     return *this;
 }
 
-dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addAccelerationStructureDescriptor(const uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, VkShaderStageFlags stageFlags) {
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addAccelerationStructureDescriptor(const uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkShaderStageFlags stageFlags) {
     VkDescriptorSetLayoutBinding newBinding = {
         .binding = binding,
-        .descriptorType = type,
+        .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
         .descriptorCount = 1,
         .stageFlags = stageFlags,
         .pImmutableSamplers = nullptr,
@@ -128,7 +128,7 @@ dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addAccelerationStr
         .pNext = asInfo,
         .dstBinding = binding,
         .descriptorCount = 1,
-        .descriptorType = type,
+        .descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR,
     };
     descriptorWrites.push_back(newWrite);
 

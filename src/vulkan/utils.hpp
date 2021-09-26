@@ -57,9 +57,8 @@ static inline const std::unordered_map<VkResult, std::string> resultStrings = {
 
 inline void checkResult(VkResult result, const std::string message) {
     if (result != VK_SUCCESS) {
-        std::string error = message + ": " + resultStrings.at(result);
-        std::cerr << error << std::endl;
-        throw std::runtime_error(error);
+        std::cout << message + ": " + resultStrings.at(result) << std::endl;
+        throw std::runtime_error(message + ": " + resultStrings.at(result));
     }
 }
 

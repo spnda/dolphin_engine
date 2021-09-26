@@ -47,6 +47,18 @@ target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
 target_link_libraries(dolphin_engine PRIVATE glm::glm)
 target_link_libraries(dolphin_engine PRIVATE assimp::assimp)
 
+if (MSVC)
+  # Warn about nested declarations
+  add_compile_options("/w34456")
+  # Warn about potentially uninitialized variables
+  add_compile_options("/w34701")
+  add_compile_options("/w34703")
+  # Warn about different indirection types.
+  add_compile_options("/w34057")
+  # Warn about signed/unsigned mismatch.
+  add_compile_options("/w34245")
+endif()
+
 # Compile shaders
 set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen)
 foreach(SHADER ${SHADER_FILES})

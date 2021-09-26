@@ -4,7 +4,7 @@
 #include "vulkan/utils.hpp"
 
 dp::Engine::Engine(dp::Context& context)
-        : ctx(context), modelManager(ctx), swapchain(ctx, ctx.surface),
+        : ctx(context), modelManager(ctx, pipeline), swapchain(ctx, ctx.surface),
           camera(ctx), ui(ctx, swapchain), storageImage(ctx),
           raygenShaderBindingTable(ctx, "raygenShaderBindingTable"), missShaderBindingTable(ctx, "missShaderBindingTable"), hitShaderBindingTable(ctx, "hitShaderBindingTable") {
     this->getProperties();
@@ -51,10 +51,10 @@ void dp::Engine::buildPipeline() {
     VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
     descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
     descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-    descriptorAccelerationStructureInfo.pAccelerationStructures = &modelManager.getTLAS().handle;
+    descriptorAccelerationStructureInfo.pAccelerationStructures = &modelManager.getTLAS().getHandle();
     builder.addAccelerationStructureDescriptor(
         0, &descriptorAccelerationStructureInfo,
-        VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, dp::ShaderStage::RayGeneration | dp::ShaderStage::ClosestHit
+        dp::ShaderStage::RayGeneration | dp::ShaderStage::ClosestHit
     );
 
     VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
@@ -113,6 +113,8 @@ void dp::Engine::renderLoop() {
             }
         }
         if (needsResize) break;
+
+        modelManager.updateDescriptor();
 
         // Update the camera buffer.
         camera.updateBuffer();

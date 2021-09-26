@@ -5,8 +5,6 @@
 #include "render/ui.hpp"
 #include "vulkan/base/swapchain.hpp"
 #include "vulkan/resource/storageimage.hpp"
-#include "vulkan/rt/acceleration_structure_builder.hpp"
-#include "vulkan/rt/acceleration_structure.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
 
 namespace dp {
@@ -33,6 +31,7 @@ namespace dp {
         void getProperties();
         void buildPipeline();
         void buildSBT();
+
     public:
         dp::Camera camera;
 

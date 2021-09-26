@@ -12,12 +12,12 @@ namespace dp {
         PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
 
     public:
-        VkPipeline pipeline;
-        VkPipelineLayout pipelineLayout;
+        VkPipeline pipeline = nullptr;
+        VkPipelineLayout pipelineLayout = nullptr;
 
-        VkDescriptorPool descriptorPool;
-        VkDescriptorSetLayout descriptorLayout;
-        VkDescriptorSet descriptorSet;
+        VkDescriptorPool descriptorPool = nullptr;
+        VkDescriptorSetLayout descriptorLayout = nullptr;
+        VkDescriptorSet descriptorSet = nullptr;
 
         operator VkPipeline() const;
 
@@ -45,7 +45,7 @@ namespace dp {
         RayTracingPipelineBuilder& addShader(ShaderModule module);
         RayTracingPipelineBuilder& addImageDescriptor(const uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
         RayTracingPipelineBuilder& addBufferDescriptor(const uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
-        RayTracingPipelineBuilder& addAccelerationStructureDescriptor(const uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+        RayTracingPipelineBuilder& addAccelerationStructureDescriptor(const uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkShaderStageFlags stageFlags);
 
         // Builds the descriptor set layout and pipeline layout, then creates
         // a VkRayTracingPipeline based on that.

@@ -6,12 +6,11 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
-#include "../vulkan/resource/buffer.hpp"
 #include "mesh.hpp"
 
 namespace dp {
     // fwd
-    class AccelerationStructure;
+    class Context;
 
     /** Helper class to quickly and efficiently load meshes using Assimp */
     class ModelLoader {

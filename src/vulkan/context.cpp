@@ -101,7 +101,7 @@ auto dp::Context::createShader(std::string filename, dp::ShaderStage shaderStage
     }
 }
 
-auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name) const -> VkCommandBuffer {
+auto dp::Context::createCommandBuffer(const VkCommandBufferLevel level, const VkCommandPool pool, bool begin, const std::string name) const -> VkCommandBuffer {
     VkCommandBufferAllocateInfo bufferAllocateInfo = {};
     bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     bufferAllocateInfo.pNext = nullptr;
@@ -129,7 +129,8 @@ void dp::Context::beginCommandBuffer(VkCommandBuffer commandBuffer) const {
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 }
 
-void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const {
+void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue,
+                                     const VkSemaphore& signalSemaphore, const VkSemaphore& waitSemaphore, const uint32_t waitMask) const {
     if (commandBuffer == VK_NULL_HANDLE) return;
 
     vkEndCommandBuffer(commandBuffer);
@@ -138,6 +139,15 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Qu
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &commandBuffer;
+    if (signalSemaphore != nullptr) {
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores = &signalSemaphore;
+    }
+    if (waitSemaphore != nullptr) {
+        submitInfo.waitSemaphoreCount = 1;
+        submitInfo.pWaitSemaphores = &waitSemaphore;
+        submitInfo.pWaitDstStageMask = &waitMask;
+    }
 
     queue.lock();
     dp::Fence fence(*this, "tempFlushFence");
@@ -180,11 +190,11 @@ auto dp::Context::submitFrame(const VulkanSwapchain& swapchain) -> VkResult {
     return result;
 }
 
-void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const {
+void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> infos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const {
     vkCmdBuildAccelerationStructuresKHR(
         commandBuffer,
-        buildGeometryInfos.size(),
-        buildGeometryInfos.data(),
+        infos.size(),
+        infos.data(),
         buildRangeInfos.data()
     );
 }
@@ -241,8 +251,8 @@ void dp::Context::buildRayTracingPipeline(VkPipeline* pPipelines, const std::vec
     );
 }
 
-void dp::Context::createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const {
-    vkCreateAccelerationStructureKHR(
+auto dp::Context::createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const -> VkResult {
+    return vkCreateAccelerationStructureKHR(
         device, &createInfo, nullptr, accelerationStructure);
 }
 
@@ -270,7 +280,7 @@ void dp::Context::destroyAccelerationStructure(const VkAccelerationStructureKHR 
     vkDestroyAccelerationStructureKHR(device, handle, nullptr);
 }
 
-auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR {
+auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t maxPrimitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR {
     VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
     buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
@@ -278,7 +288,7 @@ auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCou
         device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
         &buildGeometryInfo,
-        &primitiveCount,
+        &maxPrimitiveCount,
         &buildSizeInfo);
 
     return buildSizeInfo;

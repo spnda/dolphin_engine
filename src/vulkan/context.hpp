@@ -14,7 +14,6 @@
 namespace dp {
     // fwd.
     class Buffer;
-    class Fence;
     class Image;
     class VulkanSwapchain;
     class Window;
@@ -71,24 +70,24 @@ namespace dp {
 
         auto createShader(std::string filename, dp::ShaderStage shaderStage) -> dp::ShaderModule;
 
-        auto createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name = {}) const -> VkCommandBuffer;
+        auto createCommandBuffer(const VkCommandBufferLevel level, const VkCommandPool pool, bool begin, const std::string name = {}) const -> VkCommandBuffer;
         void beginCommandBuffer(VkCommandBuffer commandBuffer) const;
-        void flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const;
+        void flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue, const VkSemaphore& signalSemaphore = nullptr, const VkSemaphore& waitSemaphore = nullptr, const uint32_t waitMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT) const;
 
         auto waitForFrame(const VulkanSwapchain& swapchain) -> VkResult;
         /** The caller is supposed to lock/unlock the queues. */
         auto submitFrame(const VulkanSwapchain& swapchain) -> VkResult;
 
-        void buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
+        void buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> infos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
         void copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) const;
         void traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const;
 
         void buildRayTracingPipeline(VkPipeline *pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR> createInfos) const;
-        void createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;
+        auto createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const -> VkResult;
         auto createCommandPool(const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags) const -> VkCommandPool;
         void createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const;
         void destroyAccelerationStructure(const VkAccelerationStructureKHR handle) const;
-        auto getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
+        auto getAccelerationStructureBuildSizes(const uint32_t maxPrimitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
         auto getAccelerationStructureDeviceAddress(const VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
         void getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const;
         auto getQueueIndex(const vkb::QueueType queueType) const -> uint32_t;
