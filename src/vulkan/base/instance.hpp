@@ -1,9 +1,8 @@
 #pragma once
 
 #include <string>
-#include <vector>
+#include <set>
 
-#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
 
 #include "VkBootstrap.h"
@@ -12,19 +11,25 @@ namespace dp {
     // fwd
     class Window;
 
-    class VulkanInstance {
-        const std::vector<const char*> requiredExtensions = {};
-
-        // Creates a new SDL2 window instance and creates a VkInstance.
-        VulkanInstance();
+    class Instance {
+        std::set<const char*> requiredExtensions = {};
+        vkb::Instance instance = {};
 
     public:
-        Window* window              = VK_NULL_HANDLE;
-        vkb::Instance vkInstance    = {};
+        explicit Instance() = default;
+        Instance(const Instance &) = default;
+        Instance& operator=(const Instance &) = default;
 
-        static vkb::Instance buildInstance(const std::string& name, uint32_t version, const std::vector<const char*>& extensions);
+        void create(const std::string& name);
+        void destroy() const;
+        void addExtensions(const std::vector<const char*>& extensions);
 
-        VulkanInstance(VulkanInstance const&) = delete;
-        void operator=(VulkanInstance const&) = delete;
+        template<class T>
+        T getFunctionAddress(const std::string& functionName) const {
+            return reinterpret_cast<T>(vkGetInstanceProcAddr(instance, functionName.c_str()));
+        }
+
+        explicit operator vkb::Instance() const;
+        operator VkInstance() const;
     };
 } // namespace dp

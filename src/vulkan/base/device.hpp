@@ -4,30 +4,29 @@
 
 #include "VkBootstrap.h"
 
-namespace dp {
-    // fwd
-    class Surface;
+#include "instance.hpp"
+#include "physical_device.hpp"
 
+namespace dp {
     class Device {
-        vkb::PhysicalDevice physicalDevice = {};
         vkb::Device device = {};
 
     public:
-        Device(const vkb::Instance& instance, Surface &surface);
+        explicit Device() = default;
+        Device(const Device&) = default;
+        Device& operator=(const Device&) = default;
 
-        /**
-         * Get the physical device per vkb::PhysicalDeviceSelector from
-         * the given instance and surface.
-         */
-        static vkb::PhysicalDevice getPhysicalDevice(const vkb::Instance& instance, const VkSurfaceKHR& surface);
+        void create(const dp::PhysicalDevice& physicalDevice);
+        void destroy() const;
+        [[nodiscard]] VkQueue getQueue(vkb::QueueType queueType) const;
+        [[nodiscard]] uint32_t getQueueIndex(vkb::QueueType queueType) const;
 
-        /**
-         * Get the logical device for the given physical device.
-         */
-        static vkb::Device getLogicalDevice(const vkb::Instance& instance, const vkb::PhysicalDevice& physicalDevice);
+        template<class T>
+        T getFunctionAddress(const std::string& functionName) const {
+            return reinterpret_cast<T>(vkGetDeviceProcAddr(device, functionName.c_str()));
+        }
 
-        static VkCommandPool createDefaultCommandPool(const vkb::Device& device, uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags);
-
-        vkb::Device& getHandle();
+        explicit operator vkb::Device() const;
+        operator VkDevice() const;
     };
 } // namespace dp

@@ -110,7 +110,7 @@ void dp::Engine::renderLoop() {
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 needsResize = true;
             } else {
-                checkResult(result, "Failed to present queue");
+                checkResult(ctx, result, "Failed to present queue");
             }
         }
         if (needsResize) break;
@@ -120,10 +120,12 @@ void dp::Engine::renderLoop() {
 
         ctx.beginCommandBuffer(ctx.drawCommandBuffer);
         auto image = swapchain.images[ctx.currentImageIndex];
+        ctx.setCheckpoint(ctx.drawCommandBuffer, "Beginning.");
 
         vkCmdBindPipeline(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipeline);
         vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, nullptr);
 
+        ctx.setCheckpoint(ctx.drawCommandBuffer, "Tracing rays.");
         ctx.traceRays(
             ctx.drawCommandBuffer,
             raygenShaderBindingTable,
@@ -133,6 +135,7 @@ void dp::Engine::renderLoop() {
             { ctx.width, ctx.height, 1 }
         );
 
+        ctx.setCheckpoint(ctx.drawCommandBuffer, "Changing image layout.");
         // Move storage image to swapchain image.
         storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
@@ -140,7 +143,8 @@ void dp::Engine::renderLoop() {
                                 0, VK_ACCESS_TRANSFER_WRITE_BIT,
                                 defaultSubresourceRange);
 
-        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage.image.imageExtent, storageImage.image, image);
+        ctx.setCheckpoint(ctx.drawCommandBuffer, "Copying storage image.");
+        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage.getImageSize(), storageImage, image);
 
         storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_GENERAL);
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
@@ -148,17 +152,19 @@ void dp::Engine::renderLoop() {
                                 VK_ACCESS_TRANSFER_WRITE_BIT, 0,
                                 defaultSubresourceRange);
 
+        ctx.setCheckpoint(ctx.drawCommandBuffer, "Drawing UI.");
         // Draw the UI.
         ui.prepare();
         ui.draw(ctx.drawCommandBuffer);
 
         // End the command buffer and submit.
+        ctx.setCheckpoint(ctx.drawCommandBuffer, "Ending.");
         vkEndCommandBuffer(ctx.drawCommandBuffer);
         result = ctx.submitFrame(swapchain);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             needsResize = true;
         } else {
-            checkResult(result, "Failed to submit queue");
+            checkResult(ctx, result, "Failed to submit queue");
         }
         vkQueueWaitIdle(ctx.graphicsQueue);
     }

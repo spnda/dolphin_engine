@@ -95,3 +95,11 @@ void dp::Image::changeLayout(
         0, nullptr,
         1, &imageBarrier);
 }
+
+VkImageView dp::Image::getImageView() const {
+    return imageView;
+}
+
+VkExtent2D dp::Image::getImageSize() const {
+    return imageExtent;
+}

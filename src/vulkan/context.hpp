@@ -7,6 +7,9 @@
 
 #include "VkBootstrap.h"
 
+#include "base/device.hpp"
+#include "base/instance.hpp"
+#include "base/physical_device.hpp"
 #include "shaders/shader.hpp"
 
 namespace dp {
@@ -19,39 +22,40 @@ namespace dp {
     // The global vulkan context. Includes the window, surface,
     // Vulkan instance and devices.
     class Context {
-        PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR{};
-        PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR{};
-        PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR{};
-        PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR{};
-        PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR{};
-        PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR{};
-        PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR{};
-        PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR{};
-        PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR{};
-        PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT{};
+        PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;
+        PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR = nullptr;
+        PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR = nullptr;
+        PFN_vkCmdSetCheckpointNV vkCmdSetCheckpointNV = nullptr;
+        PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR = nullptr;
+        PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR = nullptr;
+        PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
+        PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR = nullptr;
+        PFN_vkGetQueueCheckpointDataNV vkGetQueueCheckpointDataNV = nullptr;
+        PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR = nullptr;
+        PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT = nullptr;
 
     public:
         uint32_t width = 1920, height = 1080;
 
-        Window* window{};
-        VkSurfaceKHR surface{};
-        VkQueue graphicsQueue{};
-        VkCommandPool commandPool{};
+        Window* window = nullptr;
+        VkSurfaceKHR surface = nullptr;
+        VkQueue graphicsQueue = nullptr;
+        VkCommandPool commandPool = nullptr;
 
         // Sync structures
-        VkFence renderFence{};
-        VkSemaphore presentCompleteSemaphore{};
-        VkSemaphore renderCompleteSemaphore{};
+        VkFence renderFence = nullptr;
+        VkSemaphore presentCompleteSemaphore = nullptr;
+        VkSemaphore renderCompleteSemaphore = nullptr;
 
-        vkb::Instance instance;
-        vkb::PhysicalDevice physicalDevice;
-        vkb::Device device;
+        dp::Instance instance;
+        dp::PhysicalDevice physicalDevice;
+        dp::Device device;
 
-        VkCommandBuffer drawCommandBuffer{};
+        VkCommandBuffer drawCommandBuffer = nullptr;
 
-        uint32_t currentImageIndex{};
+        uint32_t currentImageIndex = 0;
 
-        VmaAllocator vmaAllocator{};
+        VmaAllocator vmaAllocator = nullptr;
 
         Context();
 
@@ -68,15 +72,18 @@ namespace dp {
 
         void buildAccelerationStructures(VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR>& buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
         void copyStorageImage(VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) ;
+        void setCheckpoint(VkCommandBuffer commandBuffer, const char* marker = nullptr) const;
         void traceRays(VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, uint32_t stride, VkExtent3D size) const;
 
         void buildRayTracingPipeline(VkPipeline *pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR>& createInfos) const;
         void createAccelerationStructure(VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;
+        [[nodiscard]] auto createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags) const -> VkCommandPool;
         void createDescriptorPool(uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes, VkDescriptorPool* descriptorPool) const;
         void destroyAccelerationStructure(VkAccelerationStructureKHR handle) const;
         [[nodiscard]] auto getAccelerationStructureBuildSizes(uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
         auto getAccelerationStructureDeviceAddress(VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
-        void getBufferDeviceAddress(VkBufferDeviceAddressInfoKHR addressInfo) const;
+        [[nodiscard]] auto getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR& addressInfo) const -> uint32_t;
+        auto getCheckpointData(VkQueue queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV>;
         void getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const;
         void waitForFence(const VkFence* fence) const;
         void waitForIdle() const;

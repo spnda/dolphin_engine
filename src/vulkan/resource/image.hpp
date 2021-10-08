@@ -12,17 +12,15 @@ namespace dp {
         const Context& context;
 
         VmaAllocation allocation = nullptr;
-
-    public:
         VkImage image = nullptr;
         VkImageView imageView = nullptr;
+        VkExtent2D imageExtent = {0, 0};
 
-        VkExtent2D imageExtent;
-
+    public:
         Image(const Context& context, VkExtent2D extent, VkFormat format, VkImageUsageFlags usageFlags, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
 
-        explicit operator VkImage() const;
-        Image& operator=(const dp::Image& newImage);
+        operator VkImage() const;
+        Image& operator=(const Image& newImage);
 
         /** Destroys the image view, frees all memory and destroys the image. */
         void destroy();
@@ -30,6 +28,9 @@ namespace dp {
         void free();
 
         void setName(const std::string& name);
+
+        [[nodiscard]] VkImageView getImageView() const;
+        [[nodiscard]] VkExtent2D getImageSize() const;
 
         static void changeLayout(
             VkImage image,

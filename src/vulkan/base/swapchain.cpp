@@ -3,8 +3,16 @@
 #include "swapchain.hpp"
 #include "../utils.hpp"
 
-bool dp::Swapchain::create(const vkb::Device& device) {
-    vkb::SwapchainBuilder swapchainBuilder(device);
+dp::Swapchain::Swapchain(const Context& context, const VkSurfaceKHR surface)
+        : ctx(context), surface(surface) {
+    create(ctx.device);
+    vkAcquireNextImage = ctx.device.getFunctionAddress<PFN_vkAcquireNextImageKHR>("vkAcquireNextImageKHR");
+    vkQueuePresent = ctx.device.getFunctionAddress<PFN_vkQueuePresentKHR>("vkQueuePresentKHR");
+    vkDestroySurface = ctx.device.getFunctionAddress<PFN_vkDestroySurfaceKHR>("vkDestroySurfaceKHR");
+}
+
+bool dp::Swapchain::create(const dp::Device& device) {
+    vkb::SwapchainBuilder swapchainBuilder((vkb::Device(device)));
     auto buildResult = swapchainBuilder
         .set_old_swapchain(this->swapchain)
         .set_desired_extent(ctx.width, ctx.height)

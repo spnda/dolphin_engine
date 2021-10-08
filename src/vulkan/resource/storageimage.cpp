@@ -10,18 +10,22 @@ dp::StorageImage::operator dp::Image() const {
 }
 
 dp::StorageImage::operator VkImage() const {
-    return image.image;
+    return image;
 }
 
 VkDescriptorImageInfo dp::StorageImage::getDescriptorImageInfo() const {
     return {
-        .imageView = image.imageView,
+        .imageView = image.getImageView(),
         .imageLayout = currentLayout,
     };
 }
 
 VkImageLayout dp::StorageImage::getCurrentLayout() const {
     return currentLayout;
+}
+
+VkExtent2D dp::StorageImage::getImageSize() const {
+    return image.getImageSize();
 }
 
 void dp::StorageImage::recreateImage() {

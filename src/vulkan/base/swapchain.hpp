@@ -8,7 +8,7 @@
 
 namespace dp {
     class Swapchain {
-        dp::Context& ctx;
+        const dp::Context& ctx;
 
         VkSurfaceKHR surface;
 
@@ -25,17 +25,12 @@ namespace dp {
         std::vector<VkImage> images = {};
         std::vector<VkImageView> views = {};
 
-        Swapchain(Context& context, VkSurfaceKHR surface) : ctx(context), surface(surface) {
-            this->create(ctx.device);
-            this->vkAcquireNextImage = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(context.device, "vkAcquireNextImageKHR"));
-            this->vkQueuePresent = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(context.device, "vkQueuePresentKHR"));
-            this->vkDestroySurface = reinterpret_cast<PFN_vkDestroySurfaceKHR>(vkGetInstanceProcAddr(context.instance, "vkDestroySurfaceKHR"));
-        }
+        Swapchain(const Context& context, VkSurfaceKHR surface);
 
         // Creates a new swapchain.
         // If a swapchain already exists, we re-use it and
         // later destroy it.
-        bool create(const vkb::Device& device);
+        bool create(const dp::Device& device);
 
         void destroy();
 

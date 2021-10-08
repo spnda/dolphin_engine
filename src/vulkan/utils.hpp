@@ -5,6 +5,7 @@
 #include <fstream>
 
 #include "VkBootstrap.h"
+#include "context.hpp"
 
 template<class T>
 T getFromVkbResult(vkb::detail::Result<T> result) {
@@ -56,8 +57,17 @@ static inline const std::unordered_map<VkResult, std::string> resultStrings = {
     {VK_PIPELINE_COMPILE_REQUIRED_EXT, "VK_PIPELINE_COMPILE_REQUIRED_EXT"},
 };
 
-inline void checkResult(VkResult result, const std::string& message) {
+inline void checkResult(const dp::Context& ctx, VkResult result, const std::string& message) {
     if (result != VK_SUCCESS) {
+        // Get checkpoint data
+        auto checkpoints = ctx.getCheckpointData(ctx.graphicsQueue, 10);
+        if (checkpoints.empty()) {
+            std::cout << "No checkpoints have been created." << std::endl;
+        }
+        for (const auto& cp : checkpoints) {
+            std::cout << "Checkpoint: " << static_cast<const char*>(cp.pCheckpointMarker) << std::endl;
+        }
+
         std::string error = message + ": " + resultStrings.at(result);
         std::cerr << error << std::endl;
         throw std::runtime_error(error);

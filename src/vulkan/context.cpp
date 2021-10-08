@@ -27,21 +27,22 @@ void dp::Context::destroy() const {
 
     vkDestroyCommandPool(device, commandPool, nullptr);
 
-    vkb::destroy_device(device);
-    vkb::destroy_instance(instance);
+    device.destroy();
+    instance.destroy();
 }
 
 void dp::Context::getVulkanFunctions() {
-    vkCreateAccelerationStructureKHR = reinterpret_cast<PFN_vkCreateAccelerationStructureKHR>(vkGetDeviceProcAddr(device, "vkCreateAccelerationStructureKHR"));
-    vkCreateRayTracingPipelinesKHR = reinterpret_cast<PFN_vkCreateRayTracingPipelinesKHR>(vkGetDeviceProcAddr(device, "vkCreateRayTracingPipelinesKHR"));
-    vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(device, "vkCmdBuildAccelerationStructuresKHR"));
-    vkCmdTraceRaysKHR = reinterpret_cast<PFN_vkCmdTraceRaysKHR>(vkGetDeviceProcAddr(device, "vkCmdTraceRaysKHR"));
-    vkDestroyAccelerationStructureKHR = reinterpret_cast<PFN_vkDestroyAccelerationStructureKHR>(vkGetDeviceProcAddr(device, "vkDestroyAccelerationStructureKHR"));
-    vkGetAccelerationStructureBuildSizesKHR = reinterpret_cast<PFN_vkGetAccelerationStructureBuildSizesKHR>(vkGetDeviceProcAddr(device, "vkGetAccelerationStructureBuildSizesKHR"));
-    vkGetAccelerationStructureDeviceAddressKHR = reinterpret_cast<PFN_vkGetAccelerationStructureDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetAccelerationStructureDeviceAddressKHR"));
-    vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR"));
-    vkGetRayTracingShaderGroupHandlesKHR = reinterpret_cast<PFN_vkGetRayTracingShaderGroupHandlesKHR>(vkGetDeviceProcAddr(device, "vkGetRayTracingShaderGroupHandlesKHR"));
-    vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
+    vkCreateAccelerationStructureKHR = device.getFunctionAddress<PFN_vkCreateAccelerationStructureKHR>("vkCreateAccelerationStructureKHR");
+    vkCreateRayTracingPipelinesKHR = device.getFunctionAddress<PFN_vkCreateRayTracingPipelinesKHR>("vkCreateRayTracingPipelinesKHR");
+    vkCmdBuildAccelerationStructuresKHR = device.getFunctionAddress<PFN_vkCmdBuildAccelerationStructuresKHR>("vkCmdBuildAccelerationStructuresKHR");
+    vkCmdSetCheckpointNV = device.getFunctionAddress<PFN_vkCmdSetCheckpointNV>("vkCmdSetCheckpointNV");
+    vkCmdTraceRaysKHR = device.getFunctionAddress<PFN_vkCmdTraceRaysKHR>("vkCmdTraceRaysKHR");
+    vkDestroyAccelerationStructureKHR = device.getFunctionAddress<PFN_vkDestroyAccelerationStructureKHR>("vkDestroyAccelerationStructureKHR");
+    vkGetAccelerationStructureBuildSizesKHR = device.getFunctionAddress<PFN_vkGetAccelerationStructureBuildSizesKHR>("vkGetAccelerationStructureBuildSizesKHR");
+    vkGetAccelerationStructureDeviceAddressKHR = device.getFunctionAddress<PFN_vkGetAccelerationStructureDeviceAddressKHR>("vkGetAccelerationStructureDeviceAddressKHR");
+    vkGetQueueCheckpointDataNV = device.getFunctionAddress<PFN_vkGetQueueCheckpointDataNV>("vkGetQueueCheckpointDataNV");
+    vkGetRayTracingShaderGroupHandlesKHR = device.getFunctionAddress<PFN_vkGetRayTracingShaderGroupHandlesKHR>("vkGetRayTracingShaderGroupHandlesKHR");
+    vkSetDebugUtilsObjectNameEXT = instance.getFunctionAddress<PFN_vkSetDebugUtilsObjectNameEXT>("vkSetDebugUtilsObjectNameEXT");
 }
 
 auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string& name) const -> VkCommandBuffer {
@@ -115,7 +116,7 @@ auto dp::Context::submitFrame(const Swapchain& swapchain) -> VkResult {
     submitInfo.pCommandBuffers = &drawCommandBuffer;
     VkResult result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFence);
     if (result != VK_SUCCESS) {
-        checkResult(result, "Failed to submit queue");
+        checkResult(*this, result, "Failed to submit queue");
     }
 
     return swapchain.queuePresent(graphicsQueue, currentImageIndex, renderCompleteSemaphore);
@@ -140,6 +141,11 @@ void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent
     copyRegion.extent = { imageSize.width, imageSize.height, 1 };
 
     vkCmdCopyImage(commandBuffer, VkImage(storageImage), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+}
+
+void dp::Context::setCheckpoint(VkCommandBuffer commandBuffer, const char* marker) const {
+    if (vkCmdSetCheckpointNV != nullptr)
+        vkCmdSetCheckpointNV(commandBuffer, marker);
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
@@ -188,6 +194,17 @@ void dp::Context::createAccelerationStructure(const VkAccelerationStructureCreat
         device, &createInfo, nullptr, accelerationStructure);
 }
 
+auto dp::Context::createCommandPool(const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags) const -> VkCommandPool {
+    VkCommandPoolCreateInfo commandPoolCreateInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags = flags,
+        .queueFamilyIndex = queueFamilyIndex,
+    };
+    VkCommandPool pool = nullptr;
+    vkCreateCommandPool(device, &commandPoolCreateInfo, nullptr, &pool);
+    return pool;
+}
+
 void dp::Context::createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes, VkDescriptorPool* descriptorPool) const {
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
     descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -222,8 +239,19 @@ auto dp::Context::getAccelerationStructureDeviceAddress(const VkAccelerationStru
     return vkGetAccelerationStructureDeviceAddressKHR(device, &accelerationDeviceAddressInfo);
 }
 
-void dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addressInfo) const {
-    vkGetBufferDeviceAddressKHR(device, &addressInfo);
+uint32_t dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR& addressInfo) const {
+    return vkGetBufferDeviceAddress(device, &addressInfo);
+}
+
+auto dp::Context::getCheckpointData(VkQueue queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV> {
+    if (vkGetQueueCheckpointDataNV == nullptr) return {};
+
+    uint32_t count = queryCount;
+    vkGetQueueCheckpointDataNV(queue, &count, nullptr); // We first get the count.
+
+    std::vector<VkCheckpointDataNV> checkpoints(count, { VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV });
+    vkGetQueueCheckpointDataNV(queue, &count, checkpoints.data()); // Then allocate the array and get the checkpoints.
+    return { checkpoints.begin(), checkpoints.end() };
 }
 
 void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {
@@ -231,12 +259,15 @@ void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, ui
 }
 
 void dp::Context::waitForFence(const VkFence* fence) const {
-    vkWaitForFences(device, 1, fence, true, DEFAULT_FENCE_TIMEOUT);
-    vkResetFences(device, 1, fence);
+    auto result = vkWaitForFences(device, 1, fence, true, DEFAULT_FENCE_TIMEOUT);
+    checkResult(*this, result, "Failed to wait on fences");
+    result = vkResetFences(device, 1, fence);
+    checkResult(*this, result, "Failed to reset fences");
 }
 
 void dp::Context::waitForIdle() const {
-    vkDeviceWaitIdle(device);
+    auto result = vkDeviceWaitIdle(device);
+    checkResult(*this, result, "Failed to wait on device idle");
 }
 
 
@@ -334,14 +365,15 @@ void dp::ContextBuilder::setVersion(int newVersion) {
 dp::Context dp::ContextBuilder::build() {
     dp::Context context;
     context.window = new Window(name, width, height);
-    context.instance = dp::VulkanInstance::buildInstance(name, version, context.window->getExtensions());
+    context.instance.addExtensions(context.window->getExtensions());
+    context.instance.create(this->name);
     context.surface = context.window->createSurface(context.instance);
-    context.physicalDevice = dp::Device::getPhysicalDevice(context.instance, context.surface);
-    context.device = dp::Device::getLogicalDevice(context.instance, context.physicalDevice);
-    context.graphicsQueue = getFromVkbResult(context.device.get_queue(vkb::QueueType::graphics));
+    context.physicalDevice.create(context.instance, context.surface);
+    context.device.create(context.physicalDevice);
+    context.graphicsQueue = context.device.getQueue(vkb::QueueType::present);
     context.getVulkanFunctions();
     // We want the pool to have resettable command buffers.
-    context.commandPool = dp::Device::createDefaultCommandPool(context.device, getFromVkbResult(context.device.get_queue_index(vkb::QueueType::graphics)), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    context.commandPool = context.createCommandPool(context.device.getQueueIndex(vkb::QueueType::graphics), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     context.drawCommandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, false, "drawCommandBuffer");
     buildSyncStructures(context);
     buildAllocator(context);

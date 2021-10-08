@@ -34,7 +34,7 @@ find_package(imgui CONFIG REQUIRED)
 find_package(glm REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
-add_executable(dolphin_engine src/vulkan/shaders/file_includer.hpp src/vulkan/shaders/file_includer.cpp)
+add_executable(dolphin_engine)
 
 # Add shaderc from the Vulkan SDK
 add_library(shaderc UNKNOWN IMPORTED)

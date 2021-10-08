@@ -1,17 +1,11 @@
 #include "instance.hpp"
 
-#include "../../sdl/window.hpp"
 #include "../utils.hpp"
 
-dp::VulkanInstance::VulkanInstance() {
-    window = new Window("Back at it again!", 1920, 1080);
-    this->vkInstance = buildInstance("DolphinEngine", VK_MAKE_VERSION(1, 0, 0), requiredExtensions);
-}
-
-vkb::Instance dp::VulkanInstance::buildInstance(const std::string& name, const uint32_t version, const std::vector<const char*>& extensions) {
+void dp::Instance::create(const std::string& name) {
     vkb::InstanceBuilder instance_builder;
     instance_builder.set_app_name(name.c_str());
-    instance_builder.set_app_version(version >> 22, version >> 12, version);
+    instance_builder.set_app_version(1, 0, 0);
     instance_builder.require_api_version(1, 2, 0);
 #ifdef _DEBUG
     instance_builder.enable_layer("VK_LAYER_LUNARG_monitor");
@@ -19,7 +13,7 @@ vkb::Instance dp::VulkanInstance::buildInstance(const std::string& name, const u
 
     // Add all available extensions
     auto sysInfo = vkb::SystemInfo::get_system_info().value();
-    for (auto ext : extensions) {
+    for (auto ext : requiredExtensions) {
         if (!sysInfo.is_extension_available(ext)) {
             printf("%s is not available!\n", ext);
             continue;
@@ -34,5 +28,24 @@ vkb::Instance dp::VulkanInstance::buildInstance(const std::string& name, const u
         .use_default_debug_messenger()
 #endif
         .build();
-    return getFromVkbResult(buildResult);
+
+    instance = getFromVkbResult(buildResult);
+}
+
+void dp::Instance::destroy() const {
+    vkb::destroy_instance(instance);
+}
+
+void dp::Instance::addExtensions(const std::vector<const char*>& extensions) {
+    for (auto ext : extensions) {
+        requiredExtensions.insert(ext);
+    }
+}
+
+dp::Instance::operator vkb::Instance() const {
+    return instance;
+}
+
+dp::Instance::operator VkInstance() const {
+    return instance.instance;
 }

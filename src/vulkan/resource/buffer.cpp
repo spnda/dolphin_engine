@@ -40,13 +40,12 @@ void dp::Buffer::create(const VkDeviceSize newSize, const VkBufferUsageFlags buf
     };
 
     auto result = vmaCreateBuffer(context.vmaAllocator, &bufferCreateInfo, &allocationInfo, &handle, &allocation, nullptr);
-    checkResult(result, "Failed to create buffer \"" + name + "\"");
+    checkResult(context, result, "Failed to create buffer \"" + name + "\"");
     assert(allocation != nullptr);
 
     if (isFlagSet(bufferUsage, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
         auto addressInfo = getBufferAddressInfo(handle);
-        address = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(context.device, "vkGetBufferDeviceAddressKHR"))
-            (context.device, &addressInfo);
+        address = context.getBufferDeviceAddress(addressInfo);
     }
 
     if (!name.empty()) {
