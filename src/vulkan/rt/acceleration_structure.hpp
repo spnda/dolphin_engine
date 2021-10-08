@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <vulkan/vulkan.h>
 
 #include "../resource/buffer.hpp"
@@ -34,7 +35,7 @@ namespace dp {
         /** If this->type is TopLevel, this should be a list of all relevant BLASes. */
         std::vector<AccelerationStructure> children;
 
-        AccelerationStructure(const dp::Context& context, const AccelerationStructureType type = AccelerationStructureType::Generic, const std::string asName = "blas");
+        explicit AccelerationStructure(const dp::Context& context, AccelerationStructureType type = AccelerationStructureType::Generic, std::string  asName = "blas");
         AccelerationStructure(const AccelerationStructure& structure);
 
         AccelerationStructure& operator=(const dp::AccelerationStructure& structure);

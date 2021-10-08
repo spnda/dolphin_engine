@@ -17,15 +17,15 @@ namespace dp {
     public:
         dp::Image image;
 
-        StorageImage(const dp::Context& context);
+        explicit StorageImage(const dp::Context& context);
 
-        operator dp::Image() const;
-        operator VkImage() const;
+        explicit operator dp::Image() const;
+        explicit operator VkImage() const;
 
-        VkDescriptorImageInfo getDescriptorImageInfo() const;
-        const VkImageLayout getCurrentLayout() const;
+        [[nodiscard]] VkDescriptorImageInfo getDescriptorImageInfo() const;
+        [[nodiscard]] VkImageLayout getCurrentLayout() const;
 
         void recreateImage();
-        void changeLayout(const VkCommandBuffer commandBuffer, const VkImageLayout newLayout);
+        void changeLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout);
     };
 }

@@ -20,29 +20,24 @@ namespace dp {
 
         bool shouldQuit = false;
 
-        int width;
-        int height;
-
-        struct Keys {
-            bool forward_pressed;
-            bool backward_pressed;
-        } keys_pressed;
+        uint32_t width;
+        uint32_t height;
 
     public:
         SDL_Window* window;
         SDL_DisplayMode mode;
 
-        Window(std::string title, int width, int height);
+        Window(const std::string& title, uint32_t width, uint32_t height);
 
         ~Window();
 
-        std::vector<const char*> getExtensions();
+        [[nodiscard]] std::vector<const char*> getExtensions() const;
 
-        VkSurfaceKHR createSurface(VkInstance vkInstance);
+        VkSurfaceKHR createSurface(VkInstance vkInstance) const;
 
-        bool shouldClose();
+        [[nodiscard]] bool shouldClose() const;
 
-        float getAspectRatio();
+        [[nodiscard]] float getAspectRatio() const;
 
         void handleEvents(dp::Engine& engine);
     };

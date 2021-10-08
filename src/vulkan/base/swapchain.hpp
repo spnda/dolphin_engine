@@ -7,13 +7,14 @@
 #include "../context.hpp"
 
 namespace dp {
-    class VulkanSwapchain {
+    class Swapchain {
         dp::Context& ctx;
 
         VkSurfaceKHR surface;
 
-        PFN_vkAcquireNextImageKHR fnAcquireNextImage;
-        PFN_vkQueuePresentKHR fnQueuePresent;
+        PFN_vkAcquireNextImageKHR vkAcquireNextImage;
+        PFN_vkQueuePresentKHR vkQueuePresent;
+        PFN_vkDestroySurfaceKHR vkDestroySurface;
 
         std::vector<VkImage> getImages();
         std::vector<VkImageView> getImageViews();
@@ -24,16 +25,17 @@ namespace dp {
         std::vector<VkImage> images = {};
         std::vector<VkImageView> views = {};
 
-        VulkanSwapchain(Context& context, VkSurfaceKHR surface) : ctx(context), surface(surface) {
+        Swapchain(Context& context, VkSurfaceKHR surface) : ctx(context), surface(surface) {
             this->create(ctx.device);
-            this->fnAcquireNextImage = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(context.device, "vkAcquireNextImageKHR"));
-            this->fnQueuePresent = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(context.device, "vkQueuePresentKHR"));
+            this->vkAcquireNextImage = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(context.device, "vkAcquireNextImageKHR"));
+            this->vkQueuePresent = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(context.device, "vkQueuePresentKHR"));
+            this->vkDestroySurface = reinterpret_cast<PFN_vkDestroySurfaceKHR>(vkGetInstanceProcAddr(context.instance, "vkDestroySurfaceKHR"));
         }
 
         // Creates a new swapchain.
         // If a swapchain already exists, we re-use it and
         // later destroy it.
-        bool create(vkb::Device device);
+        bool create(const vkb::Device& device);
 
         void destroy();
 
@@ -43,7 +45,7 @@ namespace dp {
 
         VkResult queuePresent(VkQueue, VkPresentInfoKHR* presentInfo) const;
 
-        VkFormat getFormat() const;
-        VkExtent2D getExtent() const;
+        [[nodiscard]] VkFormat getFormat() const;
+        [[nodiscard]] VkExtent2D getExtent() const;
     };
 } // namespace dp

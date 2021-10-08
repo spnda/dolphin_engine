@@ -3,7 +3,7 @@
 #include "swapchain.hpp"
 #include "../utils.hpp"
 
-bool dp::VulkanSwapchain::create(vkb::Device device) {
+bool dp::Swapchain::create(const vkb::Device& device) {
     vkb::SwapchainBuilder swapchainBuilder(device);
     auto buildResult = swapchainBuilder
         .set_old_swapchain(this->swapchain)
@@ -17,21 +17,21 @@ bool dp::VulkanSwapchain::create(vkb::Device device) {
     return true;
 }
 
-void dp::VulkanSwapchain::destroy() {
+void dp::Swapchain::destroy() {
     ctx.waitForIdle();
 
     swapchain.destroy_image_views(views);
     vkb::destroy_swapchain(this->swapchain);
     
-    vkDestroySurfaceKHR(ctx.instance, surface, nullptr);
+    vkDestroySurface(ctx.instance, surface, nullptr);
     surface = VK_NULL_HANDLE;
 }
 
-VkResult dp::VulkanSwapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const {
-    return fnAcquireNextImage(ctx.device, swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
+VkResult dp::Swapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const {
+    return vkAcquireNextImage(ctx.device, swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
 }
 
-VkResult dp::VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
+VkResult dp::Swapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
     VkPresentInfoKHR presentInfo = {};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
     presentInfo.pNext = nullptr;
@@ -43,25 +43,25 @@ VkResult dp::VulkanSwapchain::queuePresent(VkQueue queue, uint32_t imageIndex, V
         presentInfo.pWaitSemaphores = &waitSemaphore;
         presentInfo.waitSemaphoreCount = 1;
     }
-    return fnQueuePresent(queue, &presentInfo);
+    return vkQueuePresent(queue, &presentInfo);
 }
 
-VkResult dp::VulkanSwapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
-    return fnQueuePresent(queue, presentInfo);
+VkResult dp::Swapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
+    return vkQueuePresent(queue, presentInfo);
 }
 
-VkFormat dp::VulkanSwapchain::getFormat() const {
+VkFormat dp::Swapchain::getFormat() const {
     return swapchain.image_format;
 }
 
-VkExtent2D dp::VulkanSwapchain::getExtent() const {
+VkExtent2D dp::Swapchain::getExtent() const {
     return swapchain.extent;
 }
 
-std::vector<VkImage> dp::VulkanSwapchain::getImages() {
+std::vector<VkImage> dp::Swapchain::getImages() {
     return getFromVkbResult(swapchain.get_images());
 }
 
-std::vector<VkImageView> dp::VulkanSwapchain::getImageViews() {
+std::vector<VkImageView> dp::Swapchain::getImageViews() {
     return getFromVkbResult(swapchain.get_image_views());
 }

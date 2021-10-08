@@ -7,22 +7,22 @@
 namespace dp {
     // fwd
     class Context;
-    class VulkanSwapchain;
+    class Swapchain;
 
     class RenderPass {
         const dp::Context& ctx;
-        const dp::VulkanSwapchain& swapchain;
+        const dp::Swapchain& swapchain;
 
         VkRenderPass handle = VK_NULL_HANDLE;
 
     public:
-        RenderPass(const dp::Context& context, const dp::VulkanSwapchain& swapchain);
+        RenderPass(const dp::Context& context, const dp::Swapchain& swapchain);
 
-        void create(const VkAttachmentLoadOp colorBufferLoadOp, const std::string name = {});
+        void create(VkAttachmentLoadOp colorBufferLoadOp, const std::string& name = {});
         void destroy();
-        void begin(const VkCommandBuffer cmdBuffer, const VkFramebuffer framebuffer, std::vector<VkClearValue> clearValues = {});
-        void end(const VkCommandBuffer cmdBuffer);
+        void begin(VkCommandBuffer cmdBuffer, VkFramebuffer framebuffer, std::vector<VkClearValue> clearValues = {});
+        void end(VkCommandBuffer cmdBuffer);
 
-        operator VkRenderPass() const;
+        explicit operator VkRenderPass() const;
     };
 }

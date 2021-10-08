@@ -28,7 +28,7 @@ void dp::AccelerationStructureBuilder::createMeshBuffers(dp::Buffer& vertexBuffe
     transformBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
 }
 
-void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const {
+void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) {
     resultBuffer.create(
         sizeInfo.accelerationStructureSize,
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
@@ -55,7 +55,7 @@ void dp::AccelerationStructureBuilder::destroyAllStructures(const dp::Context& c
     }
 }
 
-uint32_t dp::AccelerationStructureBuilder::addMesh(dp::Mesh mesh) {
+uint32_t dp::AccelerationStructureBuilder::addMesh(const dp::Mesh& mesh) {
     this->meshes.emplace_back(mesh);
     return this->meshes.size() - 1;
 }
@@ -87,7 +87,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         structureGeometry.geometry.triangles.vertexFormat = mesh.vertexFormat;
         structureGeometry.geometry.triangles.vertexData.deviceAddress = vertexBuffer.address;
         structureGeometry.geometry.triangles.maxVertex = mesh.vertices.size();
-        structureGeometry.geometry.triangles.vertexStride = mesh.stride;
+        structureGeometry.geometry.triangles.vertexStride = dp::Mesh::stride;
         structureGeometry.geometry.triangles.indexType = mesh.indexType;
         structureGeometry.geometry.triangles.indexData.deviceAddress = indexBuffer.address;
         structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
@@ -112,7 +112,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         VkAccelerationStructureCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-        createInfo.buffer = blas.resultBuffer.handle;
+        createInfo.buffer = blas.resultBuffer.getHandle();
         createInfo.size = buildSizeInfo.accelerationStructureSize;
         createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         context.createAccelerationStructure(createInfo, &blas.handle);
@@ -204,7 +204,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = {};
         accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-        accelerationStructureCreateInfo.buffer = tlas.resultBuffer.handle;
+        accelerationStructureCreateInfo.buffer = tlas.resultBuffer.getHandle();
         accelerationStructureCreateInfo.size = buildSizeInfo.accelerationStructureSize;
         accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
         context.createAccelerationStructure(accelerationStructureCreateInfo, &tlas.handle);

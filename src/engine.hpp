@@ -6,6 +6,7 @@
 #include "vulkan/base/swapchain.hpp"
 #include "vulkan/resource/storageimage.hpp"
 #include "vulkan/rt/acceleration_structure_builder.hpp"
+#include "vulkan/rt/acceleration_structure.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
 
 namespace dp {
@@ -17,7 +18,7 @@ namespace dp {
         dp::Ui ui;
 
         dp::StorageImage storageImage;
-        dp::VulkanSwapchain swapchain;
+        dp::Swapchain swapchain;
         dp::RayTracingPipeline pipeline;
         dp::AccelerationStructure topLevelAccelerationStructure;
 
@@ -38,9 +39,9 @@ namespace dp {
 
         bool needsResize = false;
 
-        Engine(dp::Context& ctx);
+        explicit Engine(dp::Context& ctx);
 
         void renderLoop();
-        void resize(const uint32_t width, const uint32_t height);
+        void resize(uint32_t width, uint32_t height);
     };
 }

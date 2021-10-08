@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.21)
 
 # Automatically find our vcpkg.cmake toolchain file.
 # This has to be defined before project()
@@ -34,38 +34,39 @@ find_package(imgui CONFIG REQUIRED)
 find_package(glm REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
-add_executable(dolphin_engine)
+add_executable(dolphin_engine src/vulkan/shaders/file_includer.hpp src/vulkan/shaders/file_includer.cpp)
 
-add_subdirectory(${CMAKE_SOURCE_DIR}/src)
-add_subdirectory(${CMAKE_SOURCE_DIR}/vk-bootstrap)
+# Add shaderc from the Vulkan SDK
+add_library(shaderc UNKNOWN IMPORTED)
+if(WIN32)
+  set_target_properties(shaderc PROPERTIES IMPORTED_LOCATION $ENV{VULKAN_SDK}/Lib/shaderc_shared.lib)
+  set_property(TARGET shaderc PROPERTY INTERFACE_INCLUDE_DIRECTORIES $ENV{VULKAN_SDK}/Include)
+  target_link_libraries(dolphin_engine PRIVATE shaderc)
+else()
+  target_link_libraries(dolphin_engine PRIVATE shaderc_combined glslang MachineIndependent OSDependent OGLCompiler GenericCodeGen SPIRV SPIRV-Tools-opt SPIRV-Tools)
+endif()
 
 target_link_libraries(dolphin_engine PRIVATE vk-bootstrap::vk-bootstrap)
-target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan PNG::PNG)
+target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan)
+target_link_libraries(dolphin_engine PRIVATE PNG::PNG)
 target_link_libraries(dolphin_engine PRIVATE unofficial::vulkan-memory-allocator::vulkan-memory-allocator)
 target_link_libraries(dolphin_engine PRIVATE SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
 target_link_libraries(dolphin_engine PRIVATE glm::glm)
 target_link_libraries(dolphin_engine PRIVATE assimp::assimp)
 
-# Compile shaders
-set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen)
+add_subdirectory(${CMAKE_SOURCE_DIR}/src)
+add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-bootstrap)
+
+# Copy shaders to bin directory.
+set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen include/raycommon.glsl)
 foreach(SHADER ${SHADER_FILES})
   set(SHADER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${SHADER}")
   message(STATUS "Configuring shader ${SHADER_FILE}")
-  cmake_path(GET SHADER_FILE FILENAME SHADER_FILE_NAME)
-  set(SHADER_OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/${SHADER_FILE_NAME}.spv")
+  set(SHADER_DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/${SHADER}")
   add_custom_command(
-    # TARGET dolphin_engine
-    # POST_BUILD
-    OUTPUT ${SHADER_OUTPUT}
-    COMMAND ${GLSL_COMPILER} -o ${SHADER_OUTPUT} --target-spv=spv1.5 ${SHADER_FILE}
-    DEPENDS ${SHADER_FILE}
-    VERBATIM
+          TARGET dolphin_engine
+          POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy ${SHADER_FILE} ${SHADER_DESTINATION}
   )
-  list(APPEND SPIRV_BINARY_FILES ${SHADER_OUTPUT})
 endforeach(SHADER)
-
-add_custom_target(
-  shaders ALL
-  DEPENDS ${SPIRV_BINARY_FILES}
-)

@@ -1,8 +1,5 @@
 #include "storageimage.hpp"
 
-#include "../context.hpp"
-#include "image.hpp"
-
 dp::StorageImage::StorageImage(const dp::Context& context)
         : ctx(context), image(ctx, { ctx.width, ctx.height }, imageFormat, imageUsage) {
     image.setName("storageImage");
@@ -23,7 +20,7 @@ VkDescriptorImageInfo dp::StorageImage::getDescriptorImageInfo() const {
     };
 }
 
-const VkImageLayout dp::StorageImage::getCurrentLayout() const {
+VkImageLayout dp::StorageImage::getCurrentLayout() const {
     return currentLayout;
 }
 
@@ -63,7 +60,7 @@ void dp::StorageImage::changeLayout(const VkCommandBuffer commandBuffer, const V
     }
 
     dp::Image::changeLayout(
-        image, commandBuffer,
+        VkImage(image), commandBuffer,
         currentLayout, newLayout,
         srcAccessMask, dstAccessMask,
         subresourceRange

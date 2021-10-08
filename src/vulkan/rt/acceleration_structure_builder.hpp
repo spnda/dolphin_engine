@@ -12,7 +12,7 @@ namespace dp {
     class AccelerationStructure;
 
     class AccelerationStructureBuilder {
-        AccelerationStructureBuilder(const dp::Context& context, const VkCommandPool commandPool);
+        AccelerationStructureBuilder(const dp::Context& context, VkCommandPool commandPool);
 
         const Context& context;
         const VkCommandPool commandPool;
@@ -23,15 +23,15 @@ namespace dp {
         std::vector<Mesh> meshes;
         std::vector<AccelerationStructureInstance> instances;
 
-        void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const Mesh& mesh);
+        static void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const Mesh& mesh);
 
-        void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const;
+        static void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, VkAccelerationStructureBuildSizesInfoKHR sizeInfo) ;
 
     public:
-        static AccelerationStructureBuilder create(const Context& context, const VkCommandPool commandPool);
+        static AccelerationStructureBuilder create(const Context& context, VkCommandPool commandPool);
         static void destroyAllStructures(const dp::Context& ctx);
 
-        uint32_t addMesh(Mesh mesh);
+        uint32_t addMesh(const Mesh& mesh);
 
         void addInstance(AccelerationStructureInstance instance);
 

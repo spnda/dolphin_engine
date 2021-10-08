@@ -22,7 +22,7 @@ namespace dp {
         Window* window              = VK_NULL_HANDLE;
         vkb::Instance vkInstance    = {};
 
-        static vkb::Instance buildInstance(const std::string name, const uint32_t version, const std::vector<const char*> extensions);
+        static vkb::Instance buildInstance(const std::string& name, uint32_t version, const std::vector<const char*>& extensions);
 
         VulkanInstance(VulkanInstance const&) = delete;
         void operator=(VulkanInstance const&) = delete;

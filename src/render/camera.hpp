@@ -2,8 +2,6 @@
 
 #include <functional>
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -38,7 +36,7 @@ namespace dp {
 
         static const uint32_t bufferSize = sizeof(CameraBufferData);
 
-        Camera(const dp::Context ctx);
+        explicit Camera(dp::Context ctx);
 
         void destroy();
 
@@ -49,19 +47,19 @@ namespace dp {
 
         float getFov() const;
 
-        Camera& setPerspective(const float fov, const float near, const float far);
+        Camera& setPerspective(float fov, float near, float far);
 
-        Camera& setAspectRatio(const float ratio);
+        Camera& setAspectRatio(float ratio);
 
-        Camera& setFov(const float fov);
+        Camera& setFov(float fov);
 
-        Camera& setPosition(const glm::vec3 pos);
+        Camera& setPosition(glm::vec3 pos);
 
         Camera& move(std::function<void(glm::vec3&, const glm::vec3)> callback);
 
-        Camera& setRotation(const glm::vec3 rot);
+        Camera& setRotation(glm::vec3 rot);
 
-        Camera& rotate(const glm::vec3 delta);
+        Camera& rotate(glm::vec3 delta);
     };
 
 } // namespace dp

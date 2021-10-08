@@ -28,7 +28,7 @@ namespace dp {
         VkTransformMatrixKHR transform;
         VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
         VkIndexType indexType = VK_INDEX_TYPE_UINT32;
-        // Typically just the size of a single Vertex.
+        // Typically, just the size of a single Vertex.
         static const uint32_t stride = sizeof(Vertex);
         // The material index for the material buffer.
         // We use this together with instanceCustomIndex to provide

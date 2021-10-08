@@ -1,7 +1,5 @@
 #include "image.hpp"
 
-#include "../context.hpp"
-
 dp::Image::Image(const Context& context, const VkExtent2D extent, const VkFormat format, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout)
         : context(context), imageExtent(extent) {
     VkImageCreateInfo imageCreateInfo = {};
@@ -64,7 +62,7 @@ void dp::Image::free() {
     vmaFreeMemory(context.vmaAllocator, allocation);
 }
 
-void dp::Image::setName(const std::string name) {
+void dp::Image::setName(const std::string& name) {
     context.setDebugUtilsName(image, name);
 }
 

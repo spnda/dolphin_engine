@@ -7,20 +7,21 @@
 namespace dp {
     class Ui {
         const dp::Context& ctx;
-        const dp::VulkanSwapchain& swapchain;
+        const dp::Swapchain& swapchain;
         dp::RenderPass renderPass;
-        VkDescriptorPool descriptorPool;
+        VkDescriptorPool descriptorPool = nullptr;
         std::vector<VkFramebuffer> framebuffers;
 
         void initFramebuffers();
+
     public:
-        Ui(const dp::Context& context, const dp::VulkanSwapchain& vkSwapchain);
+        Ui(const dp::Context& context, const dp::Swapchain& vkSwapchain);
 
         void init();
         void destroy();
 
         void prepare();
-        void draw(const VkCommandBuffer cmdBuffer);
+        void draw(VkCommandBuffer cmdBuffer);
 
         void resize();
 

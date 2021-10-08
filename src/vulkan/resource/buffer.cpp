@@ -5,11 +5,11 @@
 #include "../utils.hpp"
 
 dp::Buffer::Buffer(const dp::Context& context)
-        : context(context), name("") {
+        : context(context) {
 }
 
-dp::Buffer::Buffer(const dp::Context& context, const std::string name)
-        : context(context), name(name) {
+dp::Buffer::Buffer(const dp::Context& context, std::string  name)
+        : context(context), name(std::move(name)) {
 }
 
 dp::Buffer::Buffer(const dp::Buffer& buffer)
@@ -30,8 +30,8 @@ auto dp::Buffer::alignedSize(size_t value, size_t alignment) -> size_t {
     return (value + alignment - 1) & -alignment;
 }
 
-void dp::Buffer::create(const VkDeviceSize size, const VkBufferUsageFlags bufferUsage, const VmaMemoryUsage usage, const VkMemoryPropertyFlags properties) {
-    this->size = size;
+void dp::Buffer::create(const VkDeviceSize newSize, const VkBufferUsageFlags bufferUsage, const VmaMemoryUsage usage, const VkMemoryPropertyFlags properties) {
+    this->size = newSize;
     auto bufferCreateInfo = getCreateInfo(bufferUsage);
 
     VmaAllocationCreateInfo allocationInfo = {
@@ -76,18 +76,18 @@ auto dp::Buffer::getCreateInfo(VkBufferUsageFlags bufferUsage) const -> VkBuffer
     };
 }
 
-auto dp::Buffer::getBufferAddressInfo(VkBuffer handle) const -> VkBufferDeviceAddressInfoKHR {
+auto dp::Buffer::getBufferAddressInfo(VkBuffer handle) -> VkBufferDeviceAddressInfoKHR {
     return {
         .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
         .buffer = handle,
     };
 }
 
-auto dp::Buffer::getDescriptorInfo(const uint64_t size, const uint64_t offset) const -> VkDescriptorBufferInfo {
+auto dp::Buffer::getDescriptorInfo(const uint64_t bufferRange, const uint64_t offset) const -> VkDescriptorBufferInfo {
     return {
         .buffer = handle,
         .offset = offset,
-        .range = size,
+        .range = bufferRange,
     };
 }
 
@@ -103,16 +103,16 @@ auto dp::Buffer::getSize() const -> VkDeviceSize {
     return size;
 }
 
-void dp::Buffer::memoryCopy(const void* source, uint64_t size) const {
+void dp::Buffer::memoryCopy(const void* source, uint64_t copySize) const {
     memoryMutex.lock();
     void* dst;
     this->mapMemory(&dst);
-    memcpy(dst, source, size);
+    memcpy(dst, source, copySize);
     this->unmapMemory();
     memoryMutex.unlock();
 }
 
-void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) const {
+void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) {
     memcpy(destination, source, size);
 }
 

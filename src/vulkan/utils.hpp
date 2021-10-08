@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <unordered_map>
+#include <fstream>
 
 #include "VkBootstrap.h"
 
@@ -55,7 +56,7 @@ static inline const std::unordered_map<VkResult, std::string> resultStrings = {
     {VK_PIPELINE_COMPILE_REQUIRED_EXT, "VK_PIPELINE_COMPILE_REQUIRED_EXT"},
 };
 
-inline void checkResult(VkResult result, const std::string message) {
+inline void checkResult(VkResult result, const std::string& message) {
     if (result != VK_SUCCESS) {
         std::string error = message + ": " + resultStrings.at(result);
         std::cerr << error << std::endl;

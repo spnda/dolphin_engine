@@ -3,10 +3,9 @@
 #include "window.hpp"
 
 #include "../engine.hpp"
-#include "../render/camera.hpp"
-#include "../render/ui.hpp"
 
-dp::Window::Window(std::string title, int width, int height) : width(width), height(height) {
+dp::Window::Window(const std::string& title, uint32_t width, uint32_t height)
+        : width(width), height(height), mode{} {
     SDL_Init(SDL_INIT_VIDEO);
 
     SDL_ShowCursor(SDL_ENABLE);
@@ -26,7 +25,7 @@ dp::Window::~Window() {
     SDL_Quit();
 }
 
-std::vector<const char*> dp::Window::getExtensions() {
+std::vector<const char*> dp::Window::getExtensions() const {
         // We don't know the size to begin with, so we'll query the extensions twice,
         // once for the size and once for the actual data.
         uint32_t count = 0;
@@ -36,17 +35,17 @@ std::vector<const char*> dp::Window::getExtensions() {
         return extensions;
 }
 
-VkSurfaceKHR dp::Window::createSurface(VkInstance vkInstance) {
+VkSurfaceKHR dp::Window::createSurface(VkInstance vkInstance) const {
     VkSurfaceKHR surface;
     SDL_Vulkan_CreateSurface(window, vkInstance, &surface);
     return surface;
 }
 
-bool dp::Window::shouldClose() {
+bool dp::Window::shouldClose() const {
     return shouldQuit;
 }
 
-float dp::Window::getAspectRatio() {
+float dp::Window::getAspectRatio() const {
     return (float)width / (float)height;
 }
 
@@ -57,28 +56,31 @@ void dp::Window::handleEvents(dp::Engine& engine) {
             case SDL_QUIT:
                 shouldQuit = true;
                 break;
-            case SDL_WINDOWEVENT:
+            case SDL_WINDOWEVENT: {
                 // All events regarding the window.
                 switch (event.window.event) {
                     case SDL_WINDOWEVENT_RESIZED:
                     case SDL_WINDOWEVENT_SIZE_CHANGED:
-                        printf("SDL SIZE: %l, %l", event.window.data1, event.window.data2);
                         engine.resize(event.window.data1, event.window.data2);
                         break;
                 }
                 break;
-            case SDL_MOUSEMOTION:
+            }
+            case SDL_MOUSEMOTION: {
                 if (!(event.motion.state & SDL_BUTTON_LMASK)) break;
                 if (dp::Ui::isInputting()) break; // If the user is currently using the UI.
-                glm::vec3 motion = glm::vec3(-event.motion.yrel, event.motion.xrel, 0.0f);
+                glm::vec3 motion(-event.motion.yrel, event.motion.xrel, 0.0f);
                 engine.camera.rotate(motion);
                 break;
-            case SDL_MOUSEWHEEL:
+            }
+            case SDL_MOUSEWHEEL: {
                 if (dp::Ui::isInputting()) break;
-                engine.camera.setFov(std::clamp(engine.camera.getFov() * (event.wheel.y > 0 ? 0.99f : 1.01f), 0.0f, 140.0f));
+                engine.camera.setFov(
+                        std::clamp(engine.camera.getFov() * (event.wheel.y > 0 ? 0.99f : 1.01f), 0.0f, 140.0f));
                 break;
-            case SDL_KEYDOWN:
-                engine.camera.move([&](glm::vec3& position, const glm::vec3 camFront) {
+            }
+            case SDL_KEYDOWN: {
+                engine.camera.move([&](glm::vec3 &position, const glm::vec3 camFront) {
                     if (event.key.keysym.sym == SDLK_w || event.key.keysym.sym == SDLK_UP) {
                         position += camFront * 1.0f;
                     } else if (event.key.keysym.sym == SDLK_s || event.key.keysym.sym == SDLK_DOWN) {
@@ -90,6 +92,7 @@ void dp::Window::handleEvents(dp::Engine& engine) {
                     }
                 });
                 break;
+            }
         }
     }
 }

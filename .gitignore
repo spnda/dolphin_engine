@@ -5,3 +5,6 @@ nsight/*
 .vscode/*
 !.vscode/tasks.json
 !.vscode/launch.json
+
+cmake-build-debug/*
+cmake-build-release/*

@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iostream>
 
+#include "../vulkan/context.hpp"
 #include "../vulkan/rt/acceleration_structure_builder.hpp"
 #include "../vulkan/rt/acceleration_structure.hpp"
 
@@ -13,7 +14,7 @@ dp::ModelLoader::ModelLoader(const dp::Context& context)
 
 }
 
-void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene) {
+void dp::ModelLoader::loadMesh(const aiMesh *mesh, const aiMatrix4x4 transform) {
     if (!mesh->HasFaces()) return;
     auto meshVertices = mesh->mVertices;
     auto meshFaces = mesh->mFaces;
@@ -27,8 +28,9 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
     };
 
     for (int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex vertex;
-        vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
+        Vertex vertex {
+            .pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z)
+        };
         newMesh.vertices.push_back(vertex);
     }
 
@@ -47,7 +49,7 @@ void dp::ModelLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, 
 void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
     if (node->mMeshes != nullptr) {
         for (int i = 0; i < node->mNumMeshes; i++) {
-            loadMesh(scene->mMeshes[node->mMeshes[i]], node->mTransformation, scene);
+            loadMesh(scene->mMeshes[node->mMeshes[i]], node->mTransformation);
         }
     }
     if (node->mChildren != nullptr) {
@@ -57,15 +59,18 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
     }
 }
 
-inline void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) const {
+inline void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) {
     aiColor4D vec4;
     const aiReturn ret = aiGetMaterialColor(material, key, type, idx, &vec4);
+    if (ret != aiReturn_SUCCESS) {
+        std::cerr << "Encountered assimp error";
+    }
     vec->b = vec4.b;
     vec->r = vec4.r;
     vec->g = vec4.g;
 }
 
-bool dp::ModelLoader::loadFile(const std::string fileName) {
+bool dp::ModelLoader::loadFile(const std::string& fileName) {
     printf("Importing file %s!\n", fileName.c_str());
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -109,7 +114,7 @@ void dp::ModelLoader::createMaterialBuffer() {
 
 dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
     auto builder = dp::AccelerationStructureBuilder::create(context, context.commandPool);
-    for (auto mesh : meshes) {
+    for (const auto& mesh : meshes) {
         uint32_t meshIndex = builder.addMesh(mesh);
 
         builder.addInstance(dp::AccelerationStructureInstance {

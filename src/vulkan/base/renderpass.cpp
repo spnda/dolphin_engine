@@ -5,7 +5,7 @@
 #include "../context.hpp"
 #include "swapchain.hpp"
 
-dp::RenderPass::RenderPass(const dp::Context& context, const dp::VulkanSwapchain& swapchain)
+dp::RenderPass::RenderPass(const dp::Context& context, const dp::Swapchain& swapchain)
         : ctx(context), swapchain(swapchain) {
 
 }
@@ -14,7 +14,7 @@ void dp::RenderPass::destroy() {
     vkDestroyRenderPass(ctx.device, handle, nullptr);
 }
 
-void dp::RenderPass::create(const VkAttachmentLoadOp colorBufferLoadOp, const std::string name) {
+void dp::RenderPass::create(const VkAttachmentLoadOp colorBufferLoadOp, const std::string& name) {
     VkAttachmentDescription colorAttachment = {
         .format = swapchain.swapchain.image_format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -60,7 +60,7 @@ void dp::RenderPass::create(const VkAttachmentLoadOp colorBufferLoadOp, const st
 
     vkCreateRenderPass(ctx.device, &renderPassInfo, nullptr, &handle);
 
-    if (name.size() != 0)
+    if (!name.empty())
         ctx.setDebugUtilsName(handle, name);
 }
 

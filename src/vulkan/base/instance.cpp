@@ -8,12 +8,12 @@ dp::VulkanInstance::VulkanInstance() {
     this->vkInstance = buildInstance("DolphinEngine", VK_MAKE_VERSION(1, 0, 0), requiredExtensions);
 }
 
-vkb::Instance dp::VulkanInstance::buildInstance(const std::string name, const uint32_t version, const std::vector<const char*> extensions) {
+vkb::Instance dp::VulkanInstance::buildInstance(const std::string& name, const uint32_t version, const std::vector<const char*>& extensions) {
     vkb::InstanceBuilder instance_builder;
     instance_builder.set_app_name(name.c_str());
     instance_builder.set_app_version(version >> 22, version >> 12, version);
     instance_builder.require_api_version(1, 2, 0);
-#ifdef NDEBUG
+#ifdef _DEBUG
     instance_builder.enable_layer("VK_LAYER_LUNARG_monitor");
 #endif
 
@@ -29,10 +29,10 @@ vkb::Instance dp::VulkanInstance::buildInstance(const std::string name, const ui
 
     // Build the instance
     auto buildResult = instance_builder
-// #ifdef NDEBUG
+#ifdef _DEBUG
         .request_validation_layers()
         .use_default_debug_messenger()
-// #endif
+#endif
         .build();
     return getFromVkbResult(buildResult);
 }

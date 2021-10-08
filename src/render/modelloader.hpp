@@ -24,19 +24,19 @@ namespace dp {
 
         Assimp::Importer importer;
 
-        void loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene);
+        void loadMesh(const aiMesh* mesh, aiMatrix4x4 transform);
         void loadNode(const aiNode* node, const aiScene* scene);
 
-        void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec4* vec) const;
+        static void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec4* vec) ;
     public:
         dp::Buffer materialBuffer;
 
         std::vector<Material> materials = {};
         std::vector<Mesh> meshes = {};
 
-        ModelLoader(const dp::Context& context);
+        explicit ModelLoader(const dp::Context& context);
 
-        bool loadFile(const std::string fileName);
+        bool loadFile(const std::string& fileName);
 
         void createMaterialBuffer();
 

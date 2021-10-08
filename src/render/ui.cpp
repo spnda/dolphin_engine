@@ -7,7 +7,7 @@
 #include "../sdl/window.hpp"
 #include "../vulkan/base/swapchain.hpp"
 
-dp::Ui::Ui(const dp::Context& context, const dp::VulkanSwapchain& vkSwapchain)
+dp::Ui::Ui(const dp::Context& context, const dp::Swapchain& vkSwapchain)
         : ctx(context), swapchain(vkSwapchain), renderPass(ctx, swapchain) {
 
 }
@@ -25,7 +25,7 @@ void dp::Ui::initFramebuffers() {
     VkFramebufferCreateInfo frameBufferCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         .pNext = nullptr,
-        .renderPass = renderPass,
+        .renderPass = VkRenderPass(renderPass),
         .attachmentCount = 1,
         .width = extent.width,
         .height = extent.height,
@@ -79,7 +79,7 @@ void dp::Ui::init() {
         .MSAASamples = VK_SAMPLE_COUNT_1_BIT
     };
 
-    ImGui_ImplVulkan_Init(&initInfo, renderPass);
+    ImGui_ImplVulkan_Init(&initInfo, VkRenderPass(renderPass));
 
     ImGui::StyleColorsDark();
 

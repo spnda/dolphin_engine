@@ -2,8 +2,8 @@
 
 #include "../sdl/window.hpp"
 
-dp::Camera::Camera(const dp::Context context)
-        : ctx(context), cameraBuffer(ctx, "cameraBuffer") {
+dp::Camera::Camera(dp::Context context)
+        : ctx(std::move(context)), cameraBuffer(ctx, "cameraBuffer") {
     cameraBufferData.projectionInverse = glm::mat4(1.0f);
     cameraBufferData.viewInverse = glm::mat4(1.0f);
 
@@ -45,8 +45,8 @@ float dp::Camera::getFov() const {
     return this->fov;
 }
 
-dp::Camera& dp::Camera::setPerspective(const float fov, const float near, const float far) {
-    this->fov = fov; this->zNear = near; this->zFar = far;
+dp::Camera& dp::Camera::setPerspective(const float newFov, const float near, const float far) {
+    this->fov = newFov; this->zNear = near; this->zFar = far;
     auto perspective = glm::perspective(glm::radians(this->fov), ctx.window->getAspectRatio(), zNear, zFar);
     cameraBufferData.projectionInverse = glm::inverse(perspective);
     return *this;
@@ -54,14 +54,12 @@ dp::Camera& dp::Camera::setPerspective(const float fov, const float near, const 
 
 dp::Camera& dp::Camera::setAspectRatio(const float ratio) {
     cameraBufferData.projectionInverse = glm::perspective(glm::radians(fov), ratio, zNear, zFar);
-    if (flipY) {
-        cameraBufferData.projectionInverse[1][1] *= -1.0f;
-    }
     return *this;
 }
 
-dp::Camera& dp::Camera::setFov(const float fov) {
-    this->setPerspective(fov, zNear, zFar);
+dp::Camera& dp::Camera::setFov(const float newFov) {
+    this->fov = newFov;
+    this->setPerspective(this->fov, zNear, zFar);
     return *this;
 }
 

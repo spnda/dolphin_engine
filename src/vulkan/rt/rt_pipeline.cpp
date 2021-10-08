@@ -1,15 +1,16 @@
 #include <vulkan/vulkan.h>
 
+#include <utility>
+
 #include "../context.hpp"
 #include "rt_pipeline.hpp"
 #include "../resource/buffer.hpp"
-#include "../resource/uniform_data.hpp"
 
 dp::RayTracingPipeline::operator VkPipeline() const {
     return pipeline;
 }
 
-void dp::RayTracingPipeline::destroy(const dp::Context& ctx) {
+void dp::RayTracingPipeline::destroy(const dp::Context& ctx) const {
     vkDestroyPipeline(ctx.device, pipeline, nullptr);
     vkDestroyPipelineLayout(ctx.device, pipelineLayout, nullptr);
     vkDestroyDescriptorPool(ctx.device, descriptorPool, nullptr);
@@ -18,11 +19,11 @@ void dp::RayTracingPipeline::destroy(const dp::Context& ctx) {
 
 dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& context, std::string pipelineName) {
     dp::RayTracingPipelineBuilder builder(context);
-    builder.pipelineName = pipelineName;
+    builder.pipelineName = std::move(pipelineName);
     return builder;
 }
 
-dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShader(dp::ShaderModule module) {
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShader(const dp::ShaderModule& module) {
     shaderStages.push_back(module.getShaderStageCreateInfo());
 
     // Create the shader group for this shader.

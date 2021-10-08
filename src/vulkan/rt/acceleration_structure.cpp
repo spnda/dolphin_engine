@@ -1,10 +1,9 @@
 #include "acceleration_structure.hpp"
 
 #include "../context.hpp"
-#include "../resource/buffer.hpp"
 
-dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const AccelerationStructureType type, const std::string asName)
-        : ctx(context), name(asName), type(type),
+dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const AccelerationStructureType type, std::string  asName)
+        : ctx(context), name(std::move(asName)), type(type),
           resultBuffer(context, name + " resultBuffer") {
 }
 

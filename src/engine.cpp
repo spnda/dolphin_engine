@@ -36,14 +36,17 @@ void dp::Engine::getProperties() {
 }
 
 void dp::Engine::buildPipeline() {
-    dp::ShaderModule raygenShader = ctx.createShader("shaders/raygen.rgen.spv", dp::ShaderStage::RayGeneration);
-    dp::ShaderModule raymissShader = ctx.createShader("shaders/miss.rmiss.spv", dp::ShaderStage::RayMiss);
-    dp::ShaderModule rayhitShader = ctx.createShader("shaders/closesthit.rchit.spv", dp::ShaderStage::ClosestHit);
+    dp::ShaderModule rayGenShader(ctx, "raygen", dp::ShaderStage::RayGeneration);
+    dp::ShaderModule rayMissShader(ctx, "raymiss", dp::ShaderStage::RayMiss);
+    dp::ShaderModule closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit);
+    rayGenShader.createShader("shaders/raygen.rgen");
+    rayMissShader.createShader("shaders/miss.rmiss");
+    closestHitShader.createShader("shaders/closesthit.rchit");
 
     auto builder = dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
-        .addShader(raygenShader)
-        .addShader(raymissShader)
-        .addShader(rayhitShader);
+        .addShader(rayGenShader)
+        .addShader(rayMissShader)
+        .addShader(closestHitShader);
 
     VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
     descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
@@ -98,7 +101,7 @@ void dp::Engine::buildSBT() {
 
 void dp::Engine::renderLoop() {
     VkResult result;
-    uint32_t imageIndex = 0;
+
     while (!ctx.window->shouldClose()) {
         // Handle SDL events and wait for when we can render the next frame.
         ctx.window->handleEvents(*this);
@@ -119,7 +122,7 @@ void dp::Engine::renderLoop() {
         auto image = swapchain.images[ctx.currentImageIndex];
 
         vkCmdBindPipeline(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipeline);
-        vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, 0);
+        vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, nullptr);
 
         ctx.traceRays(
             ctx.drawCommandBuffer,
@@ -165,7 +168,6 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
     ctx.waitForIdle();
     ctx.width = width;
     ctx.height = height;
-    printf("CTX SIZE: %lu, %lu", ctx.width, ctx.height);
 
     // Re-create the swapchain.
     swapchain.create(ctx.device);

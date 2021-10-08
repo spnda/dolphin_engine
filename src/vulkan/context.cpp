@@ -1,10 +1,9 @@
-#include <fstream>
-#include <sstream>
-
 #include <vulkan/vulkan.h>
 
 #define VMA_IMPLEMENTATION // Only needed in a single source file.
 #include <vk_mem_alloc.h>
+
+#include <utility>
 
 #include "VkBootstrap.h"
 
@@ -19,10 +18,9 @@
 
 #define DEFAULT_FENCE_TIMEOUT 100000000000
 
-dp::Context::Context() {
-}
+dp::Context::Context() = default;
 
-void dp::Context::destroy() {
+void dp::Context::destroy() const {
     vkDestroySemaphore(device, presentCompleteSemaphore, nullptr);
     vkDestroySemaphore(device, renderCompleteSemaphore, nullptr);
     vkDestroyFence(device, renderFence, nullptr);
@@ -46,32 +44,7 @@ void dp::Context::getVulkanFunctions() {
     vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT"));
 }
 
-auto dp::Context::createShader(std::string filename, dp::ShaderStage shaderStage) -> dp::ShaderModule {
-    std::ifstream is(filename, std::ios::binary);
-
-    if (is.is_open()) {
-        std::string shaderCode;
-        std::stringstream stringBuffer;
-        stringBuffer << is.rdbuf();
-        shaderCode = stringBuffer.str();
-
-        VkShaderModule shaderModule;
-        VkShaderModuleCreateInfo moduleCreateInfo = {};
-        moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        moduleCreateInfo.pNext = nullptr;
-        moduleCreateInfo.flags = 0;
-        moduleCreateInfo.codeSize = shaderCode.size();
-        moduleCreateInfo.pCode = (uint32_t*)shaderCode.c_str();
-
-        vkCreateShaderModule(this->device, &moduleCreateInfo, nullptr, &shaderModule);
-
-        return *new dp::ShaderModule(shaderModule, shaderStage);
-    } else {
-        throw std::runtime_error(std::string("Failed to open shader file: ") + filename);
-    }
-}
-
-auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string name) const -> VkCommandBuffer {
+auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string& name) const -> VkCommandBuffer {
     VkCommandBufferAllocateInfo bufferAllocateInfo = {};
     bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     bufferAllocateInfo.pNext = nullptr;
@@ -86,7 +59,7 @@ auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool 
         beginCommandBuffer(commandBuffer);
     }
 
-    if (name.size() != 0) {
+    if (!name.empty()) {
         setDebugUtilsName(commandBuffer, name);
     }
 
@@ -120,13 +93,13 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queu
     vkDestroyFence(device, fence, nullptr);
 }
 
-auto dp::Context::waitForFrame(const VulkanSwapchain& swapchain) -> VkResult {
+auto dp::Context::waitForFrame(const Swapchain& swapchain) -> VkResult {
     // Wait for fences, then acquire next image.
     waitForFence(&renderFence);
     return swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
 }
 
-auto dp::Context::submitFrame(const VulkanSwapchain& swapchain) -> VkResult {
+auto dp::Context::submitFrame(const Swapchain& swapchain) -> VkResult {
     // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_TRANSFER_BIT };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
     // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // ??
@@ -149,7 +122,7 @@ auto dp::Context::submitFrame(const VulkanSwapchain& swapchain) -> VkResult {
 }
 
 
-void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const {
+void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR>& buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const {
     vkCmdBuildAccelerationStructuresKHR(
         commandBuffer,
         buildGeometryInfos.size(),
@@ -158,7 +131,7 @@ void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffe
     );
 }
 
-void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) const {
+void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) {
     VkImageCopy copyRegion = {};
     copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
     copyRegion.srcOffset = { 0, 0, 0 };
@@ -166,7 +139,7 @@ void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent
     copyRegion.dstOffset = { 0, 0, 0 };
     copyRegion.extent = { imageSize.width, imageSize.height, 1 };
 
-    vkCmdCopyImage(commandBuffer, storageImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    vkCmdCopyImage(commandBuffer, VkImage(storageImage), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
@@ -198,7 +171,7 @@ void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffe
 }
 
 
-void dp::Context::buildRayTracingPipeline(VkPipeline* pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR> createInfos) const {
+void dp::Context::buildRayTracingPipeline(VkPipeline* pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR>& createInfos) const {
     vkCreateRayTracingPipelinesKHR(
         device,
         VK_NULL_HANDLE,
@@ -215,7 +188,7 @@ void dp::Context::createAccelerationStructure(const VkAccelerationStructureCreat
         device, &createInfo, nullptr, accelerationStructure);
 }
 
-void dp::Context::createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize> poolSizes, VkDescriptorPool* descriptorPool) const {
+void dp::Context::createDescriptorPool(const uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes, VkDescriptorPool* descriptorPool) const {
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
     descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     descriptorPoolCreateInfo.maxSets = maxSets;
@@ -254,7 +227,7 @@ void dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR addr
 }
 
 void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {
-    vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, shaderHandles.size(), shaderHandles.data());
+    vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, dataSize, shaderHandles.data());
 }
 
 void dp::Context::waitForFence(const VkFence* fence) const {
@@ -267,40 +240,40 @@ void dp::Context::waitForIdle() const {
 }
 
 
-void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string& name) const {
     setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
 }
 
-void dp::Context::setDebugUtilsName(const VkBuffer& buffer, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkBuffer& buffer, const std::string& name) const {
     setDebugUtilsName<VkBuffer>(buffer, name, VK_OBJECT_TYPE_BUFFER);
 }
 
-void dp::Context::setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string& name) const {
     setDebugUtilsName<VkCommandBuffer>(cmdBuffer, name, VK_OBJECT_TYPE_COMMAND_BUFFER);   
 }
 
-void dp::Context::setDebugUtilsName(const VkImage& image, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkImage& image, const std::string& name) const {
     setDebugUtilsName<VkImage>(image, name, VK_OBJECT_TYPE_IMAGE);
 }
 
-void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::string& name) const {
     setDebugUtilsName<VkPipeline>(pipeline, name, VK_OBJECT_TYPE_PIPELINE);
 }
 
-void dp::Context::setDebugUtilsName(const VkRenderPass& renderPass, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkRenderPass& renderPass, const std::string& name) const {
     setDebugUtilsName<VkRenderPass>(renderPass, name, VK_OBJECT_TYPE_RENDER_PASS);
 }
 
-void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkSemaphore& semaphore, const std::string& name) const {
     setDebugUtilsName<VkSemaphore>(semaphore, name, VK_OBJECT_TYPE_SEMAPHORE);
 }
 
-void dp::Context::setDebugUtilsName(const VkShaderModule& shaderModule, const std::string name) const {
+void dp::Context::setDebugUtilsName(const VkShaderModule& shaderModule, const std::string& name) const {
     setDebugUtilsName<VkShaderModule>(shaderModule, name, VK_OBJECT_TYPE_SHADER_MODULE);
 }
 
 template <typename T>
-void dp::Context::setDebugUtilsName(const T& object, std::string name, VkObjectType objectType) const {
+void dp::Context::setDebugUtilsName(const T& object, const std::string& name, VkObjectType objectType) const {
     VkDebugUtilsObjectNameInfoEXT nameInfo = {};
     nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
     nameInfo.pNext = nullptr;
@@ -340,20 +313,22 @@ void dp::ContextBuilder::buildSyncStructures(Context& ctx) {
     ctx.setDebugUtilsName(ctx.presentCompleteSemaphore, "presentCompleteSemaphore");
 }
 
-dp::ContextBuilder::ContextBuilder(std::string name) : name(name) {}
+dp::ContextBuilder::ContextBuilder(std::string name) : name(std::move(name)) {
+
+}
 
 dp::ContextBuilder dp::ContextBuilder::create(std::string name) {
-    dp::ContextBuilder builder(name);
+    dp::ContextBuilder builder(std::move(name));
     return builder;
 }
 
-dp::ContextBuilder& dp::ContextBuilder::setDimensions(uint32_t width, uint32_t height) {
-    this->width = width; this->height = height;
+dp::ContextBuilder& dp::ContextBuilder::setDimensions(uint32_t newWidth, uint32_t newHeight) {
+    width = newWidth; height = newHeight;
     return *this;
 }
 
-void dp::ContextBuilder::setVersion(int version) {
-    this->version = version;
+void dp::ContextBuilder::setVersion(int newVersion) {
+    version = newVersion;
 }
 
 dp::Context dp::ContextBuilder::build() {

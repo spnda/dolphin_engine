@@ -9,6 +9,6 @@ namespace dp {
     struct Surface {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
 
-        Surface(const dp::Context& context);
+        explicit Surface(const dp::Context& context);
     };
 } // namespace dp
