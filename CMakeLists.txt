@@ -34,7 +34,7 @@ find_package(imgui CONFIG REQUIRED)
 find_package(glm REQUIRED)
 find_package(assimp CONFIG REQUIRED)
 
-add_executable(dolphin_engine)
+add_executable(dolphin_engine src/vulkan/base/semaphore.hpp src/vulkan/base/semaphore.cpp)
 
 # Add shaderc from the Vulkan SDK
 add_library(shaderc UNKNOWN IMPORTED)

@@ -13,7 +13,6 @@ namespace dp {
         VkSurfaceKHR surface;
 
         PFN_vkAcquireNextImageKHR vkAcquireNextImage;
-        PFN_vkQueuePresentKHR vkQueuePresent;
         PFN_vkDestroySurfaceKHR vkDestroySurface;
 
         std::vector<VkImage> getImages();
@@ -34,11 +33,9 @@ namespace dp {
 
         void destroy();
 
-        VkResult aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const;
+        VkResult acquireNextImage(const dp::Semaphore& presentCompleteSemaphore, uint32_t* imageIndex) const;
 
-        VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const;
-
-        VkResult queuePresent(VkQueue, VkPresentInfoKHR* presentInfo) const;
+        VkResult queuePresent(dp::Queue& queue, uint32_t imageIndex, dp::Semaphore& waitSemaphore) const;
 
         [[nodiscard]] VkFormat getFormat() const;
         [[nodiscard]] VkExtent2D getExtent() const;

@@ -7,7 +7,6 @@ dp::Swapchain::Swapchain(const Context& context, const VkSurfaceKHR surface)
         : ctx(context), surface(surface) {
     create(ctx.device);
     vkAcquireNextImage = ctx.device.getFunctionAddress<PFN_vkAcquireNextImageKHR>("vkAcquireNextImageKHR");
-    vkQueuePresent = ctx.device.getFunctionAddress<PFN_vkQueuePresentKHR>("vkQueuePresentKHR");
     vkDestroySurface = ctx.device.getFunctionAddress<PFN_vkDestroySurfaceKHR>("vkDestroySurfaceKHR");
 }
 
@@ -35,27 +34,12 @@ void dp::Swapchain::destroy() {
     surface = VK_NULL_HANDLE;
 }
 
-VkResult dp::Swapchain::aquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex) const {
+VkResult dp::Swapchain::acquireNextImage(const dp::Semaphore& presentCompleteSemaphore, uint32_t* imageIndex) const {
     return vkAcquireNextImage(ctx.device, swapchain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
 }
 
-VkResult dp::Swapchain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore& waitSemaphore) const {
-    VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.pNext = nullptr;
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &swapchain.swapchain;
-    presentInfo.pImageIndices = &imageIndex;
-    
-    if (waitSemaphore != VK_NULL_HANDLE) {
-        presentInfo.pWaitSemaphores = &waitSemaphore;
-        presentInfo.waitSemaphoreCount = 1;
-    }
-    return vkQueuePresent(queue, &presentInfo);
-}
-
-VkResult dp::Swapchain::queuePresent(VkQueue queue, VkPresentInfoKHR* presentInfo) const {
-    return vkQueuePresent(queue, presentInfo);
+VkResult dp::Swapchain::queuePresent(dp::Queue& queue, uint32_t imageIndex, dp::Semaphore& waitSemaphore) const {
+    return queue.present(imageIndex, swapchain.swapchain, waitSemaphore);
 }
 
 VkFormat dp::Swapchain::getFormat() const {

@@ -103,12 +103,11 @@ auto dp::Buffer::getSize() const -> VkDeviceSize {
 }
 
 void dp::Buffer::memoryCopy(const void* source, uint64_t copySize) const {
-    memoryMutex.lock();
+    std::lock_guard guard(memoryMutex);
     void* dst;
     this->mapMemory(&dst);
     memcpy(dst, source, copySize);
     this->unmapMemory();
-    memoryMutex.unlock();
 }
 
 void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) {

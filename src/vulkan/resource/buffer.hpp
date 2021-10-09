@@ -59,7 +59,7 @@ namespace dp {
          * This automatically maps and unmaps memory. The caller
          * has to lock/unlock the mutex themselves.
          */
-        static void memoryCopy(void* destination, const void* source, uint64_t size) ;
+        static void memoryCopy(void* destination, const void* source, uint64_t size);
 
         void mapMemory(void** destination) const;
         void unmapMemory() const;

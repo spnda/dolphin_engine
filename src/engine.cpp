@@ -160,13 +160,15 @@ void dp::Engine::renderLoop() {
         // End the command buffer and submit.
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Ending.");
         vkEndCommandBuffer(ctx.drawCommandBuffer);
+
+        auto guard = std::move(ctx.graphicsQueue.getLock());
         result = ctx.submitFrame(swapchain);
+        guard.unlock();
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             needsResize = true;
         } else {
             checkResult(ctx, result, "Failed to submit queue");
         }
-        vkQueueWaitIdle(ctx.graphicsQueue);
     }
 }
 

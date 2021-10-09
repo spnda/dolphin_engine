@@ -9,8 +9,6 @@
 
 #include "../sdl/window.hpp"
 #include "context.hpp"
-#include "base/instance.hpp"
-#include "base/device.hpp"
 #include "resource/image.hpp"
 #include "base/swapchain.hpp"
 #include "resource/buffer.hpp"
@@ -18,17 +16,60 @@
 
 #define DEFAULT_FENCE_TIMEOUT 100000000000
 
-dp::Context::Context() = default;
+dp::Context::Context(std::string name)
+        : applicationName(std::move(name)),
+          presentCompleteSemaphore(*this, "presentCompleteSemaphore"),
+          renderCompleteSemaphore(*this, "renderCompleteSemaphore"),
+          renderFence(*this, "renderFence"),
+          graphicsQueue(*this, "graphicsQueue") {
+
+}
+
+void dp::Context::init() {
+    window = new Window(applicationName, width, height);
+    instance.addExtensions(window->getExtensions());
+    instance.create(applicationName);
+    surface = window->createSurface(instance);
+    physicalDevice.create(instance, surface);
+    device.create(physicalDevice);
+
+    getVulkanFunctions();
+    graphicsQueue.create(vkb::QueueType::graphics);
+    commandPool = createCommandPool(device.getQueueIndex(vkb::QueueType::graphics), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    drawCommandBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, commandPool, false, "drawCommandBuffer");
+    buildSyncStructures();
+    buildVmaAllocator();
+}
 
 void dp::Context::destroy() const {
     vkDestroySemaphore(device, presentCompleteSemaphore, nullptr);
     vkDestroySemaphore(device, renderCompleteSemaphore, nullptr);
-    vkDestroyFence(device, renderFence, nullptr);
+    renderFence.destroy();
 
     vkDestroyCommandPool(device, commandPool, nullptr);
 
     device.destroy();
     instance.destroy();
+}
+
+void dp::Context::buildSyncStructures() {
+    renderFence.create(VK_FENCE_CREATE_SIGNALED_BIT);
+
+    presentCompleteSemaphore.create(0);
+    renderCompleteSemaphore.create(0);
+
+    setDebugUtilsName(renderCompleteSemaphore, "renderCompleteSemaphore");
+    setDebugUtilsName(presentCompleteSemaphore, "presentCompleteSemaphore");
+}
+
+void dp::Context::buildVmaAllocator() {
+    VmaAllocatorCreateInfo allocatorInfo = {
+        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+        .physicalDevice = physicalDevice,
+        .device = device,
+        .instance = instance,
+    };
+    vmaCreateAllocator(&allocatorInfo, &vmaAllocator);
 }
 
 void dp::Context::getVulkanFunctions() {
@@ -73,48 +114,48 @@ void dp::Context::beginCommandBuffer(VkCommandBuffer commandBuffer) const {
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 }
 
-void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const {
+void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const {
     if (commandBuffer == VK_NULL_HANDLE) return;
 
     vkEndCommandBuffer(commandBuffer);
 
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &commandBuffer,
+    };
 
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = 0;
-    
-    VkFence fence;
-    vkCreateFence(device, &fenceInfo, nullptr, &fence);
-    vkQueueSubmit(queue, 1, &submitInfo, fence);
-    waitForFence(&fence);
-    vkDestroyFence(device, fence, nullptr);
+    auto guard = std::move(queue.getLock());
+
+    dp::Fence fence(*this, "tempFlushFence");
+    fence.create(0);
+    auto result = queue.submit(fence, &submitInfo);
+    checkResult(*this, result, "Failed to submit queue while flushing command buffer");
+    fence.wait();
+    fence.destroy();
 }
 
 auto dp::Context::waitForFrame(const Swapchain& swapchain) -> VkResult {
     // Wait for fences, then acquire next image.
-    waitForFence(&renderFence);
-    return swapchain.aquireNextImage(presentCompleteSemaphore, &currentImageIndex);
+    renderFence.wait();
+    renderFence.reset();
+    return swapchain.acquireNextImage(presentCompleteSemaphore, &currentImageIndex);
 }
 
 auto dp::Context::submitFrame(const Swapchain& swapchain) -> VkResult {
-    // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_TRANSFER_BIT };
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
-    // VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT }; // ??
 
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = &presentCompleteSemaphore;
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = &renderCompleteSemaphore;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &drawCommandBuffer;
-    VkResult result = vkQueueSubmit(graphicsQueue, 1, &submitInfo, renderFence);
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount = 1,
+        .pWaitSemaphores = &presentCompleteSemaphore.getHandle(),
+        .pWaitDstStageMask = waitStages,
+        .commandBufferCount = 1,
+        .pCommandBuffers = &drawCommandBuffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores = &renderCompleteSemaphore.getHandle(),
+    };
+    auto result = graphicsQueue.submit(renderFence, &submitInfo);
     if (result != VK_SUCCESS) {
         checkResult(*this, result, "Failed to submit queue");
     }
@@ -243,7 +284,7 @@ uint32_t dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR&
     return vkGetBufferDeviceAddress(device, &addressInfo);
 }
 
-auto dp::Context::getCheckpointData(VkQueue queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV> {
+auto dp::Context::getCheckpointData(const dp::Queue& queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV> {
     if (vkGetQueueCheckpointDataNV == nullptr) return {};
 
     uint32_t count = queryCount;
@@ -256,13 +297,6 @@ auto dp::Context::getCheckpointData(VkQueue queue, uint32_t queryCount) const ->
 
 void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {
     vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, dataSize, shaderHandles.data());
-}
-
-void dp::Context::waitForFence(const VkFence* fence) const {
-    auto result = vkWaitForFences(device, 1, fence, true, DEFAULT_FENCE_TIMEOUT);
-    checkResult(*this, result, "Failed to wait on fences");
-    result = vkResetFences(device, 1, fence);
-    checkResult(*this, result, "Failed to reset fences");
 }
 
 void dp::Context::waitForIdle() const {
@@ -283,12 +317,20 @@ void dp::Context::setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std:
     setDebugUtilsName<VkCommandBuffer>(cmdBuffer, name, VK_OBJECT_TYPE_COMMAND_BUFFER);   
 }
 
+void dp::Context::setDebugUtilsName(const VkFence& fence, const std::string& name) const {
+    setDebugUtilsName<VkFence>(fence, name, VK_OBJECT_TYPE_FENCE);
+}
+
 void dp::Context::setDebugUtilsName(const VkImage& image, const std::string& name) const {
     setDebugUtilsName<VkImage>(image, name, VK_OBJECT_TYPE_IMAGE);
 }
 
 void dp::Context::setDebugUtilsName(const VkPipeline& pipeline, const std::string& name) const {
     setDebugUtilsName<VkPipeline>(pipeline, name, VK_OBJECT_TYPE_PIPELINE);
+}
+
+void dp::Context::setDebugUtilsName(const VkQueue& queue, const std::string& name) const {
+    setDebugUtilsName<VkQueue>(queue, name, VK_OBJECT_TYPE_QUEUE);
 }
 
 void dp::Context::setDebugUtilsName(const VkRenderPass& renderPass, const std::string& name) const {
@@ -305,6 +347,8 @@ void dp::Context::setDebugUtilsName(const VkShaderModule& shaderModule, const st
 
 template <typename T>
 void dp::Context::setDebugUtilsName(const T& object, const std::string& name, VkObjectType objectType) const {
+    if (vkSetDebugUtilsObjectNameEXT == nullptr) return;
+
     VkDebugUtilsObjectNameInfoEXT nameInfo = {};
     nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
     nameInfo.pNext = nullptr;
@@ -313,69 +357,4 @@ void dp::Context::setDebugUtilsName(const T& object, const std::string& name, Vk
     nameInfo.pObjectName = name.c_str();
 
     vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
-}
-
-
-void dp::ContextBuilder::buildAllocator(Context& ctx) {
-    VmaAllocatorCreateInfo allocatorInfo = {};
-    allocatorInfo.physicalDevice = ctx.physicalDevice;
-    allocatorInfo.device = ctx.device;
-    allocatorInfo.instance = ctx.instance;
-    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-    vmaCreateAllocator(&allocatorInfo, &ctx.vmaAllocator);
-}
-
-void dp::ContextBuilder::buildSyncStructures(Context& ctx) {
-    ctx.renderFence = {};
-    VkFenceCreateInfo fenceCreateInfo = {};
-    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceCreateInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-    vkCreateFence(ctx.device, &fenceCreateInfo, nullptr, &ctx.renderFence);
-
-    ctx.presentCompleteSemaphore = {};
-    ctx.renderCompleteSemaphore = {};
-    VkSemaphoreCreateInfo semaphoreCreateInfo = {};
-    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-    semaphoreCreateInfo.flags = 0;
-    vkCreateSemaphore(ctx.device, &semaphoreCreateInfo, nullptr, &ctx.presentCompleteSemaphore);
-    vkCreateSemaphore(ctx.device, &semaphoreCreateInfo, nullptr, &ctx.renderCompleteSemaphore);
-
-    ctx.setDebugUtilsName(ctx.renderCompleteSemaphore, "renderCompleteSemaphore");
-    ctx.setDebugUtilsName(ctx.presentCompleteSemaphore, "presentCompleteSemaphore");
-}
-
-dp::ContextBuilder::ContextBuilder(std::string name) : name(std::move(name)) {
-
-}
-
-dp::ContextBuilder dp::ContextBuilder::create(std::string name) {
-    dp::ContextBuilder builder(std::move(name));
-    return builder;
-}
-
-dp::ContextBuilder& dp::ContextBuilder::setDimensions(uint32_t newWidth, uint32_t newHeight) {
-    width = newWidth; height = newHeight;
-    return *this;
-}
-
-void dp::ContextBuilder::setVersion(int newVersion) {
-    version = newVersion;
-}
-
-dp::Context dp::ContextBuilder::build() {
-    dp::Context context;
-    context.window = new Window(name, width, height);
-    context.instance.addExtensions(context.window->getExtensions());
-    context.instance.create(this->name);
-    context.surface = context.window->createSurface(context.instance);
-    context.physicalDevice.create(context.instance, context.surface);
-    context.device.create(context.physicalDevice);
-    context.graphicsQueue = context.device.getQueue(vkb::QueueType::present);
-    context.getVulkanFunctions();
-    // We want the pool to have resettable command buffers.
-    context.commandPool = context.createCommandPool(context.device.getQueueIndex(vkb::QueueType::graphics), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    context.drawCommandBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, context.commandPool, false, "drawCommandBuffer");
-    buildSyncStructures(context);
-    buildAllocator(context);
-    return context;
 }

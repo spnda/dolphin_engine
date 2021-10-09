@@ -8,8 +8,11 @@
 #include "VkBootstrap.h"
 
 #include "base/device.hpp"
+#include "base/fence.hpp"
 #include "base/instance.hpp"
 #include "base/physical_device.hpp"
+#include "base/queue.hpp"
+#include "base/semaphore.hpp"
 #include "shaders/shader.hpp"
 
 namespace dp {
@@ -35,17 +38,18 @@ namespace dp {
         PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT = nullptr;
 
     public:
+        std::string applicationName;
         uint32_t width = 1920, height = 1080;
 
         Window* window = nullptr;
         VkSurfaceKHR surface = nullptr;
-        VkQueue graphicsQueue = nullptr;
+        dp::Queue graphicsQueue;
         VkCommandPool commandPool = nullptr;
 
         // Sync structures
-        VkFence renderFence = nullptr;
-        VkSemaphore presentCompleteSemaphore = nullptr;
-        VkSemaphore renderCompleteSemaphore = nullptr;
+        dp::Fence renderFence;
+        dp::Semaphore presentCompleteSemaphore;
+        dp::Semaphore renderCompleteSemaphore;
 
         dp::Instance instance;
         dp::PhysicalDevice physicalDevice;
@@ -57,15 +61,19 @@ namespace dp {
 
         VmaAllocator vmaAllocator = nullptr;
 
-        Context();
+        explicit Context(std::string name);
+        Context(const Context& ctx) = default;
 
+        void init();
         void destroy() const;
 
+        void buildSyncStructures();
+        void buildVmaAllocator();
         void getVulkanFunctions();
 
         auto createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string& name = {}) const -> VkCommandBuffer;
         void beginCommandBuffer(VkCommandBuffer commandBuffer) const;
-        void flushCommandBuffer(VkCommandBuffer commandBuffer, VkQueue queue) const;
+        void flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const;
 
         auto waitForFrame(const Swapchain& swapchain) -> VkResult;
         auto submitFrame(const Swapchain& swapchain) -> VkResult;
@@ -83,44 +91,23 @@ namespace dp {
         [[nodiscard]] auto getAccelerationStructureBuildSizes(uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
         auto getAccelerationStructureDeviceAddress(VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
         [[nodiscard]] auto getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR& addressInfo) const -> uint32_t;
-        auto getCheckpointData(VkQueue queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV>;
+        auto getCheckpointData(const dp::Queue& queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV>;
         void getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const;
-        void waitForFence(const VkFence* fence) const;
+
         void waitForIdle() const;
 
         void setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string& name) const;
         void setDebugUtilsName(const VkBuffer& buffer, const std::string& name) const;
         void setDebugUtilsName(const VkCommandBuffer& cmdBuffer, const std::string& name) const;
+        void setDebugUtilsName(const VkFence& fence, const std::string& name) const;
         void setDebugUtilsName(const VkImage& image, const std::string& name) const;
         void setDebugUtilsName(const VkPipeline& pipeline, const std::string& name) const;
+        void setDebugUtilsName(const VkQueue& queue, const std::string& name) const;
         void setDebugUtilsName(const VkRenderPass& renderPass, const std::string& name) const;
         void setDebugUtilsName(const VkSemaphore& semaphore, const std::string& name) const;
         void setDebugUtilsName(const VkShaderModule& shaderModule, const std::string& name) const;
 
         template <typename T>
         void setDebugUtilsName(const T& object, const std::string& name, VkObjectType objectType) const;
-    };
-
-    /// Context builder to create a context with a VkInstance, VkDevice(s), VkSurfaceKHR and window.
-    class ContextBuilder {
-    private:
-        std::string name;
-        int version = VK_MAKE_VERSION(1, 0, 0);
-        uint32_t width = 1920, height = 1080;
-
-        static void buildAllocator(Context& ctx);
-
-        static void buildSyncStructures(Context& ctx);
-
-        explicit ContextBuilder(std::string name);
-
-    public:
-        static ContextBuilder create(std::string name);
-
-        ContextBuilder& setDimensions(uint32_t width, uint32_t height);
-
-        void setVersion(int version);
-
-        Context build();
     };
 } // namespace dp
