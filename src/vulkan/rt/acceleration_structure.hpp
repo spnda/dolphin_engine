@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 
 #include "../resource/buffer.hpp"
+#include "../../render/mesh.hpp"
 
 namespace dp {
     // fwd
@@ -23,6 +24,7 @@ namespace dp {
     };
 
     class AccelerationStructure {
+    protected:
         const dp::Context& ctx;
 
     public:
@@ -31,15 +33,32 @@ namespace dp {
         VkAccelerationStructureKHR handle = nullptr;
         VkDeviceAddress address = 0;
         dp::Buffer resultBuffer;
-        
-        /** If this->type is TopLevel, this should be a list of all relevant BLASes. */
-        std::vector<AccelerationStructure> children;
 
-        explicit AccelerationStructure(const dp::Context& context, AccelerationStructureType type = AccelerationStructureType::Generic, std::string  asName = "blas");
+        explicit AccelerationStructure(const dp::Context& context, AccelerationStructureType type = AccelerationStructureType::Generic, std::string asName = {});
         AccelerationStructure(const AccelerationStructure& structure);
 
         AccelerationStructure& operator=(const dp::AccelerationStructure& structure);
 
         void setName();
+    };
+
+    class BottomLevelAccelerationStructure : public AccelerationStructure {
+        dp::Mesh mesh;
+
+    public:
+        dp::Buffer vertexBuffer;
+        dp::Buffer indexBuffer;
+        dp::Buffer transformBuffer;
+
+        explicit BottomLevelAccelerationStructure(const dp::Context& context, dp::Mesh  mesh, const std::string& name = "blas");
+
+        void createMeshBuffers();
+    };
+
+    class TopLevelAccelerationStructure : public AccelerationStructure {
+    public:
+        std::vector<BottomLevelAccelerationStructure> blases = {};
+
+        explicit TopLevelAccelerationStructure(const dp::Context& context, const std::string& name = "tlas");
     };
 }

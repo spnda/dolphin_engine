@@ -10,7 +10,8 @@
 #include "../vulkan/rt/acceleration_structure.hpp"
 
 dp::ModelLoader::ModelLoader(const dp::Context& context)
-        : ctx(context), importer(), materialBuffer(ctx, "materialBuffer") {
+        : ctx(context), importer(),
+        materialBuffer(ctx, "materialBuffer"), descriptionsBuffer(ctx, "descriptionsBuffer") {
 
 }
 
@@ -29,7 +30,10 @@ void dp::ModelLoader::loadMesh(const aiMesh *mesh, const aiMatrix4x4 transform) 
 
     for (int i = 0; i < mesh->mNumVertices; i++) {
         Vertex vertex {
-            .pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z)
+            .pos = glm::vec4(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z, 1.0),
+            .normals = (mesh->HasNormals())
+                ? glm::vec4(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z, 1.0)
+                : glm::vec4(1.0)
         };
         newMesh.vertices.push_back(vertex);
     }
@@ -107,12 +111,35 @@ void dp::ModelLoader::createMaterialBuffer() {
         materials.size() * sizeof(Material),
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_CPU_TO_GPU,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT 
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     );
     materialBuffer.memoryCopy(materials.data(), materials.size() * sizeof(Material));
 }
 
-dp::AccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
+void dp::ModelLoader::createDescriptionsBuffer(const dp::TopLevelAccelerationStructure& tlas) {
+    // TODO: Make this less cursed.
+    descriptions.resize(meshes.size());
+    for (const auto& mesh : meshes) {
+        uint64_t index = &mesh - &meshes[0];
+        auto blas = tlas.blases[index];
+        ObjectDescription desc = {
+            .vertexBufferAddress = blas.vertexBuffer.address,
+            .indexBufferAddress = blas.indexBuffer.address,
+            .materialIndex = mesh.materialIndex,
+        };
+        descriptions[index] = desc;
+    }
+
+    descriptionsBuffer.create(
+        descriptions.size() * sizeof(ObjectDescription),
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_CPU_TO_GPU,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+    descriptionsBuffer.memoryCopy(descriptions.data(), descriptions.size() * sizeof(ObjectDescription));
+}
+
+dp::TopLevelAccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {
     auto builder = dp::AccelerationStructureBuilder::create(context, context.commandPool);
     for (const auto& mesh : meshes) {
         uint32_t meshIndex = builder.addMesh(mesh);

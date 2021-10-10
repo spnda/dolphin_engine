@@ -11,7 +11,7 @@
 
 namespace dp {
     // fwd
-    class AccelerationStructure;
+    class TopLevelAccelerationStructure;
 
     class ModelLoader {
         const dp::Context& ctx;
@@ -28,10 +28,13 @@ namespace dp {
         void loadNode(const aiNode* node, const aiScene* scene);
 
         static void getMatColor3(aiMaterial* material, const char* pKey, unsigned int type, unsigned int idx, glm::vec4* vec) ;
+
     public:
         dp::Buffer materialBuffer;
+        dp::Buffer descriptionsBuffer;
 
         std::vector<Material> materials = {};
+        std::vector<ObjectDescription> descriptions = {};
         std::vector<Mesh> meshes = {};
 
         explicit ModelLoader(const dp::Context& context);
@@ -39,7 +42,8 @@ namespace dp {
         bool loadFile(const std::string& fileName);
 
         void createMaterialBuffer();
+        void createDescriptionsBuffer(const dp::TopLevelAccelerationStructure& tlas);
 
-        dp::AccelerationStructure buildAccelerationStructure(const dp::Context& context);
+        dp::TopLevelAccelerationStructure buildAccelerationStructure(const dp::Context& context);
     };
 }

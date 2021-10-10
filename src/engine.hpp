@@ -20,7 +20,7 @@ namespace dp {
         dp::StorageImage storageImage;
         dp::Swapchain swapchain;
         dp::RayTracingPipeline pipeline;
-        dp::AccelerationStructure topLevelAccelerationStructure;
+        dp::TopLevelAccelerationStructure topLevelAccelerationStructure;
 
         dp::Buffer raygenShaderBindingTable;
         dp::Buffer missShaderBindingTable;
@@ -34,6 +34,7 @@ namespace dp {
         void getProperties();
         void buildPipeline();
         void buildSBT();
+
     public:
         dp::Camera camera;
 

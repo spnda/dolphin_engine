@@ -11,23 +11,6 @@ dp::AccelerationStructureBuilder::AccelerationStructureBuilder(const dp::Context
     
 }
 
-void dp::AccelerationStructureBuilder::createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const dp::Mesh& mesh) {
-    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    VmaMemoryUsage usage = VMA_MEMORY_USAGE_CPU_ONLY;
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-    vertexBuffer.create(mesh.vertices.size() * sizeof(Vertex), bufferUsage, usage, properties);
-    vertexBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
-
-    // Create the index buffer
-    indexBuffer.create(mesh.indices.size() * sizeof(Index), bufferUsage, usage, properties);
-    indexBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(Index));
-
-    // Create the index buffer
-    transformBuffer.create(sizeof(VkTransformMatrixKHR), bufferUsage, usage, properties);
-    transformBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
-}
-
 void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) {
     resultBuffer.create(
         sizeInfo.accelerationStructureSize,
@@ -64,20 +47,18 @@ void dp::AccelerationStructureBuilder::addInstance(dp::AccelerationStructureInst
     instances.push_back(instance);
 }
 
-dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
+dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     std::chrono::steady_clock::time_point beginBuild = std::chrono::steady_clock::now();
 
     VkCommandBuffer cmdBuffer;
 
     // Build the BLAS.
-    std::vector<AccelerationStructure> blases = {};
+    std::vector<dp::BottomLevelAccelerationStructure> blases = {};
     for (const auto& mesh : meshes) {
         cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, commandPool, true);
+        dp::BottomLevelAccelerationStructure blas(context, mesh, mesh.name);
 
-        dp::Buffer vertexBuffer(context, "blasVertexBuffer");
-        dp::Buffer indexBuffer(context, "blasIndexBuffer");
-        dp::Buffer transformBuffer(context, "blasTransformBuffer");
-        this->createMeshBuffers(vertexBuffer, indexBuffer, transformBuffer, mesh);
+        blas.createMeshBuffers();
 
         VkAccelerationStructureGeometryKHR structureGeometry = {};
         structureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -85,13 +66,13 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         structureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         structureGeometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
         structureGeometry.geometry.triangles.vertexFormat = mesh.vertexFormat;
-        structureGeometry.geometry.triangles.vertexData.deviceAddress = vertexBuffer.address;
+        structureGeometry.geometry.triangles.vertexData.deviceAddress = blas.vertexBuffer.address;
         structureGeometry.geometry.triangles.maxVertex = mesh.vertices.size();
-        structureGeometry.geometry.triangles.vertexStride = dp::Mesh::stride;
+        structureGeometry.geometry.triangles.vertexStride = dp::Mesh::vertexStride;
         structureGeometry.geometry.triangles.indexType = mesh.indexType;
-        structureGeometry.geometry.triangles.indexData.deviceAddress = indexBuffer.address;
+        structureGeometry.geometry.triangles.indexData.deviceAddress = blas.indexBuffer.address;
         structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
-        structureGeometry.geometry.triangles.transformData.deviceAddress = transformBuffer.address;
+        structureGeometry.geometry.triangles.transformData.deviceAddress = blas.transformBuffer.address;
 
         // Get the sizes.
         VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {
@@ -106,7 +87,6 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = context.getAccelerationStructureBuildSizes(numTriangles, buildGeometryInfo);
 
         // Create result and scratch buffers.
-        dp::AccelerationStructure blas(context, AccelerationStructureType::BottomLevel, mesh.name);
         dp::Buffer scratchBuffer(context, mesh.name + " scratchBuffer");
         createBuildBuffers(scratchBuffer, blas.resultBuffer, buildSizeInfo);
 
@@ -139,13 +119,10 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         blases.push_back(blas);
         structures.push_back(blas);
 
-        vertexBuffer.destroy();
-        indexBuffer.destroy();
-        transformBuffer.destroy();
         scratchBuffer.destroy();
     }
 
-    dp::AccelerationStructure tlas(context, AccelerationStructureType::TopLevel, "TLAS");
+    dp::TopLevelAccelerationStructure tlas(context);
     {
         cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, commandPool, true);
 
@@ -154,7 +131,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
         for (const auto& instance : this->instances) {
             VkAccelerationStructureInstanceKHR accelerationStructureInstance = {};
             accelerationStructureInstance.transform = instance.transformMatrix;
-            accelerationStructureInstance.instanceCustomIndex = this->meshes[instance.blasIndex].materialIndex;
+            accelerationStructureInstance.instanceCustomIndex = instance.blasIndex;
             accelerationStructureInstance.mask = 0xFF;
             accelerationStructureInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
             accelerationStructureInstance.instanceShaderBindingTableRecordOffset = 0;
@@ -172,7 +149,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
             instanceBuffer.create(
                 sizeof(VkAccelerationStructureInstanceKHR) * primitiveCount,
                 VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                VMA_MEMORY_USAGE_CPU_ONLY,
+                VMA_MEMORY_USAGE_CPU_TO_GPU,
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             instanceBuffer.memoryCopy(asInstances.data(), sizeof(VkAccelerationStructureInstanceKHR) * primitiveCount);
 
@@ -230,7 +207,7 @@ dp::AccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         tlas.address = context.getAccelerationStructureDeviceAddress(tlas.handle);
         tlas.setName();
-        tlas.children.insert(tlas.children.end(), blases.begin(), blases.end());
+        tlas.blases.insert(tlas.blases.end(), blases.begin(), blases.end());
         
         structures.push_back(tlas);
 

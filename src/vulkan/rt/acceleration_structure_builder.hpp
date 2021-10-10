@@ -10,6 +10,7 @@
 namespace dp {
     class AccelerationStructureInstance;
     class AccelerationStructure;
+    class TopLevelAccelerationStructure;
 
     class AccelerationStructureBuilder {
         AccelerationStructureBuilder(const dp::Context& context, VkCommandPool commandPool);
@@ -23,8 +24,6 @@ namespace dp {
         std::vector<Mesh> meshes;
         std::vector<AccelerationStructureInstance> instances;
 
-        static void createMeshBuffers(dp::Buffer& vertexBuffer, dp::Buffer& indexBuffer, dp::Buffer& transformBuffer, const Mesh& mesh);
-
         static void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, VkAccelerationStructureBuildSizesInfoKHR sizeInfo) ;
 
     public:
@@ -35,6 +34,6 @@ namespace dp {
 
         void addInstance(AccelerationStructureInstance instance);
 
-        AccelerationStructure build();
+        TopLevelAccelerationStructure build();
     };
 }

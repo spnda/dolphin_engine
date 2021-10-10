@@ -16,7 +16,6 @@ namespace dp {
         dp::Image image;
 
     public:
-
         explicit StorageImage(const dp::Context& context);
 
         operator dp::Image() const;
@@ -25,6 +24,7 @@ namespace dp {
         [[nodiscard]] VkDescriptorImageInfo getDescriptorImageInfo() const;
         [[nodiscard]] VkImageLayout getCurrentLayout() const;
         [[nodiscard]] VkExtent2D getImageSize() const;
+        [[nodiscard]] VkExtent3D getImageSize3d() const;
 
         void recreateImage();
         void changeLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout);

@@ -76,6 +76,13 @@ void dp::Engine::buildPipeline() {
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
     );
 
+    modelLoader.createDescriptionsBuffer(topLevelAccelerationStructure);
+    VkDescriptorBufferInfo descriptionsBufferInfo = modelLoader.descriptionsBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
+    builder.addBufferDescriptor(
+        4, &descriptionsBufferInfo,
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
+    );
+
     pipeline = builder.build();
 }
 
@@ -132,7 +139,7 @@ void dp::Engine::renderLoop() {
             missShaderBindingTable,
             hitShaderBindingTable,
             sbtStride,
-            { ctx.width, ctx.height, 1 }
+            storageImage.getImageSize3d()
         );
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Changing image layout.");

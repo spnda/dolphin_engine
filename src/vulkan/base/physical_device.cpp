@@ -13,6 +13,11 @@ void dp::PhysicalDevice::create(const dp::Instance& instance, VkSurfaceKHR surfa
 
     // Should conditionally add these feature, but heck, who's going to use this besides me.
     {
+        VkPhysicalDeviceFeatures deviceFeatures = {
+            .shaderInt64 = true,
+        };
+        physicalDeviceSelector.set_required_features(deviceFeatures);
+
         VkPhysicalDeviceBufferDeviceAddressFeatures deviceAddressFeatures = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES,
             .bufferDeviceAddress = true,

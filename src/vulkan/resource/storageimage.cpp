@@ -28,6 +28,14 @@ VkExtent2D dp::StorageImage::getImageSize() const {
     return image.getImageSize();
 }
 
+VkExtent3D dp::StorageImage::getImageSize3d() const {
+    return {
+        .width = getImageSize().width,
+        .height = getImageSize().height,
+        .depth = 1,
+    };
+}
+
 void dp::StorageImage::recreateImage() {
     image.free();
     currentLayout = VK_IMAGE_LAYOUT_UNDEFINED; // Reset the image layout
@@ -44,6 +52,7 @@ void dp::StorageImage::changeLayout(const VkCommandBuffer commandBuffer, const V
     switch (currentLayout) {
         case VK_IMAGE_LAYOUT_GENERAL:
         case VK_IMAGE_LAYOUT_UNDEFINED:
+        default:
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
             srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
@@ -56,6 +65,7 @@ void dp::StorageImage::changeLayout(const VkCommandBuffer commandBuffer, const V
         case VK_IMAGE_LAYOUT_GENERAL:
         case VK_IMAGE_LAYOUT_UNDEFINED:
         case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+        default:
             break;
         case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
         case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
@@ -64,7 +74,7 @@ void dp::StorageImage::changeLayout(const VkCommandBuffer commandBuffer, const V
     }
 
     dp::Image::changeLayout(
-        VkImage(image), commandBuffer,
+        image, commandBuffer,
         currentLayout, newLayout,
         srcAccessMask, dstAccessMask,
         subresourceRange
