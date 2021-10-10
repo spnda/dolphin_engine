@@ -16,13 +16,17 @@ layout(buffer_reference, scalar) buffer Indices { ivec3 i[]; };
 layout(binding = 3, set = 0, scalar) buffer Materials { Material m[]; } materials;
 layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
 
+layout(push_constant) uniform PushConstants {
+    vec3 lightPosition;
+    float lightIntensity;
+} constants;
+
 vec3 computeDiffuse(Material material, vec3 normal, vec3 lightDir) {
     float dotNL = max(dot(normal, lightDir), 1.0);
     return material.diffuse.xyz * dotNL;
 }
 
 void main() {
-    const vec3 lightPosition = vec3(5.0, 5.0, 0.0);
     const vec3 barycentrics = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
     // Get the object description, materials, indices and vertices.
@@ -44,8 +48,8 @@ void main() {
     const vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT));
 
     // Calculate diffuse lighting
-    vec3 diffuse = computeDiffuse(material, worldNormal, normalize(lightPosition - worldPos));
-    float intensity = 32.0 / pow(length(lightPosition - worldPos), 2.0);
+    vec3 diffuse = computeDiffuse(material, worldNormal, normalize(constants.lightPosition - worldPos));
+    float intensity = constants.lightIntensity / pow(length(constants.lightPosition - worldPos), 2.0);
 
     hitPayload.hitValue = vec4(intensity * diffuse, 1.0);
 }

@@ -42,11 +42,13 @@ void dp::Context::init() {
 }
 
 void dp::Context::destroy() const {
-    vkDestroySemaphore(device, presentCompleteSemaphore, nullptr);
-    vkDestroySemaphore(device, renderCompleteSemaphore, nullptr);
+    presentCompleteSemaphore.destroy();
+    renderCompleteSemaphore.destroy();
     renderFence.destroy();
 
     vkDestroyCommandPool(device, commandPool, nullptr);
+
+    vmaDestroyAllocator(vmaAllocator);
 
     device.destroy();
     instance.destroy();

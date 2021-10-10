@@ -5,6 +5,8 @@
 #include "../vulkan/base/renderpass.hpp"
 
 namespace dp {
+    class Engine;
+
     class Ui {
         const dp::Context& ctx;
         const dp::Swapchain& swapchain;
@@ -21,7 +23,7 @@ namespace dp {
         void destroy();
 
         void prepare();
-        void draw(VkCommandBuffer cmdBuffer);
+        void draw(dp::Engine& engine, VkCommandBuffer cmdBuffer);
 
         void resize();
 

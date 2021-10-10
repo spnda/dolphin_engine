@@ -126,6 +126,16 @@ dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addAccelerationStr
     return *this;
 }
 
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addPushConstants(uint32_t pushConstantSize, dp::ShaderStage shaderStage) {
+    VkPushConstantRange pushConstantRange = {
+        .stageFlags = static_cast<VkShaderStageFlags>(shaderStage),
+        .offset = 0,
+        .size = pushConstantSize,
+    };
+    pushConstants = pushConstantRange;
+    return *this;
+}
+
 dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     // Create the descriptor set layout.
     VkDescriptorSetLayoutCreateInfo descriptorLayoutCreateInfo = {};
@@ -166,6 +176,10 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &pipeline.descriptorLayout;
+    if (pushConstants.size != 0) {
+        pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstants;
+        pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+    }
     vkCreatePipelineLayout(ctx.device, &pipelineLayoutCreateInfo, nullptr, &pipeline.pipelineLayout);
 
     // Create RT pipeline

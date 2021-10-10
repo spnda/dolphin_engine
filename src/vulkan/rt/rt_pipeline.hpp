@@ -36,6 +36,7 @@ namespace dp {
         VkDescriptorSetLayout descriptorSetLayout = nullptr;
         std::vector<VkDescriptorSetLayoutBinding> descriptorLayoutBindings;
         std::vector<VkWriteDescriptorSet> descriptorWrites;
+        VkPushConstantRange pushConstants;
 
         explicit RayTracingPipelineBuilder(Context& context) : ctx(context) {}
 
@@ -46,6 +47,7 @@ namespace dp {
         RayTracingPipelineBuilder& addImageDescriptor(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
         RayTracingPipelineBuilder& addBufferDescriptor(uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
         RayTracingPipelineBuilder& addAccelerationStructureDescriptor(uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+        RayTracingPipelineBuilder& addPushConstants(uint32_t pushConstantSize, dp::ShaderStage shaderStage);
 
         // Builds the descriptor set layout and pipeline layout, then creates
         // a VkRayTracingPipeline based on that.

@@ -27,6 +27,11 @@ namespace dp {
         dp::Buffer hitShaderBindingTable;
         uint32_t sbtStride;
 
+        struct PushConstants {
+            glm::vec3 lightPosition = glm::vec3();
+            float lightIntensity = 0.5f;
+        } pushConstants;
+
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProperties = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR,
         };
@@ -44,5 +49,6 @@ namespace dp {
 
         void renderLoop();
         void resize(uint32_t width, uint32_t height);
+        PushConstants& getConstants();
     };
 }

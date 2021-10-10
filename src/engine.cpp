@@ -8,19 +8,19 @@ dp::Engine::Engine(dp::Context& context)
           camera(ctx), ui(ctx, swapchain), storageImage(ctx), topLevelAccelerationStructure(ctx),
           raygenShaderBindingTable(ctx, "raygenShaderBindingTable"), missShaderBindingTable(ctx, "missShaderBindingTable"), hitShaderBindingTable(ctx, "hitShaderBindingTable") {
     this->getProperties();
-    
+
     camera.setPerspective(70.0f, 0.01f, 512.0f);
     camera.setRotation(glm::vec3(0.0f));
     camera.setPosition(glm::vec3(0.0f, 0.0f, -1.0f));
 
     ui.init();
-    
-    VkCommandBuffer commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
+
+    auto commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
     storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
     ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
 
     // Load the models and create the pipeline.
-    modelLoader.loadFile("models/CornellBox-Original.obj");
+    modelLoader.loadFile("models/CornellBox/CornellBox-Original.obj");
     topLevelAccelerationStructure = modelLoader.buildAccelerationStructure(ctx);
     this->buildPipeline();
 
@@ -47,6 +47,8 @@ void dp::Engine::buildPipeline() {
         .addShader(rayGenShader)
         .addShader(rayMissShader)
         .addShader(closestHitShader);
+
+    builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit);
 
     VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
     descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
@@ -132,6 +134,9 @@ void dp::Engine::renderLoop() {
         vkCmdBindPipeline(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipeline);
         vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, nullptr);
 
+        vkCmdPushConstants(ctx.drawCommandBuffer, pipeline.pipelineLayout,
+                           static_cast<VkShaderStageFlags>(dp::ShaderStage::ClosestHit), 0, sizeof(PushConstants), &pushConstants);
+
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Tracing rays.");
         ctx.traceRays(
             ctx.drawCommandBuffer,
@@ -162,7 +167,7 @@ void dp::Engine::renderLoop() {
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Drawing UI.");
         // Draw the UI.
         ui.prepare();
-        ui.draw(ctx.drawCommandBuffer);
+        ui.draw(*this, ctx.drawCommandBuffer);
 
         // End the command buffer and submit.
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Ending.");
@@ -212,4 +217,8 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
     ui.resize();
 
     needsResize = false;
+}
+
+dp::Engine::PushConstants& dp::Engine::getConstants() {
+    return this->pushConstants;
 }

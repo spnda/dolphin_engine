@@ -4,6 +4,7 @@
 #include <imgui_impl_vulkan.h>
 #include <imgui_impl_sdl.h>
 
+#include "../engine.hpp"
 #include "../sdl/window.hpp"
 #include "../vulkan/base/swapchain.hpp"
 
@@ -95,8 +96,13 @@ void dp::Ui::prepare() {
     ImGui::NewFrame();
 }
 
-void dp::Ui::draw(const VkCommandBuffer cmdBuffer) {
-    ImGui::ShowDemoWindow();
+void dp::Ui::draw(dp::Engine& engine, const VkCommandBuffer cmdBuffer) {
+    ImGui::Begin(ctx.applicationName.c_str());
+
+    ImGui::SliderFloat3("Light position", reinterpret_cast<float*>(&engine.getConstants().lightPosition), -10.0f, 10.0f);
+    ImGui::SliderFloat("Light intensity", &engine.getConstants().lightIntensity, 0.0f, 32.0f);
+
+    ImGui::End();
 
     ImGui::Render();
 
