@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 
 #include "../resource/buffer.hpp"
+#include "../resource/stagingbuffer.hpp"
 #include "../../render/mesh.hpp"
 
 namespace dp {
@@ -45,6 +46,10 @@ namespace dp {
     class BottomLevelAccelerationStructure : public AccelerationStructure {
         dp::Mesh mesh;
 
+        dp::StagingBuffer vertexStagingBuffer;
+        dp::StagingBuffer indexStagingBuffer;
+        dp::StagingBuffer transformStagingBuffer;
+
     public:
         dp::Buffer vertexBuffer;
         dp::Buffer indexBuffer;
@@ -53,6 +58,8 @@ namespace dp {
         explicit BottomLevelAccelerationStructure(const dp::Context& context, dp::Mesh  mesh, const std::string& name = "blas");
 
         void createMeshBuffers();
+        void copyMeshBuffers(VkCommandBuffer cmdBuffer);
+        void destroyMeshStagingBuffers();
     };
 
     class TopLevelAccelerationStructure : public AccelerationStructure {

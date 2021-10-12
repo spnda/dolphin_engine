@@ -8,6 +8,8 @@ struct HitPayload {
 struct Vertex {
     vec4 position;
     vec4 normal;
+    vec2 uv;
+    vec2 padding;
 };
 
 struct ObjectDescription {
@@ -20,4 +22,5 @@ struct Material {
     vec4 diffuse;
     vec4 specular;
     vec4 emissive;
+    int textureIndex;
 };

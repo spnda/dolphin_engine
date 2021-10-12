@@ -193,17 +193,17 @@ void dp::Context::setCheckpoint(VkCommandBuffer commandBuffer, const char* marke
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
     VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry = {};
-    raygenShaderSbtEntry.deviceAddress = raygenSbt.address;
+    raygenShaderSbtEntry.deviceAddress = raygenSbt.getHostAddress().deviceAddress;
     raygenShaderSbtEntry.stride = stride;
     raygenShaderSbtEntry.size = stride;
 
     VkStridedDeviceAddressRegionKHR missShaderSbtEntry = {};
-    missShaderSbtEntry.deviceAddress = missSbt.address;
+    missShaderSbtEntry.deviceAddress = missSbt.getHostAddress().deviceAddress;
     missShaderSbtEntry.stride = stride;
     missShaderSbtEntry.size = stride;
 
     VkStridedDeviceAddressRegionKHR hitShaderSbtEntry = {};
-    hitShaderSbtEntry.deviceAddress = hitSbt.address;
+    hitShaderSbtEntry.deviceAddress = hitSbt.getHostAddress().deviceAddress;
     hitShaderSbtEntry.stride = stride;
     hitShaderSbtEntry.size = stride;
 

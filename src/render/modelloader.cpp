@@ -1,13 +1,20 @@
+#define STB_IMAGE_IMPLEMENTATION
 #include "modelloader.hpp"
 
-#include <vk_mem_alloc.h>
-
 #include <chrono>
+#include <filesystem>
 #include <iostream>
+
+#include <stb_image.h>
+#include <vk_mem_alloc.h>
 
 #include "../vulkan/context.hpp"
 #include "../vulkan/rt/acceleration_structure_builder.hpp"
 #include "../vulkan/rt/acceleration_structure.hpp"
+#include "../vulkan/resource/image.hpp"
+#include "../vulkan/resource/stagingbuffer.hpp"
+
+namespace fs = std::filesystem;
 
 dp::ModelLoader::ModelLoader(const dp::Context& context)
         : ctx(context), importer(),
@@ -32,8 +39,11 @@ void dp::ModelLoader::loadMesh(const aiMesh *mesh, const aiMatrix4x4 transform) 
         Vertex vertex {
             .pos = glm::vec4(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z, 1.0),
             .normals = (mesh->HasNormals())
-                ? glm::vec4(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z, 1.0)
-                : glm::vec4(1.0)
+                       ? glm::vec4(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z, 1.0)
+                       : glm::vec4(1.0),
+            .uv = mesh->mTextureCoords[0] == nullptr
+                ? glm::vec2(0.0)
+                : glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y),
         };
         newMesh.vertices.push_back(vertex);
     }
@@ -63,11 +73,67 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
     }
 }
 
+bool dp::ModelLoader::loadTexture(const std::string& path) {
+    std::cout << "Importing texture " << path << std::endl;
+
+    // Read the texture file.
+    uint32_t width, height, channels;
+    void* pixels;
+    {
+        int tWidth = 0, tHeight = 0, tChannels = 0;
+        stbi_uc* stbPixels = stbi_load(path.c_str(), &tWidth, &tHeight, &tChannels, STBI_rgb_alpha);
+        if (!stbPixels) {
+            std::cerr << "Failed to load texture file " << path << std::endl;
+            return false;
+        }
+        width = tWidth; height = tHeight; channels = tChannels;
+        pixels = stbPixels;
+    }
+
+    uint64_t imageSize = width * height * 4;
+    dp::Texture texture(ctx, { width, height });
+    texture.create();
+
+    // Stage the pixels in a buffer
+    dp::StagingBuffer stagingBuffer(ctx, "textureStagingBuffer");
+    stagingBuffer.create(imageSize);
+    stagingBuffer.memoryCopy(pixels, imageSize);
+    stbi_image_free(pixels);
+
+    // Change layout and copy the buffer to the image
+    auto cmdBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
+
+    texture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    VkBufferImageCopy copy = {
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageExtent = { texture.getSize().width, texture.getSize().height, 1 },
+    };
+    stagingBuffer.copyToImage(cmdBuffer, texture, texture.getCurrentLayout(), &copy);
+    texture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    // Flush and execute the copy commands
+    ctx.flushCommandBuffer(cmdBuffer, ctx.graphicsQueue);
+    stagingBuffer.destroy();
+
+    textures.push_back(texture);
+    return true;
+}
+
+void dp::ModelLoader::loadEmbeddedTexture(const aiTexture* embeddedTexture) {
+    // TODO: Support embedded textures.
+    // loadTexture(embeddedTexture->mFilename.C_Str());
+}
+
 inline void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) {
     aiColor4D vec4;
     const aiReturn ret = aiGetMaterialColor(material, key, type, idx, &vec4);
     if (ret != aiReturn_SUCCESS) {
-        std::cerr << "Encountered assimp error";
+        std::cerr << "Encountered assimp error" << std::endl;
+        vec4 = aiColor4D(0.0f);
     }
     vec->b = vec4.b;
     vec->r = vec4.r;
@@ -88,6 +154,32 @@ bool dp::ModelLoader::loadFile(const std::string& fileName) {
     // Load Meshes
     loadNode(scene->mRootNode, scene);
 
+    // Load default, empty, white texture.
+    dp::Texture defaultTexture(ctx, { 1, 1 });
+    defaultTexture.create();
+    dp::StagingBuffer stagingBuffer(ctx, "defaultTextureStagingBuffer");
+    stagingBuffer.create(4);
+    std::vector<uint8_t> emptyImage = { 0xFF, 0xFF, 0xFF, 0xFF };
+    stagingBuffer.memoryCopy(emptyImage.data(), 4);
+
+    auto cmdBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
+
+    defaultTexture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    VkBufferImageCopy copy = {
+        .bufferOffset = 0,
+        .bufferRowLength = 0,
+        .bufferImageHeight = 0,
+        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+        .imageExtent = { 1, 1, 1 },
+    };
+    stagingBuffer.copyToImage(cmdBuffer, defaultTexture, defaultTexture.getCurrentLayout(), &copy);
+    defaultTexture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    ctx.flushCommandBuffer(cmdBuffer, ctx.graphicsQueue);
+    stagingBuffer.destroy();
+
+    textures.push_back(defaultTexture);
+
     // Load Materials
     if (scene->HasMaterials()) {
         for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
@@ -96,6 +188,25 @@ bool dp::ModelLoader::loadFile(const std::string& fileName) {
             getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &material.diffuse);
             getMatColor3(mat, AI_MATKEY_COLOR_SPECULAR, &material.specular);
             getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &material.emissive);
+
+            // Load each diffuse texture. For now, we only support a single texture here.
+            for (uint32_t j = 0; j < 1 /* mat->GetTextureCount(aiTextureType_DIFFUSE) */; j++) {
+                aiString texturePath;
+                mat->GetTexture(aiTextureType_DIFFUSE, j, &texturePath);
+
+                const aiTexture* embeddedTexture = scene->GetEmbeddedTexture(texturePath.C_Str());
+                if (embeddedTexture != nullptr) {
+                    loadEmbeddedTexture(embeddedTexture);
+                } else {
+                    // Take the path of the model as a relative path.
+                    fs::path parentFolder = fs::path(fileName).parent_path();
+                    bool loaded = loadTexture(parentFolder.string() + "\\" + texturePath.C_Str());
+                    if (loaded) {
+                        material.textureIndex = static_cast<int32_t>(textures.size() - 1);
+                    }
+                }
+            }
+
             materials.push_back(material);
         }
     }
@@ -123,8 +234,8 @@ void dp::ModelLoader::createDescriptionsBuffer(const dp::TopLevelAccelerationStr
         uint64_t index = &mesh - &meshes[0];
         auto blas = tlas.blases[index];
         ObjectDescription desc = {
-            .vertexBufferAddress = blas.vertexBuffer.address,
-            .indexBufferAddress = blas.indexBuffer.address,
+            .vertexBufferAddress = blas.vertexBuffer.getHostAddress().deviceAddress,
+            .indexBufferAddress = blas.indexBuffer.getHostAddress().deviceAddress,
             .materialIndex = mesh.materialIndex,
         };
         descriptions[index] = desc;
@@ -137,6 +248,17 @@ void dp::ModelLoader::createDescriptionsBuffer(const dp::TopLevelAccelerationStr
         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
     );
     descriptionsBuffer.memoryCopy(descriptions.data(), descriptions.size() * sizeof(ObjectDescription));
+}
+
+std::vector<VkDescriptorImageInfo> dp::ModelLoader::getTextureDescriptorInfos() {
+    // Create the image infos for each texture
+    std::vector<VkDescriptorImageInfo> descriptors(textures.size());
+    for (size_t i = 0; i < descriptors.size(); i++) {
+        descriptors[i].sampler = textures[i].getSampler();
+        descriptors[i].imageLayout = textures[i].getCurrentLayout();
+        descriptors[i].imageView = VkImageView(textures[i]);
+    }
+    return descriptors;
 }
 
 dp::TopLevelAccelerationStructure dp::ModelLoader::buildAccelerationStructure(const dp::Context& context) {

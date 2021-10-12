@@ -33,8 +33,9 @@ find_package(PNG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
 find_package(glm REQUIRED)
 find_package(assimp CONFIG REQUIRED)
+find_path(STB_INCLUDE_DIRS "stb.h")
 
-add_executable(dolphin_engine src/vulkan/base/semaphore.hpp src/vulkan/base/semaphore.cpp)
+add_executable(dolphin_engine)
 
 # Add shaderc from the Vulkan SDK
 add_library(shaderc UNKNOWN IMPORTED)
@@ -54,6 +55,7 @@ target_link_libraries(dolphin_engine PRIVATE SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
 target_link_libraries(dolphin_engine PRIVATE glm::glm)
 target_link_libraries(dolphin_engine PRIVATE assimp::assimp)
+target_include_directories(dolphin_engine PRIVATE ${STB_INCLUDE_DIRS})
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/src)
 add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-bootstrap)

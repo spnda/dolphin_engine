@@ -3,12 +3,13 @@
 
 #include "../context.hpp"
 #include "../utils.hpp"
+#include "image.hpp"
 
 dp::Buffer::Buffer(const dp::Context& context)
         : context(context) {
 }
 
-dp::Buffer::Buffer(const dp::Context& context, std::string  name)
+dp::Buffer::Buffer(const dp::Context& context, std::string name)
         : context(context), name(std::move(name)) {
 }
 
@@ -94,7 +95,11 @@ auto dp::Buffer::getHandle() const -> const VkBuffer {
     return this->handle;
 }
 
-auto dp::Buffer::getHostAddress() const -> VkDeviceOrHostAddressConstKHR {
+auto dp::Buffer::getHostAddressConst() const -> const VkDeviceOrHostAddressConstKHR {
+    return { .deviceAddress = address, };
+}
+
+auto dp::Buffer::getHostAddress() const -> const VkDeviceOrHostAddressKHR {
     return { .deviceAddress = address, };
 }
 
@@ -120,4 +125,17 @@ void dp::Buffer::mapMemory(void** destination) const {
 
 void dp::Buffer::unmapMemory() const {
     vmaUnmapMemory(context.vmaAllocator, allocation);
+}
+
+void dp::Buffer::copyToBuffer(VkCommandBuffer cmdBuffer, const dp::Buffer& destination) {
+    VkBufferCopy copy = {
+        .srcOffset = 0,
+        .dstOffset = 0,
+        .size = getSize(),
+    };
+    vkCmdCopyBuffer(cmdBuffer, handle, destination.handle, 1, &copy);
+}
+
+void dp::Buffer::copyToImage(const VkCommandBuffer cmdBuffer, const dp::Image& destination, VkImageLayout imageLayout, VkBufferImageCopy* copy) {
+    vkCmdCopyBufferToImage(cmdBuffer, handle, VkImage(destination), imageLayout, 1, copy);
 }

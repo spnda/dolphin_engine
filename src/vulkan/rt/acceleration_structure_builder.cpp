@@ -59,6 +59,11 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         dp::BottomLevelAccelerationStructure blas(context, mesh, mesh.name);
 
         blas.createMeshBuffers();
+        blas.copyMeshBuffers(cmdBuffer);
+        context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
+        blas.destroyMeshStagingBuffers();
+
+        cmdBuffer = context.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, commandPool, true);
 
         VkAccelerationStructureGeometryKHR structureGeometry = {};
         structureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -66,13 +71,13 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         structureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
         structureGeometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
         structureGeometry.geometry.triangles.vertexFormat = mesh.vertexFormat;
-        structureGeometry.geometry.triangles.vertexData.deviceAddress = blas.vertexBuffer.address;
+        structureGeometry.geometry.triangles.vertexData = blas.vertexBuffer.getHostAddressConst();
         structureGeometry.geometry.triangles.maxVertex = mesh.vertices.size();
         structureGeometry.geometry.triangles.vertexStride = dp::Mesh::vertexStride;
         structureGeometry.geometry.triangles.indexType = mesh.indexType;
-        structureGeometry.geometry.triangles.indexData.deviceAddress = blas.indexBuffer.address;
+        structureGeometry.geometry.triangles.indexData = blas.indexBuffer.getHostAddressConst();
         structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
-        structureGeometry.geometry.triangles.transformData.deviceAddress = blas.transformBuffer.address;
+        structureGeometry.geometry.triangles.transformData = blas.transformBuffer.getHostAddressConst();
 
         // Get the sizes.
         VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {
@@ -99,7 +104,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         buildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         buildGeometryInfo.dstAccelerationStructure = blas.handle;
-        buildGeometryInfo.scratchData.deviceAddress = scratchBuffer.address;
+        buildGeometryInfo.scratchData = scratchBuffer.getHostAddress();
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
         accelerationStructureBuildRangeInfo.primitiveCount = numTriangles;
@@ -108,6 +113,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureBuildRangeInfo.transformOffset = 0;
         std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos = { &accelerationStructureBuildRangeInfo };
 
+        context.setCheckpoint(cmdBuffer, "Building BLAS!");
         context.buildAccelerationStructures(cmdBuffer, { buildGeometryInfo }, buildRangeInfos);
         context.flushCommandBuffer(cmdBuffer, context.graphicsQueue);
 
@@ -153,7 +159,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
             instanceBuffer.memoryCopy(asInstances.data(), sizeof(VkAccelerationStructureInstanceKHR) * primitiveCount);
 
-            instanceDataDeviceAddress.deviceAddress = instanceBuffer.address;
+            instanceDataDeviceAddress = instanceBuffer.getHostAddressConst();
         }
 
         VkAccelerationStructureGeometryKHR accelerationStructureGeometry = {};
@@ -188,9 +194,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         accelerationBuildGeometryInfo.dstAccelerationStructure = tlas.handle;
-        accelerationBuildGeometryInfo.scratchData = {
-            .deviceAddress = scratchBuffer.address,
-        };
+        accelerationBuildGeometryInfo.scratchData = scratchBuffer.getHostAddress();
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
         accelerationStructureBuildRangeInfo.primitiveCount = primitiveCount;

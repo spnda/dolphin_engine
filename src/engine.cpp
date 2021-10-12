@@ -56,33 +56,40 @@ void dp::Engine::buildPipeline() {
     descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAccelerationStructure.handle;
     builder.addAccelerationStructureDescriptor(
         0, &descriptorAccelerationStructureInfo,
-        VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+        VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, dp::ShaderStage::RayGeneration | dp::ShaderStage::ClosestHit
     );
 
     VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();
     builder.addImageDescriptor(
         1, &storageImageDescriptor,
-        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+        VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, dp::ShaderStage::RayGeneration
     );
 
     VkDescriptorBufferInfo cameraBufferInfo = camera.getDescriptorInfo();
     builder.addBufferDescriptor(
         2, &cameraBufferInfo,
-        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR
+        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, dp::ShaderStage::RayGeneration
     );
 
     modelLoader.createMaterialBuffer();
     VkDescriptorBufferInfo materialBufferInfo = modelLoader.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         3, &materialBufferInfo,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
     );
 
     modelLoader.createDescriptionsBuffer(topLevelAccelerationStructure);
     VkDescriptorBufferInfo descriptionsBufferInfo = modelLoader.descriptionsBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         4, &descriptionsBufferInfo,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
+    );
+
+    std::vector<VkDescriptorImageInfo> textureInfos = modelLoader.getTextureDescriptorInfos();
+    builder.addImageDescriptor(
+        5, textureInfos.data(),
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, dp::ShaderStage::ClosestHit,
+        textureInfos.size()
     );
 
     pipeline = builder.build();
@@ -150,9 +157,9 @@ void dp::Engine::renderLoop() {
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Changing image layout.");
         // Move storage image to swapchain image.
         storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                0, VK_ACCESS_TRANSFER_WRITE_BIT,
                                 defaultSubresourceRange);
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Copying storage image.");
@@ -161,7 +168,6 @@ void dp::Engine::renderLoop() {
         storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_GENERAL);
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                                VK_ACCESS_TRANSFER_WRITE_BIT, 0,
                                 defaultSubresourceRange);
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Drawing UI.");

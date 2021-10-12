@@ -15,6 +15,7 @@ layout(buffer_reference, scalar) buffer Indices { ivec3 i[]; };
 
 layout(binding = 3, set = 0, scalar) buffer Materials { Material m[]; } materials;
 layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
+layout(binding = 5, set = 0) uniform sampler2D textures[];
 
 layout(push_constant) uniform PushConstants {
     vec3 lightPosition;
@@ -50,6 +51,12 @@ void main() {
     // Calculate diffuse lighting
     vec3 diffuse = computeDiffuse(material, worldNormal, normalize(constants.lightPosition - worldPos));
     float intensity = constants.lightIntensity / pow(length(constants.lightPosition - worldPos), 2.0);
+
+    // Sample texture
+    vec2 textureCoords = v0.uv * barycentrics.x + v1.uv * barycentrics.y + v2.uv * barycentrics.z;
+    if (material.textureIndex >= 0) {
+        diffuse *= texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
+    }
 
     hitPayload.hitValue = vec4(intensity * diffuse, 1.0);
 }

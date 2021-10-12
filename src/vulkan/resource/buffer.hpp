@@ -8,6 +8,7 @@
 
 namespace dp {
     class Context;
+    class Image;
 
     /**
      * A basic data buffer, managed using vma.
@@ -19,17 +20,15 @@ namespace dp {
         mutable std::mutex memoryMutex;
         VmaAllocation allocation = nullptr;
         VkDeviceSize size = 0;
+        VkDeviceAddress address = 0;
         VkBuffer handle = nullptr;
 
         auto getCreateInfo(VkBufferUsageFlags bufferUsage) const -> VkBufferCreateInfo;
         static auto getBufferAddressInfo(VkBuffer handle) -> VkBufferDeviceAddressInfoKHR;
 
     public:
-        VkDeviceAddress address = 0;
-
-        // Create and allocate a new buffer.
         explicit Buffer(const Context& context);
-        Buffer(const Context& context, std::string  name);
+        explicit Buffer(const Context& context, std::string name);
         Buffer(const Buffer& buffer);
         ~Buffer() = default;
 
@@ -45,7 +44,8 @@ namespace dp {
         /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
         auto getDescriptorInfo(uint64_t size, uint64_t offset = 0) const -> VkDescriptorBufferInfo;
         auto getHandle() const -> const VkBuffer;
-        auto getHostAddress() const -> VkDeviceOrHostAddressConstKHR;
+        auto getHostAddressConst() const -> const VkDeviceOrHostAddressConstKHR;
+        auto getHostAddress() const -> const VkDeviceOrHostAddressKHR;
         auto getSize() const -> VkDeviceSize;
 
         /**
@@ -63,5 +63,8 @@ namespace dp {
 
         void mapMemory(void** destination) const;
         void unmapMemory() const;
+
+        void copyToBuffer(VkCommandBuffer cmdBuffer, const dp::Buffer& destination);
+        void copyToImage(VkCommandBuffer cmdBuffer, const dp::Image& destination, VkImageLayout imageLayout, VkBufferImageCopy* copy);
     };
 } // namespace dp

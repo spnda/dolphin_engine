@@ -12,6 +12,10 @@ namespace dp {
         RayMiss = VK_SHADER_STAGE_MISS_BIT_KHR
     };
 
+    inline ShaderStage operator|(ShaderStage a, ShaderStage b) {
+        return static_cast<ShaderStage>(static_cast<uint64_t>(a) | static_cast<uint64_t>(b));
+    }
+
     // fwd.
     class Context;
 

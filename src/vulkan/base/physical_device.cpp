@@ -47,6 +47,19 @@ void dp::PhysicalDevice::create(const dp::Instance& instance, VkSurfaceKHR surfa
             .timelineSemaphore = true,
         };
         physicalDeviceSelector.add_required_extension_features(timelineSemaphoreFeatures);
+
+        VkPhysicalDeviceScalarBlockLayoutFeatures scalarBlockLayoutFeatures = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES,
+            .scalarBlockLayout = true,
+        };
+        physicalDeviceSelector.add_required_extension_features(scalarBlockLayoutFeatures);
+
+        VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+            .shaderSampledImageArrayNonUniformIndexing = true,
+            .runtimeDescriptorArray = true,
+        };
+        physicalDeviceSelector.add_required_extension_features(descriptorIndexingFeatures);
     }
 
     // Let vk-bootstrap select our physical device.

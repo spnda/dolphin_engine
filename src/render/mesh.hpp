@@ -14,6 +14,8 @@ namespace dp {
         // Has to be at the start because of the AS.
         glm::fvec4 pos;
         glm::fvec4 normals;
+        glm::fvec2 uv;
+        glm::fvec2 padding;
     };
 
     /**
@@ -30,6 +32,7 @@ namespace dp {
         glm::vec4 diffuse = glm::vec4(1.0f);
         glm::vec4 specular = glm::vec4(1.0f);
         glm::vec4 emissive = glm::vec4(1.0f);
+        int32_t textureIndex = -1; // Negative values represent invalid or no texture.
     };
 
     struct Mesh {

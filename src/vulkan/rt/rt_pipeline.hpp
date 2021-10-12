@@ -44,9 +44,9 @@ namespace dp {
         static RayTracingPipelineBuilder create(Context& context, std::string pipelineName);
 
         RayTracingPipelineBuilder& addShader(const ShaderModule& module);
-        RayTracingPipelineBuilder& addImageDescriptor(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
-        RayTracingPipelineBuilder& addBufferDescriptor(uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
-        RayTracingPipelineBuilder& addAccelerationStructureDescriptor(uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, VkShaderStageFlags stageFlags);
+        RayTracingPipelineBuilder& addImageDescriptor(uint32_t binding, VkDescriptorImageInfo* imageInfo, VkDescriptorType type, dp::ShaderStage stageFlags, uint32_t count = 1);
+        RayTracingPipelineBuilder& addBufferDescriptor(uint32_t binding, VkDescriptorBufferInfo* bufferInfo, VkDescriptorType type, dp::ShaderStage stageFlags, uint32_t count = 1);
+        RayTracingPipelineBuilder& addAccelerationStructureDescriptor(uint32_t binding, VkWriteDescriptorSetAccelerationStructureKHR* asInfo, VkDescriptorType type, dp::ShaderStage stageFlags);
         RayTracingPipelineBuilder& addPushConstants(uint32_t pushConstantSize, dp::ShaderStage shaderStage);
 
         // Builds the descriptor set layout and pipeline layout, then creates

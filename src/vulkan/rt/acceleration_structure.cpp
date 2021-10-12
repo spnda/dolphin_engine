@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "../context.hpp"
+#include "../resource/stagingbuffer.hpp"
 
 dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const AccelerationStructureType type, std::string asName)
         : ctx(context), name(std::move(asName)), type(type),
@@ -29,25 +30,42 @@ dp::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(const dp:
       mesh(std::move(mesh)),
       vertexBuffer(context, "vertexBuffer"),
       indexBuffer(context, "indexBuffer"),
-      transformBuffer(context, "transformBuffer") {
+      transformBuffer(context, "transformBuffer"),
+      vertexStagingBuffer(ctx, "vertexStagingBuffer"),
+      indexStagingBuffer(ctx, "indexStagingBuffer"),
+      transformStagingBuffer(ctx, "transformStagingBuffer") {
 
 }
 
 void dp::BottomLevelAccelerationStructure::createMeshBuffers() {
-    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    VmaMemoryUsage usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    vertexStagingBuffer.create(mesh.vertices.size() * sizeof(Vertex));
+    vertexStagingBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+
+    indexStagingBuffer.create(mesh.indices.size() * sizeof(Index));
+    indexStagingBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(Index));
+
+    transformStagingBuffer.create(sizeof(VkTransformMatrixKHR));
+    transformStagingBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
+
+    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    VmaMemoryUsage usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     vertexBuffer.create(mesh.vertices.size() * sizeof(Vertex), bufferUsage, usage, properties);
-    vertexBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
-
-    // Create the index buffer
     indexBuffer.create(mesh.indices.size() * sizeof(Index), bufferUsage, usage, properties);
-    indexBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(Index));
-
-    // Create the index buffer
     transformBuffer.create(sizeof(VkTransformMatrixKHR), bufferUsage, usage, properties);
-    transformBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
+}
+
+void dp::BottomLevelAccelerationStructure::copyMeshBuffers(VkCommandBuffer cmdBuffer) {
+    vertexStagingBuffer.copyToBuffer(cmdBuffer, vertexBuffer);
+    indexStagingBuffer.copyToBuffer(cmdBuffer, indexBuffer);
+    transformStagingBuffer.copyToBuffer(cmdBuffer, transformBuffer);
+}
+
+void dp::BottomLevelAccelerationStructure::destroyMeshStagingBuffers() {
+    vertexStagingBuffer.destroy();
+    indexStagingBuffer.destroy();
+    transformStagingBuffer.destroy();
 }
 
 dp::TopLevelAccelerationStructure::TopLevelAccelerationStructure(const dp::Context& context, const std::string& name)
