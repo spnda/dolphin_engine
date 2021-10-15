@@ -27,7 +27,6 @@ include(compile_shaders)
 
 # Find dependencies
 find_package(Vulkan REQUIRED)
-find_package(unofficial-vulkan-memory-allocator CONFIG REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
@@ -50,7 +49,6 @@ endif()
 target_link_libraries(dolphin_engine PRIVATE vk-bootstrap::vk-bootstrap)
 target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan)
 target_link_libraries(dolphin_engine PRIVATE PNG::PNG)
-target_link_libraries(dolphin_engine PRIVATE unofficial::vulkan-memory-allocator::vulkan-memory-allocator)
 target_link_libraries(dolphin_engine PRIVATE SDL2::SDL2 SDL2::SDL2main)
 target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
 target_link_libraries(dolphin_engine PRIVATE glm::glm)
@@ -59,6 +57,7 @@ target_include_directories(dolphin_engine PRIVATE ${STB_INCLUDE_DIRS})
 
 add_subdirectory(${CMAKE_SOURCE_DIR}/src)
 add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-bootstrap)
+add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-mem-alloc)
 
 # Copy shaders to bin directory.
 set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen include/raycommon.glsl)
