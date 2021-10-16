@@ -9,10 +9,9 @@ namespace dp {
         static const VkMemoryPropertyFlags memoryProperties = VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
 
     public:
-        explicit StagingBuffer(const dp::Context& context);
-        explicit StagingBuffer(const dp::Context& context, std::string name);
+        explicit StagingBuffer(const dp::Context& context, std::string name = "stagingBuffer");
         StagingBuffer(const StagingBuffer& buffer) = default;
 
-        void create(uint64_t bufferSize);
+        void create(uint64_t bufferSize, VkBufferUsageFlags bufferUsage = 0);
     };
 }

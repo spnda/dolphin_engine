@@ -15,16 +15,20 @@ namespace dp {
     class AccelerationStructureBuilder {
         AccelerationStructureBuilder(const dp::Context& context, VkCommandPool commandPool);
 
-        const Context& context;
+        const Context& ctx;
         const VkCommandPool commandPool;
-
-        // Static vector used to delete all structures.
-        inline static std::vector<AccelerationStructure> structures;
 
         std::vector<Mesh> meshes;
         std::vector<AccelerationStructureInstance> instances;
 
-        static void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, VkAccelerationStructureBuildSizesInfoKHR sizeInfo) ;
+        VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties = {
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
+        };
+
+        // Static vector used to delete all structures.
+        inline static std::vector<AccelerationStructure> structures;
+
+        void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const ;
 
     public:
         static AccelerationStructureBuilder create(const Context& context, VkCommandPool commandPool);

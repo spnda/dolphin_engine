@@ -16,6 +16,10 @@ void dp::Device::destroy() const {
     vkb::destroy_device(device);
 }
 
+VkResult dp::Device::waitIdle() const {
+    return vkDeviceWaitIdle(device);
+}
+
 VkQueue dp::Device::getQueue(const vkb::QueueType queueType) const {
     return getFromVkbResult(device.get_queue(queueType));
 }

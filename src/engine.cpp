@@ -15,9 +15,12 @@ dp::Engine::Engine(dp::Context& context)
 
     ui.init();
 
-    auto commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
-    storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
-    ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
+    storageImage.create();
+    ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
+       storageImage.changeLayout(
+           cmdBuffer, VK_IMAGE_LAYOUT_GENERAL,
+           VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    });
 
     // Load the models and create the pipeline.
     modelLoader.loadFile("models/CornellBox/CornellBox-Original.obj");
@@ -28,10 +31,8 @@ dp::Engine::Engine(dp::Context& context)
 }
 
 void dp::Engine::getProperties() {
-    VkPhysicalDeviceProperties2 deviceProperties = {
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
-        .pNext = &this->rtProperties,
-    };
+    VkPhysicalDeviceProperties2 deviceProperties = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, };
+    deviceProperties.pNext = &this->rtProperties;
     vkGetPhysicalDeviceProperties2(ctx.physicalDevice, &deviceProperties);
 }
 
@@ -134,7 +135,7 @@ void dp::Engine::renderLoop() {
         // Update the camera buffer.
         camera.updateBuffer();
 
-        ctx.beginCommandBuffer(ctx.drawCommandBuffer);
+        ctx.beginCommandBuffer(ctx.drawCommandBuffer, 0);
         auto image = swapchain.images[ctx.currentImageIndex];
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Beginning.");
 
@@ -156,18 +157,25 @@ void dp::Engine::renderLoop() {
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Changing image layout.");
         // Move storage image to swapchain image.
-        storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        storageImage.changeLayout(
+            ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+            VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT);
 
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR, VK_PIPELINE_STAGE_TRANSFER_BIT,
                                 defaultSubresourceRange);
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Copying storage image.");
-        ctx.copyStorageImage(ctx.drawCommandBuffer, storageImage.getImageSize(), storageImage, image);
+        storageImage.copyImage(ctx.drawCommandBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-        storageImage.changeLayout(ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_GENERAL);
+        storageImage.changeLayout(
+            ctx.drawCommandBuffer, VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
         dp::Image::changeLayout(image, ctx.drawCommandBuffer,
                                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                                // Fragment shader here, as the next stage will be imgui drawing.
+                                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
                                 defaultSubresourceRange);
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Drawing UI.");
@@ -191,7 +199,9 @@ void dp::Engine::renderLoop() {
 }
 
 void dp::Engine::resize(const uint32_t width, const uint32_t height) {
-    ctx.waitForIdle();
+    auto result = ctx.device.waitIdle();
+    checkResult(ctx, result, "Failed to wait on device idle");
+
     ctx.width = width;
     ctx.height = height;
 
@@ -202,9 +212,11 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
     storageImage.recreateImage();
 
     // Change the layout of the new image.
-    VkCommandBuffer commandBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
-    storageImage.changeLayout(commandBuffer, VK_IMAGE_LAYOUT_GENERAL);
-    ctx.flushCommandBuffer(commandBuffer, ctx.graphicsQueue);
+    ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
+        storageImage.changeLayout(
+            cmdBuffer, VK_IMAGE_LAYOUT_GENERAL,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    });
 
     // Re-bind the storage image.
     VkDescriptorImageInfo storageImageDescriptor = storageImage.getDescriptorImageInfo();

@@ -18,6 +18,8 @@ namespace dp {
 
         void create(const dp::PhysicalDevice& physicalDevice);
         void destroy() const;
+        [[nodiscard]] auto waitIdle() const -> VkResult;
+
         [[nodiscard]] VkQueue getQueue(vkb::QueueType queueType) const;
         [[nodiscard]] uint32_t getQueueIndex(vkb::QueueType queueType) const;
 

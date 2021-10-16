@@ -2,8 +2,8 @@
 
 #include "../sdl/window.hpp"
 
-dp::Camera::Camera(dp::Context context)
-        : ctx(std::move(context)), cameraBuffer(ctx, "cameraBuffer") {
+dp::Camera::Camera(const dp::Context& context)
+        : ctx(context), cameraBuffer(ctx, "cameraBuffer") {
     cameraBufferData.projectionInverse = glm::mat4(1.0f);
     cameraBufferData.viewInverse = glm::mat4(1.0f);
 
@@ -68,7 +68,7 @@ dp::Camera& dp::Camera::setPosition(const glm::vec3 pos) {
     return *this;
 }
 
-dp::Camera& dp::Camera::move(std::function<void(glm::vec3&, const glm::vec3)> callback) {
+dp::Camera& dp::Camera::move(const std::function<void(glm::vec3&, const glm::vec3)>& callback) {
     glm::vec3 camera;
     camera.x = -std::cos(glm::radians(rotation.x)) * std::sin(glm::radians(rotation.y));
     camera.y = std::sin(glm::radians(rotation.x));

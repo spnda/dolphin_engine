@@ -36,7 +36,7 @@ void dp::Context::init() {
     getVulkanFunctions();
     graphicsQueue.create(vkb::QueueType::graphics);
     commandPool = createCommandPool(device.getQueueIndex(vkb::QueueType::graphics), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
-    drawCommandBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, commandPool, false, "drawCommandBuffer");
+    drawCommandBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, commandPool, false, 0, "drawCommandBuffer");
     buildSyncStructures();
     buildVmaAllocator();
 }
@@ -88,7 +88,7 @@ void dp::Context::getVulkanFunctions() {
     vkSetDebugUtilsObjectNameEXT = instance.getFunctionAddress<PFN_vkSetDebugUtilsObjectNameEXT>("vkSetDebugUtilsObjectNameEXT");
 }
 
-auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string& name) const -> VkCommandBuffer {
+auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, VkCommandBufferUsageFlags bufferUsageFlags, const std::string& name) const -> VkCommandBuffer {
     VkCommandBufferAllocateInfo bufferAllocateInfo = {};
     bufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     bufferAllocateInfo.pNext = nullptr;
@@ -97,10 +97,11 @@ auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool 
     bufferAllocateInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(device, &bufferAllocateInfo, &commandBuffer);
+    auto result = vkAllocateCommandBuffers(device, &bufferAllocateInfo, &commandBuffer);
+    checkResult(*this, result, "Failed to allocate command buffers");
 
     if (begin) {
-        beginCommandBuffer(commandBuffer);
+        beginCommandBuffer(commandBuffer, bufferUsageFlags);
     }
 
     if (!name.empty()) {
@@ -110,16 +111,19 @@ auto dp::Context::createCommandBuffer(VkCommandBufferLevel level, VkCommandPool 
     return commandBuffer;
 }
 
-void dp::Context::beginCommandBuffer(VkCommandBuffer commandBuffer) const {
-    VkCommandBufferBeginInfo beginInfo = {};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+void dp::Context::beginCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferUsageFlags bufferUsageFlags) const {
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = bufferUsageFlags,
+    };
     vkBeginCommandBuffer(commandBuffer, &beginInfo);
 }
 
 void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const {
     if (commandBuffer == VK_NULL_HANDLE) return;
 
-    vkEndCommandBuffer(commandBuffer);
+    auto result = vkEndCommandBuffer(commandBuffer);
+    checkResult(*this, result, "Failed to end command buffer");
 
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -131,10 +135,17 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Qu
 
     dp::Fence fence(*this, "tempFlushFence");
     fence.create(0);
-    auto result = queue.submit(fence, &submitInfo);
+    result = queue.submit(fence, &submitInfo);
     checkResult(*this, result, "Failed to submit queue while flushing command buffer");
     fence.wait();
     fence.destroy();
+}
+
+void dp::Context::oneTimeSubmit(const dp::Queue& queue, VkCommandPool pool,
+                                const std::function<void(VkCommandBuffer)>& callback) const {
+    auto cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, pool, true, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+    callback(cmdBuffer);
+    flushCommandBuffer(cmdBuffer, queue);
 }
 
 auto dp::Context::waitForFrame(const Swapchain& swapchain) -> VkResult {
@@ -145,7 +156,7 @@ auto dp::Context::waitForFrame(const Swapchain& swapchain) -> VkResult {
 }
 
 auto dp::Context::submitFrame(const Swapchain& swapchain) -> VkResult {
-    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_ALL_COMMANDS_BIT };
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT };
 
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -166,24 +177,13 @@ auto dp::Context::submitFrame(const Swapchain& swapchain) -> VkResult {
 }
 
 
-void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR>& buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const {
+void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*>& buildRangeInfos) const {
     vkCmdBuildAccelerationStructuresKHR(
         commandBuffer,
-        buildGeometryInfos.size(),
-        buildGeometryInfos.data(),
+        geometryCount,
+        buildGeometryInfos,
         buildRangeInfos.data()
     );
-}
-
-void dp::Context::copyStorageImage(const VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) {
-    VkImageCopy copyRegion = {};
-    copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-    copyRegion.srcOffset = { 0, 0, 0 };
-    copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
-    copyRegion.dstOffset = { 0, 0, 0 };
-    copyRegion.extent = { imageSize.width, imageSize.height, 1 };
-
-    vkCmdCopyImage(commandBuffer, VkImage(storageImage), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 }
 
 void dp::Context::setCheckpoint(VkCommandBuffer commandBuffer, const char* marker) const {
@@ -233,8 +233,9 @@ void dp::Context::buildRayTracingPipeline(VkPipeline* pPipelines, const std::vec
 }
 
 void dp::Context::createAccelerationStructure(const VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const {
-    vkCreateAccelerationStructureKHR(
+    auto result = vkCreateAccelerationStructureKHR(
         device, &createInfo, nullptr, accelerationStructure);
+    checkResult(*this, result, "Failed to create acceleration structure");
 }
 
 auto dp::Context::createCommandPool(const uint32_t queueFamilyIndex, const VkCommandPoolCreateFlags flags) const -> VkCommandPool {
@@ -301,11 +302,6 @@ void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, ui
     vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, dataSize, shaderHandles.data());
 }
 
-void dp::Context::waitForIdle() const {
-    auto result = vkDeviceWaitIdle(device);
-    checkResult(*this, result, "Failed to wait on device idle");
-}
-
 
 void dp::Context::setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string& name) const {
     setDebugUtilsName<VkAccelerationStructureKHR>(as, name, VK_OBJECT_TYPE_ACCELERATION_STRUCTURE_KHR);
@@ -358,5 +354,6 @@ void dp::Context::setDebugUtilsName(const T& object, const std::string& name, Vk
     nameInfo.objectHandle = reinterpret_cast<const uint64_t&>(object);
     nameInfo.pObjectName = name.c_str();
 
-    vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+    auto result = vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+    checkResult(*this, result, "Failed to set debug utils object name");
 }

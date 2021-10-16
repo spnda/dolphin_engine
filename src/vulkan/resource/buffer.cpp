@@ -6,15 +6,15 @@
 #include "image.hpp"
 
 dp::Buffer::Buffer(const dp::Context& context)
-        : context(context) {
+        : ctx(context) {
 }
 
 dp::Buffer::Buffer(const dp::Context& context, std::string name)
-        : context(context), name(std::move(name)) {
+        : ctx(context), name(std::move(name)) {
 }
 
 dp::Buffer::Buffer(const dp::Buffer& buffer)
-        : context(buffer.context), name(buffer.name),
+        : ctx(buffer.ctx), name(buffer.name),
           allocation(buffer.allocation), handle(buffer.handle), address(buffer.address) {
     
 }
@@ -40,23 +40,23 @@ void dp::Buffer::create(const VkDeviceSize newSize, const VkBufferUsageFlags buf
         .requiredFlags = properties,
     };
 
-    auto result = vmaCreateBuffer(context.vmaAllocator, &bufferCreateInfo, &allocationInfo, &handle, &allocation, nullptr);
-    checkResult(context, result, "Failed to create buffer \"" + name + "\"");
+    auto result = vmaCreateBuffer(ctx.vmaAllocator, &bufferCreateInfo, &allocationInfo, &handle, &allocation, nullptr);
+    checkResult(ctx, result, "Failed to create buffer \"" + name + "\"");
     assert(allocation != nullptr);
 
     if (isFlagSet(bufferUsage, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)) {
         auto addressInfo = getBufferAddressInfo(handle);
-        address = context.getBufferDeviceAddress(addressInfo);
+        address = ctx.getBufferDeviceAddress(addressInfo);
     }
 
     if (!name.empty()) {
-        context.setDebugUtilsName(handle, name);
+        ctx.setDebugUtilsName(handle, name);
     }
 }
 
 void dp::Buffer::destroy() {
     if (handle == nullptr || allocation == nullptr) return;
-    vmaDestroyBuffer(context.vmaAllocator, handle, allocation);
+    vmaDestroyBuffer(ctx.vmaAllocator, handle, allocation);
     handle = nullptr;
 }
 
@@ -120,18 +120,19 @@ void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size
 }
 
 void dp::Buffer::mapMemory(void** destination) const {
-    vmaMapMemory(context.vmaAllocator, allocation, destination);
+    auto result = vmaMapMemory(ctx.vmaAllocator, allocation, destination);
+    checkResult(ctx, result, "Failed to map memory");
 }
 
 void dp::Buffer::unmapMemory() const {
-    vmaUnmapMemory(context.vmaAllocator, allocation);
+    vmaUnmapMemory(ctx.vmaAllocator, allocation);
 }
 
 void dp::Buffer::copyToBuffer(VkCommandBuffer cmdBuffer, const dp::Buffer& destination) {
     VkBufferCopy copy = {
         .srcOffset = 0,
         .dstOffset = 0,
-        .size = getSize(),
+        .size = size,
     };
     vkCmdCopyBuffer(cmdBuffer, handle, destination.handle, 1, &copy);
 }

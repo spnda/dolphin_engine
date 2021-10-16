@@ -25,7 +25,8 @@ bool dp::Swapchain::create(const dp::Device& device) {
 }
 
 void dp::Swapchain::destroy() {
-    ctx.waitForIdle();
+    auto result = ctx.device.waitIdle();
+    checkResult(ctx, result, "Failed waiting on device idle");
 
     swapchain.destroy_image_views(views);
     vkb::destroy_swapchain(this->swapchain);

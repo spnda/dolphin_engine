@@ -8,11 +8,8 @@
 #include <stb_image.h>
 #include <vk_mem_alloc.h>
 
-#include "../vulkan/context.hpp"
 #include "../vulkan/rt/acceleration_structure_builder.hpp"
 #include "../vulkan/rt/acceleration_structure.hpp"
-#include "../vulkan/resource/image.hpp"
-#include "../vulkan/resource/stagingbuffer.hpp"
 
 namespace fs = std::filesystem;
 
@@ -91,7 +88,7 @@ bool dp::ModelLoader::loadTexture(const std::string& path) {
     }
 
     uint64_t imageSize = width * height * 4;
-    dp::Texture texture(ctx, { width, height });
+    dp::Texture texture(ctx, { width, height }, fs::path(path).filename().string());
     texture.create();
 
     // Stage the pixels in a buffer
@@ -101,22 +98,22 @@ bool dp::ModelLoader::loadTexture(const std::string& path) {
     stbi_image_free(pixels);
 
     // Change layout and copy the buffer to the image
-    auto cmdBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
-
-    texture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    VkBufferImageCopy copy = {
-        .bufferOffset = 0,
-        .bufferRowLength = 0,
-        .bufferImageHeight = 0,
-        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-        .imageExtent = { texture.getSize().width, texture.getSize().height, 1 },
-    };
-    stagingBuffer.copyToImage(cmdBuffer, texture, texture.getCurrentLayout(), &copy);
-    texture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    // Flush and execute the copy commands
-    ctx.flushCommandBuffer(cmdBuffer, ctx.graphicsQueue);
+    ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
+        texture.changeLayout(
+            cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        VkBufferImageCopy copy = {
+            .bufferOffset = 0,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .imageExtent = texture.getImageSize3d(),
+        };
+        stagingBuffer.copyToImage(cmdBuffer, texture, texture.getImageLayout(), &copy);
+        texture.changeLayout(
+            cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    });
     stagingBuffer.destroy();
 
     textures.push_back(texture);
@@ -162,20 +159,22 @@ bool dp::ModelLoader::loadFile(const std::string& fileName) {
     std::vector<uint8_t> emptyImage = { 0xFF, 0xFF, 0xFF, 0xFF };
     stagingBuffer.memoryCopy(emptyImage.data(), 4);
 
-    auto cmdBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
-
-    defaultTexture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-    VkBufferImageCopy copy = {
-        .bufferOffset = 0,
-        .bufferRowLength = 0,
-        .bufferImageHeight = 0,
-        .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
-        .imageExtent = { 1, 1, 1 },
-    };
-    stagingBuffer.copyToImage(cmdBuffer, defaultTexture, defaultTexture.getCurrentLayout(), &copy);
-    defaultTexture.changeLayout(cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    ctx.flushCommandBuffer(cmdBuffer, ctx.graphicsQueue);
+    ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
+        defaultTexture.changeLayout(
+            cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+        VkBufferImageCopy copy = {
+            .bufferOffset = 0,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
+            .imageExtent = { 1, 1, 1 },
+        };
+        stagingBuffer.copyToImage(cmdBuffer, defaultTexture, defaultTexture.getImageLayout(), &copy);
+        defaultTexture.changeLayout(
+            cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+    });
     stagingBuffer.destroy();
 
     textures.push_back(defaultTexture);
@@ -255,7 +254,7 @@ std::vector<VkDescriptorImageInfo> dp::ModelLoader::getTextureDescriptorInfos() 
     std::vector<VkDescriptorImageInfo> descriptors(textures.size());
     for (size_t i = 0; i < descriptors.size(); i++) {
         descriptors[i].sampler = textures[i].getSampler();
-        descriptors[i].imageLayout = textures[i].getCurrentLayout();
+        descriptors[i].imageLayout = textures[i].getImageLayout();
         descriptors[i].imageView = VkImageView(textures[i]);
     }
     return descriptors;

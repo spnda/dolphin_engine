@@ -14,7 +14,7 @@ namespace dp {
      * A basic data buffer, managed using vma.
      */
     class Buffer {
-        const Context& context;
+        const Context& ctx;
         std::string name;
 
         mutable std::mutex memoryMutex;

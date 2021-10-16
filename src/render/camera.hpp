@@ -36,7 +36,7 @@ namespace dp {
 
         static const uint32_t bufferSize = sizeof(CameraBufferData);
 
-        explicit Camera(dp::Context ctx);
+        explicit Camera(const dp::Context& ctx);
 
         void destroy();
 
@@ -55,7 +55,7 @@ namespace dp {
 
         Camera& setPosition(glm::vec3 pos);
 
-        Camera& move(std::function<void(glm::vec3&, const glm::vec3)> callback);
+        Camera& move(const std::function<void(glm::vec3&, const glm::vec3)>& callback);
 
         Camera& setRotation(glm::vec3 rot);
 

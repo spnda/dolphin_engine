@@ -6,7 +6,6 @@
 
 #include "../engine.hpp"
 #include "../sdl/window.hpp"
-#include "../vulkan/base/swapchain.hpp"
 
 dp::Ui::Ui(const dp::Context& context, const dp::Swapchain& vkSwapchain)
         : ctx(context), swapchain(vkSwapchain), renderPass(ctx, swapchain) {
@@ -84,9 +83,9 @@ void dp::Ui::init() {
 
     ImGui::StyleColorsDark();
 
-    auto cmdBuffer = ctx.createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, ctx.commandPool, true);
-    ImGui_ImplVulkan_CreateFontsTexture(cmdBuffer);
-    ctx.flushCommandBuffer(cmdBuffer, ctx.graphicsQueue);
+    ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [](VkCommandBuffer cmdBuffer) {
+        ImGui_ImplVulkan_CreateFontsTexture(cmdBuffer);
+    });
     ImGui_ImplVulkan_DestroyFontUploadObjects(); // Just CPU data.
 }
 

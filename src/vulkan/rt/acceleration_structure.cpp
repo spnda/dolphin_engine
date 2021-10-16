@@ -44,7 +44,8 @@ void dp::BottomLevelAccelerationStructure::createMeshBuffers() {
     indexStagingBuffer.create(mesh.indices.size() * sizeof(Index));
     indexStagingBuffer.memoryCopy(mesh.indices.data(), mesh.indices.size() * sizeof(Index));
 
-    transformStagingBuffer.create(sizeof(VkTransformMatrixKHR));
+    size_t transformBufferSize = dp::Buffer::alignedSize(sizeof(VkTransformMatrixKHR), 16); // See VUID-vkCmdBuildAccelerationStructuresKHR-pInfos-03810
+    transformStagingBuffer.create(transformBufferSize);
     transformStagingBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
 
     VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
@@ -53,7 +54,7 @@ void dp::BottomLevelAccelerationStructure::createMeshBuffers() {
 
     vertexBuffer.create(mesh.vertices.size() * sizeof(Vertex), bufferUsage, usage, properties);
     indexBuffer.create(mesh.indices.size() * sizeof(Index), bufferUsage, usage, properties);
-    transformBuffer.create(sizeof(VkTransformMatrixKHR), bufferUsage, usage, properties);
+    transformBuffer.create(transformBufferSize, bufferUsage, usage, properties);
 }
 
 void dp::BottomLevelAccelerationStructure::copyMeshBuffers(VkCommandBuffer cmdBuffer) {

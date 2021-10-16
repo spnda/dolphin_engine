@@ -14,7 +14,6 @@ namespace dp {
             VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME,
 
             VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME,
-            VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
             VK_NV_DEVICE_DIAGNOSTIC_CHECKPOINTS_EXTENSION_NAME, // Proprietary NV extension, but extremely helps debugging device lost errors.
             VK_NV_DEVICE_DIAGNOSTICS_CONFIG_EXTENSION_NAME,
         };

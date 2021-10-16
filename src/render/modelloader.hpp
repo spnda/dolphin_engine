@@ -24,6 +24,8 @@ namespace dp {
             aiProcess_GenSmoothNormals;
 
         Assimp::Importer importer;
+        // dp::StagingBuffer materialStagingBuffer;
+        // dp::StagingBuffer descriptionsStagingBuffer;
 
         void loadMesh(const aiMesh* mesh, aiMatrix4x4 transform);
         void loadNode(const aiNode* node, const aiScene* scene);

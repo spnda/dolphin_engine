@@ -1,27 +1,20 @@
 #include "texture.hpp"
 
+#include <utility>
+
 #include "../utils.hpp"
 
 dp::Texture::Texture(const dp::Context& context, const VkExtent2D imageSize, std::string name)
-    : ctx(context), image(ctx, imageSize), name(std::move(name)) {
+    : dp::Image(context, imageSize, std::move(name)) {
 
-}
-
-dp::Texture::operator dp::Image() const {
-    return image;
-}
-
-dp::Texture::operator VkImage() const {
-    return image;
 }
 
 dp::Texture::operator VkImageView() const {
-    return image.getImageView();
+    return getImageView();
 }
 
 void dp::Texture::create() {
-    image.create(imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
-    image.setName(name);
+    dp::Image::create(imageFormat, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, VK_IMAGE_LAYOUT_UNDEFINED);
 
     VkSamplerCreateInfo samplerCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -32,23 +25,17 @@ void dp::Texture::create() {
         .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
         .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
         .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+        .maxLod = VK_LOD_CLAMP_NONE,
     };
     auto result = vkCreateSampler(ctx.device, &samplerCreateInfo, nullptr, &sampler);
     checkResult(ctx, result, "Failed to create sampler");
-}
-
-void dp::Texture::changeLayout(const VkCommandBuffer commandBuffer, const VkImageLayout newLayout) {
-    image.changeLayout(commandBuffer, newLayout, subresourceRange);
 }
 
 VkSampler dp::Texture::getSampler() const {
     return sampler;
 }
 
-VkExtent2D dp::Texture::getSize() const {
-    return image.getImageSize();
-}
-
-VkImageLayout dp::Texture::getCurrentLayout() const {
-    return image.getImageLayout();
+void dp::Texture::changeLayout(VkCommandBuffer commandBuffer, VkImageLayout newLayout,
+                                    VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage) {
+    dp::Image::changeLayout(commandBuffer, newLayout, subresourceRange, srcStage, dstStage);
 }

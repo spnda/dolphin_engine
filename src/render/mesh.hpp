@@ -15,7 +15,7 @@ namespace dp {
         glm::fvec4 pos;
         glm::fvec4 normals;
         glm::fvec2 uv;
-        glm::fvec2 padding;
+        glm::fvec2 padding = glm::fvec2(1.0);
     };
 
     /**
@@ -40,7 +40,7 @@ namespace dp {
         std::vector<Vertex> vertices = {};
         std::vector<Index> indices = {};
         VkTransformMatrixKHR transform;
-        VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        VkFormat vertexFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
         VkIndexType indexType = VK_INDEX_TYPE_UINT32;
         // Typically, just the size of a single Vertex.
         static const uint32_t vertexStride = sizeof(Vertex);

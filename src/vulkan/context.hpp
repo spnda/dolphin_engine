@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <string>
 
 #include <vulkan/vulkan.h>
@@ -43,8 +44,6 @@ namespace dp {
 
         Window* window = nullptr;
         VkSurfaceKHR surface = nullptr;
-        dp::Queue graphicsQueue;
-        VkCommandPool commandPool = nullptr;
 
         // Sync structures
         dp::Fence renderFence;
@@ -54,12 +53,13 @@ namespace dp {
         dp::Instance instance;
         dp::PhysicalDevice physicalDevice;
         dp::Device device;
+        dp::Queue graphicsQueue;
+        VmaAllocator vmaAllocator = nullptr;
 
+        VkCommandPool commandPool = nullptr;
         VkCommandBuffer drawCommandBuffer = nullptr;
 
         uint32_t currentImageIndex = 0;
-
-        VmaAllocator vmaAllocator = nullptr;
 
         explicit Context(std::string name);
         Context(const Context& ctx) = default;
@@ -71,15 +71,15 @@ namespace dp {
         void buildVmaAllocator();
         void getVulkanFunctions();
 
-        auto createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, const std::string& name = {}) const -> VkCommandBuffer;
-        void beginCommandBuffer(VkCommandBuffer commandBuffer) const;
+        auto createCommandBuffer(VkCommandBufferLevel level, VkCommandPool pool, bool begin, VkCommandBufferUsageFlags bufferUsageFlags = 0, const std::string& name = {}) const -> VkCommandBuffer;
+        void beginCommandBuffer(VkCommandBuffer commandBuffer, VkCommandBufferUsageFlags bufferUsageFlags) const;
         void flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Queue& queue) const;
+        void oneTimeSubmit(const dp::Queue& queue, VkCommandPool pool, const std::function<void(VkCommandBuffer)>& callback) const;
 
-        auto waitForFrame(const Swapchain& swapchain) -> VkResult;
-        auto submitFrame(const Swapchain& swapchain) -> VkResult;
+        [[nodiscard]] auto waitForFrame(const Swapchain& swapchain) -> VkResult;
+        [[nodiscard]] auto submitFrame(const Swapchain& swapchain) -> VkResult;
 
-        void buildAccelerationStructures(VkCommandBuffer commandBuffer, const std::vector<VkAccelerationStructureBuildGeometryInfoKHR>& buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*> buildRangeInfos) const;
-        void copyStorageImage(VkCommandBuffer commandBuffer, VkExtent2D imageSize, const dp::Image& storageImage, VkImage destination) ;
+        void buildAccelerationStructures(VkCommandBuffer commandBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*>& buildRangeInfos) const;
         void setCheckpoint(VkCommandBuffer commandBuffer, const char* marker = nullptr) const;
         void traceRays(VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, uint32_t stride, VkExtent3D size) const;
 
@@ -89,12 +89,10 @@ namespace dp {
         void createDescriptorPool(uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes, VkDescriptorPool* descriptorPool) const;
         void destroyAccelerationStructure(VkAccelerationStructureKHR handle) const;
         [[nodiscard]] auto getAccelerationStructureBuildSizes(uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
-        auto getAccelerationStructureDeviceAddress(VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
+        [[nodiscard]] auto getAccelerationStructureDeviceAddress(VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
         [[nodiscard]] auto getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR& addressInfo) const -> uint32_t;
-        auto getCheckpointData(const dp::Queue& queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV>;
+        [[nodiscard]] auto getCheckpointData(const dp::Queue& queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV>;
         void getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const;
-
-        void waitForIdle() const;
 
         void setDebugUtilsName(const VkAccelerationStructureKHR& as, const std::string& name) const;
         void setDebugUtilsName(const VkBuffer& buffer, const std::string& name) const;
