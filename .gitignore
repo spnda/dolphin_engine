@@ -8,3 +8,5 @@ nsight/*
 
 cmake-build-debug/*
 cmake-build-release/*
+
+nv-aftermath/*

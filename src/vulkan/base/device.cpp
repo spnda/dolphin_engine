@@ -4,11 +4,14 @@
 
 void dp::Device::create(const dp::PhysicalDevice& physicalDevice) {
     vkb::DeviceBuilder deviceBuilder((vkb::PhysicalDevice(physicalDevice)));
-    auto deviceDiagnosticsConfigCreateInfo = VkDeviceDiagnosticsConfigCreateInfoNV {
+#ifdef WITH_NV_AFTERMATH
+    VkDeviceDiagnosticsConfigCreateInfoNV deviceDiagnosticsConfigCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_DEVICE_DIAGNOSTICS_CONFIG_CREATE_INFO_NV,
-        .flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV | VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV,
+        .flags = VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_SHADER_DEBUG_INFO_BIT_NV |
+            VK_DEVICE_DIAGNOSTICS_CONFIG_ENABLE_AUTOMATIC_CHECKPOINTS_BIT_NV,
     };
     deviceBuilder.add_pNext(&deviceDiagnosticsConfigCreateInfo);
+#endif // #ifdef WITH_NV_AFTERMATH
     device = getFromVkbResult(deviceBuilder.build());
 }
 

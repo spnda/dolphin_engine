@@ -7,16 +7,27 @@
 
 #include "VkBootstrap.h"
 
+#ifdef WITH_NV_AFTERMATH
+#include "crash_tracker.hpp"
+#endif // #ifdef WITH_NV_AFTERMATH
+
 namespace dp {
     // fwd
+    class Context;
     class Window;
 
     class Instance {
+        const dp::Context& ctx;
+
         std::set<const char*> requiredExtensions = {};
         vkb::Instance instance = {};
 
+#ifdef WITH_NV_AFTERMATH
+        dp::GpuCrashTracker crashTracker;
+#endif // #ifdef WITH_NV_AFTERMATH
+
     public:
-        explicit Instance() = default;
+        explicit Instance(const dp::Context& ctx);
         Instance(const Instance &) = default;
         Instance& operator=(const Instance &) = default;
 

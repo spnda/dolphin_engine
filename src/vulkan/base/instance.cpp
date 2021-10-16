@@ -2,11 +2,26 @@
 
 #include "../utils.hpp"
 
+dp::Instance::Instance(const dp::Context& context)
+    : ctx(context)
+#ifdef WITH_NV_AFTERMATH
+    , crashTracker(ctx)
+#endif // #ifdef WITH_NV_AFTERMATH
+    {
+
+}
+
 void dp::Instance::create(const std::string& name) {
+#ifdef WITH_NV_AFTERMATH
+    // Has to be called *before* crating the "Vulkan device".
+    // To be 100% sure this works, we're calling it before creating the VkInstance.
+    crashTracker.enable();
+#endif // #ifdef WITH_NV_AFTERMATH
+
     vkb::InstanceBuilder instance_builder;
     instance_builder.set_app_name(name.c_str());
-    instance_builder.set_app_version(1, 0, 0);
-    instance_builder.require_api_version(1, 2, 0);
+    instance_builder.set_app_version(ctx.appVersion);
+    instance_builder.require_api_version(ctx.apiVersion);
 #ifdef _DEBUG
     instance_builder.enable_layer("VK_LAYER_LUNARG_monitor");
 #endif
@@ -33,6 +48,10 @@ void dp::Instance::create(const std::string& name) {
 }
 
 void dp::Instance::destroy() const {
+#ifdef WITH_NV_AFTERMATH
+    crashTracker.disable();
+#endif
+
     vkb::destroy_instance(instance);
 }
 

@@ -40,6 +40,8 @@ namespace dp {
 
     public:
         std::string applicationName;
+        const uint32_t appVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
+        const uint32_t apiVersion = VK_MAKE_API_VERSION(0, 1, 2, 0);
         uint32_t width = 1920, height = 1080;
 
         Window* window = nullptr;

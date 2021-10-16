@@ -18,6 +18,7 @@
 
 dp::Context::Context(std::string name)
         : applicationName(std::move(name)),
+          instance(*this),
           presentCompleteSemaphore(*this, "presentCompleteSemaphore"),
           renderCompleteSemaphore(*this, "renderCompleteSemaphore"),
           renderFence(*this, "renderFence"),
@@ -187,8 +188,10 @@ void dp::Context::buildAccelerationStructures(const VkCommandBuffer commandBuffe
 }
 
 void dp::Context::setCheckpoint(VkCommandBuffer commandBuffer, const char* marker) const {
+#ifdef WITH_NV_AFTERMATH
     if (vkCmdSetCheckpointNV != nullptr)
         vkCmdSetCheckpointNV(commandBuffer, marker);
+#endif // #ifdef WITH_NV_AFTERMATH
 }
 
 void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
@@ -288,6 +291,7 @@ uint32_t dp::Context::getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR&
 }
 
 auto dp::Context::getCheckpointData(const dp::Queue& queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV> {
+#ifdef WITH_NV_AFTERMATH
     if (vkGetQueueCheckpointDataNV == nullptr) return {};
 
     uint32_t count = queryCount;
@@ -296,6 +300,9 @@ auto dp::Context::getCheckpointData(const dp::Queue& queue, uint32_t queryCount)
     std::vector<VkCheckpointDataNV> checkpoints(count, { VK_STRUCTURE_TYPE_CHECKPOINT_DATA_NV });
     vkGetQueueCheckpointDataNV(queue, &count, checkpoints.data()); // Then allocate the array and get the checkpoints.
     return { checkpoints.begin(), checkpoints.end() };
+#else
+    return {};
+#endif // #ifdef WITH_NV_AFTERMATH
 }
 
 void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {

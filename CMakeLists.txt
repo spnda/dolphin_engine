@@ -19,6 +19,9 @@ project("dolphin_engine")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin/$<0:>") # The $<0:> is a generator expression to remove the Debug/Release folders.
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/lib")
+if (MSVC)
+  set(CMAKE_CXX_FLAGS "/Zc:__cplusplus /EHsc") # Microsoft not properly setting __cplusplus by default.
+endif()
 
 # Set our module path to be the 'cmake' dir and load all files.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
@@ -45,6 +48,20 @@ if(WIN32)
   target_link_libraries(dolphin_engine PRIVATE shaderc)
 else()
   target_link_libraries(dolphin_engine PRIVATE shaderc_combined glslang MachineIndependent OSDependent OGLCompiler GenericCodeGen SPIRV SPIRV-Tools-opt SPIRV-Tools)
+endif()
+
+# If the Aftermath SDK has been provided and we're running debug, add it to the build.
+string(TOLOWER "${CMAKE_BUILD_TYPE}" build_type)
+if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/nv-aftermath AND build_type STREQUAL "debug")
+  if (WIN32)
+    message(STATUS "Found NVIDIA Aftermath")
+    add_library(nv-aftermath UNKNOWN IMPORTED)
+    set_target_properties(nv-aftermath PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/nv-aftermath/lib/x64/GFSDK_Aftermath_Lib.x64.lib)
+    set_property(TARGET nv-aftermath PROPERTY INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/nv-aftermath/include)
+    target_link_libraries(dolphin_engine PRIVATE nv-aftermath)
+    option(WITH_NV_AFTERMATH "Use NVIDIA Aftermath" ON)
+    add_compile_definitions(WITH_NV_AFTERMATH)
+  endif() # Add non-windows support?
 endif()
 
 target_link_libraries(dolphin_engine PRIVATE assimp::assimp)

@@ -51,3 +51,10 @@ add_files(
     "vulkan/context.hpp"
     "vulkan/utils.hpp"
 )
+
+if (WITH_NV_AFTERMATH)
+    add_files(
+        "vulkan/base/crash_tracker.cpp"
+        "vulkan/base/crash_tracker.hpp"
+    )
+endif()
