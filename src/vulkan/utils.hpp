@@ -3,6 +3,7 @@
 #include <iostream>
 #include <unordered_map>
 #include <fstream>
+#include <fmt/core.h>
 
 #include "VkBootstrap.h"
 #include "context.hpp"
@@ -10,7 +11,7 @@
 template<class T>
 T getFromVkbResult(vkb::detail::Result<T> result) {
     if (!result) {
-        std::cout << result.error().message() << std::endl;
+        fmt::print("{}\n", result.error().message());
         throw std::runtime_error(result.error().message());
     }
     return result.value();
@@ -65,11 +66,11 @@ inline void checkResult(const dp::Context& ctx, VkResult result, const std::stri
             std::cout << "No checkpoints have been created." << std::endl;
         }
         for (const auto& cp : checkpoints) {
-            std::cout << "Checkpoint: " << static_cast<const char*>(cp.pCheckpointMarker) << std::endl;
+            fmt::print("Checkpoint: {}\n", static_cast<const char*>(cp.pCheckpointMarker));
         }
 
-        std::string error = message + ": " + resultStrings.at(result);
-        std::cerr << error << std::endl;
+        auto error = fmt::format("{}: {}\n", message, resultStrings.at(result));
+        std::cerr << error;
         throw std::runtime_error(error);
     }
 }

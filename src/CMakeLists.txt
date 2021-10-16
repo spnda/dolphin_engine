@@ -24,7 +24,7 @@ add_files(
     "vulkan/base/renderpass.cpp"
     "vulkan/base/renderpass.hpp"
     "vulkan/base/semaphore.cpp"
-   "vulkan/base/semaphore.hpp"
+    "vulkan/base/semaphore.hpp"
     "vulkan/base/swapchain.cpp"
     "vulkan/base/swapchain.hpp"
     "vulkan/resource/buffer.cpp"

@@ -15,7 +15,7 @@ void dp::Instance::create(const std::string& name) {
     auto sysInfo = vkb::SystemInfo::get_system_info().value();
     for (auto ext : requiredExtensions) {
         if (!sysInfo.is_extension_available(ext)) {
-            printf("%s is not available!\n", ext);
+            fmt::print(stderr, "{} is not available!\n", ext);
             continue;
         }
         instance_builder.enable_extension(ext);

@@ -7,6 +7,7 @@
 
 #include <stb_image.h>
 #include <vk_mem_alloc.h>
+#include <fmt/core.h>
 
 #include "../vulkan/rt/acceleration_structure_builder.hpp"
 #include "../vulkan/rt/acceleration_structure.hpp"
@@ -71,7 +72,7 @@ void dp::ModelLoader::loadNode(const aiNode* node, const aiScene* scene) {
 }
 
 bool dp::ModelLoader::loadTexture(const std::string& path) {
-    std::cout << "Importing texture " << path << std::endl;
+    fmt::print("Importing texture {}\n", path);
 
     // Read the texture file.
     uint32_t width, height, channels;
@@ -138,13 +139,13 @@ inline void dp::ModelLoader::getMatColor3(aiMaterial* material, const char* key,
 }
 
 bool dp::ModelLoader::loadFile(const std::string& fileName) {
-    printf("Importing file %s!\n", fileName.c_str());
+    fmt::print("Importing file {}!\n", fileName);
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     const aiScene* scene = importer.ReadFile(fileName, importFlags);
 
     if (!scene || scene->mRootNode == nullptr) {
-        std::cout << importer.GetErrorString() << std::endl;
+        fmt::print(stderr, "{}\n", importer.GetErrorString());
         return false;
     }
 
@@ -211,7 +212,8 @@ bool dp::ModelLoader::loadFile(const std::string& fileName) {
     }
 
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    printf("Finished importing file. Took %zums.\n", std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
+    fmt::print("Finished importing file. Took {}ms.\n",
+               std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count());
 
     return true;
 }

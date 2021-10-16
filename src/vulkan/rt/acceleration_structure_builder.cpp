@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <fmt/core.h>
 
 #include "../context.hpp"
 #include "acceleration_structure.hpp"
@@ -236,10 +237,8 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     }
 
     std::chrono::steady_clock::time_point endBuild = std::chrono::steady_clock::now();
-    std::cout << "Finished building acceleration structures. Took "
-        << std::chrono::duration_cast<std::chrono::milliseconds>(endBuild - beginBuild).count()
-        << "ms."
-        << std::endl;
+    fmt::print("Finished building acceleration structures. Took {}ms.\n",
+               std::chrono::duration_cast<std::chrono::milliseconds>(endBuild - beginBuild).count());
 
     return tlas;
 }
