@@ -16,6 +16,10 @@ namespace dp {
         return static_cast<ShaderStage>(static_cast<uint64_t>(a) | static_cast<uint64_t>(b));
     }
 
+    inline bool operator>(ShaderStage a, ShaderStage b) {
+        return static_cast<uint64_t>(a) > static_cast<uint64_t>(b);
+    }
+
     // fwd.
     class Context;
 

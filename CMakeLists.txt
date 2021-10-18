@@ -79,7 +79,7 @@ add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-bootstrap)
 add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-mem-alloc)
 
 # Copy shaders to bin directory.
-set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen include/raycommon.glsl)
+set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen shadow.rmiss include/raycommon.glsl)
 foreach(SHADER ${SHADER_FILES})
   set(SHADER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${SHADER}")
   message(STATUS "Configuring shader ${SHADER_FILE}")

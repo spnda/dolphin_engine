@@ -41,11 +41,12 @@ namespace dp {
         void lock() const;
         void unlock() const;
 
+        auto getDeviceAddress() const -> const VkDeviceAddress&;
         /** Gets a basic descriptor buffer info, with given size and given offset, or 0 if omitted. */
         auto getDescriptorInfo(uint64_t size, uint64_t offset = 0) const -> VkDescriptorBufferInfo;
         auto getHandle() const -> const VkBuffer;
-        auto getHostAddressConst() const -> const VkDeviceOrHostAddressConstKHR;
-        auto getHostAddress() const -> const VkDeviceOrHostAddressKHR;
+        auto getDeviceOrHostConstAddress() const -> const VkDeviceOrHostAddressConstKHR;
+        auto getDeviceOrHostAddress() const -> const VkDeviceOrHostAddressKHR;
         auto getMemoryBarrier(VkAccessFlags srcAccess, VkAccessFlags dstAccess) const -> VkBufferMemoryBarrier;
         auto getSize() const -> VkDeviceSize;
 
@@ -53,14 +54,7 @@ namespace dp {
          * Copies the memory of size from source into the
          * mapped memory for this buffer.
          */
-        void memoryCopy(const void* source, uint64_t size) const;
-
-        /**
-         * Copies the memory of size from source into destination.
-         * This automatically maps and unmaps memory. The caller
-         * has to lock/unlock the mutex themselves.
-         */
-        static void memoryCopy(void* destination, const void* source, uint64_t size);
+        void memoryCopy(const void* source, uint64_t size, uint64_t offset = 0) const;
 
         void mapMemory(void** destination) const;
         void unmapMemory() const;

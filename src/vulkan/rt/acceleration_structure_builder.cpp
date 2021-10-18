@@ -50,6 +50,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     // Build the BLAS.
     std::vector<dp::BottomLevelAccelerationStructure> blases = {}; // Use sized array in the future.
     for (const auto& mesh : meshes) {
+        fmt::print("Building AS: {}\n", mesh.name);
         dp::BottomLevelAccelerationStructure blas(ctx, mesh, mesh.name);
 
         blas.createMeshBuffers(asProperties);
@@ -62,12 +63,12 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
                 .triangles = {
                     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
                     .vertexFormat = mesh.vertexFormat,
-                    .vertexData = blas.vertexBuffer.getHostAddressConst(),
+                    .vertexData = { .deviceAddress = blas.vertexBuffer.getDeviceAddress(), },
                     .vertexStride = dp::Mesh::vertexStride,
                     .maxVertex = static_cast<uint32_t>(mesh.vertices.size()),
                     .indexType = mesh.indexType,
-                    .indexData = blas.indexBuffer.getHostAddressConst(),
-                    .transformData = blas.transformBuffer.getHostAddressConst(),
+                    .indexData = { .deviceAddress = blas.indexBuffer.getDeviceAddress(), },
+                    .transformData = { .deviceAddress = blas.transformBuffer.getDeviceAddress(), },
                 }
             }
         };
@@ -97,7 +98,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         buildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         buildGeometryInfo.dstAccelerationStructure = blas.handle;
-        buildGeometryInfo.scratchData = scratchBuffer.getHostAddress();
+        buildGeometryInfo.scratchData.deviceAddress = scratchBuffer.getDeviceAddress();
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
         accelerationStructureBuildRangeInfo.primitiveCount = numTriangles;
@@ -131,6 +132,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         blas.setName();
         blas.destroyMeshStagingBuffers();
         scratchBuffer.destroy();
+        fmt::print("Finished building AS: {}\n", mesh.name);
 
         blases.push_back(blas);
     }
@@ -167,7 +169,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
                 VMA_MEMORY_USAGE_GPU_ONLY);
 
-            instanceDataDeviceAddress = instanceBuffer.getHostAddressConst();
+            instanceDataDeviceAddress = instanceBuffer.getDeviceOrHostConstAddress();
         }
 
         VkAccelerationStructureGeometryKHR accelerationStructureGeometry = {};
@@ -202,7 +204,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         accelerationBuildGeometryInfo.dstAccelerationStructure = tlas.handle;
-        accelerationBuildGeometryInfo.scratchData = scratchBuffer.getHostAddress();
+        accelerationBuildGeometryInfo.scratchData = scratchBuffer.getDeviceOrHostAddress();
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
         accelerationStructureBuildRangeInfo.primitiveCount = primitiveCount;

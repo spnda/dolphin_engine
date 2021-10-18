@@ -20,6 +20,7 @@ dp::Buffer::Buffer(const dp::Buffer& buffer)
 }
 
 dp::Buffer& dp::Buffer::operator=(const dp::Buffer& buffer) {
+    this->handle = buffer.handle;
     this->address = buffer.address;
     this->allocation = buffer.allocation;
     this->handle = buffer.handle;
@@ -84,6 +85,10 @@ auto dp::Buffer::getBufferAddressInfo(VkBuffer handle) -> VkBufferDeviceAddressI
     };
 }
 
+auto dp::Buffer::getDeviceAddress() const -> const VkDeviceAddress& {
+    return address;
+}
+
 auto dp::Buffer::getDescriptorInfo(const uint64_t bufferRange, const uint64_t offset) const -> VkDescriptorBufferInfo {
     return {
         .buffer = handle,
@@ -96,11 +101,11 @@ auto dp::Buffer::getHandle() const -> const VkBuffer {
     return this->handle;
 }
 
-auto dp::Buffer::getHostAddressConst() const -> const VkDeviceOrHostAddressConstKHR {
+auto dp::Buffer::getDeviceOrHostConstAddress() const -> const VkDeviceOrHostAddressConstKHR {
     return { .deviceAddress = address, };
 }
 
-auto dp::Buffer::getHostAddress() const -> const VkDeviceOrHostAddressKHR {
+auto dp::Buffer::getDeviceOrHostAddress() const -> const VkDeviceOrHostAddressKHR {
     return { .deviceAddress = address };
 }
 
@@ -121,16 +126,12 @@ auto dp::Buffer::getSize() const -> VkDeviceSize {
     return size;
 }
 
-void dp::Buffer::memoryCopy(const void* source, uint64_t copySize) const {
+void dp::Buffer::memoryCopy(const void* source, uint64_t copySize, uint64_t offset) const {
     std::lock_guard guard(memoryMutex);
     void* dst;
     this->mapMemory(&dst);
-    memcpy(dst, source, copySize);
+    memcpy(reinterpret_cast<uint8_t*>(dst) + offset, source, copySize); // uint8_t as we want bytes.
     this->unmapMemory();
-}
-
-void dp::Buffer::memoryCopy(void* destination, const void* source, uint64_t size) {
-    memcpy(destination, source, size);
 }
 
 void dp::Buffer::mapMemory(void** destination) const {
@@ -143,6 +144,7 @@ void dp::Buffer::unmapMemory() const {
 }
 
 void dp::Buffer::copyToBuffer(VkCommandBuffer cmdBuffer, const dp::Buffer& destination) {
+    if (handle == nullptr || size == 0) return;
     VkBufferCopy copy = {
         .srcOffset = 0,
         .dstOffset = 0,

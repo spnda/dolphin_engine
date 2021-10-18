@@ -4,14 +4,14 @@
 
 #include "include/raycommon.glsl"
 
+layout(location = 0) rayPayloadEXT HitPayload hitPayload;
+
 layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 1, set = 0, rgba8) uniform image2D storageImage;
 layout(binding = 2, set = 0) uniform CameraProperties {
 	mat4 viewInverse;
 	mat4 projInverse;
 } cam;
-
-layout(location = 0) rayPayloadEXT HitPayload hitPayload;
 
 void main() {
     const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
@@ -27,7 +27,19 @@ void main() {
 
     hitPayload.hitValue = vec4(0.0, 0.0, 0.25, 1.0);
 
-    traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xFF, 0, 0, 0, hitPayload.origin, tmin, direction.xyz, tmax, 0);
+    traceRayEXT(
+		topLevelAS,
+		gl_RayFlagsOpaqueEXT,
+		0xFF,
+		0,
+		0,
+		0, // miss shader index
+		hitPayload.origin,
+		tmin,
+		direction.xyz,
+		tmax,
+		0 // payload (location = 0)
+	);
 
     imageStore(storageImage, ivec2(gl_LaunchIDEXT.xy), hitPayload.hitValue);
 }

@@ -235,8 +235,8 @@ void dp::ModelLoader::createDescriptionsBuffer(const dp::TopLevelAccelerationStr
         uint64_t index = &mesh - &meshes[0];
         auto blas = tlas.blases[index];
         ObjectDescription desc = {
-            .vertexBufferAddress = blas.vertexBuffer.getHostAddress().deviceAddress,
-            .indexBufferAddress = blas.indexBuffer.getHostAddress().deviceAddress,
+            .vertexBufferAddress = blas.vertexBuffer.getDeviceOrHostAddress().deviceAddress,
+            .indexBufferAddress = blas.indexBuffer.getDeviceOrHostAddress().deviceAddress,
             .materialIndex = mesh.materialIndex,
         };
         descriptions[index] = desc;

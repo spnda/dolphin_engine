@@ -8,11 +8,13 @@
 #include "include/raycommon.glsl"
 
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
+layout(location = 1) rayPayloadEXT bool hitPayloadOut; // Shadow payload
 hitAttributeEXT vec2 attribs;
 
 layout(buffer_reference, scalar) buffer Vertices { Vertex v[]; };
 layout(buffer_reference, scalar) buffer Indices { ivec3 i[]; };
 
+layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = 3, set = 0, scalar) buffer Materials { Material m[]; } materials;
 layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
 layout(binding = 5, set = 0) uniform sampler2D textures[];
@@ -48,15 +50,41 @@ void main() {
     const vec3 normal = v0.normal.xyz * barycentrics.x + v1.normal.xyz * barycentrics.y + v2.normal.xyz * barycentrics.z;
     const vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT));
 
-    // Calculate diffuse lighting
-    vec3 diffuse = computeDiffuse(material, worldNormal, normalize(constants.lightPosition - worldPos));
-    float intensity = constants.lightIntensity / pow(length(constants.lightPosition - worldPos), 2.0);
+    // Calculate light direction and distance
+    vec3 lightDirection = constants.lightPosition - worldPos;
+    float lightDistance = length(lightDirection);
+    lightDirection = normalize(lightDirection);
 
     // Sample texture
+    float intensity = constants.lightIntensity / pow(lightDistance, 2.0);
+    vec3 diffuse = computeDiffuse(material, worldNormal, lightDirection) * intensity;
     vec2 textureCoords = v0.uv * barycentrics.x + v1.uv * barycentrics.y + v2.uv * barycentrics.z;
     if (material.textureIndex >= 0) {
         diffuse *= texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
     }
 
-    hitPayload.hitValue = vec4(intensity * diffuse, 1.0);
+    // Trace a shadow ray
+    if (dot(worldNormal, lightDirection) > 0) {
+        vec3 shadowRayPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
+        hitPayloadOut = true;
+        traceRayEXT(
+            topLevelAS,
+            gl_RayFlagsSkipClosestHitShaderEXT,
+            0xFF,
+            0,
+            0,
+            1, // shadow.rmiss
+            shadowRayPosition,
+            0.001,
+            lightDirection,
+            lightDistance,
+            1 // payload (location = 1)
+        );
+
+        if (hitPayloadOut) { // Is shadowed
+            diffuse *= 0.3;
+        }
+    }
+
+    hitPayload.hitValue = vec4(diffuse, 1.0);
 }

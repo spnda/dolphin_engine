@@ -195,29 +195,14 @@ void dp::Context::setCheckpoint(VkCommandBuffer commandBuffer, const char* marke
 #endif // #ifdef WITH_NV_AFTERMATH
 }
 
-void dp::Context::traceRays(const VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, const uint32_t stride, const VkExtent3D size) const {
-    VkStridedDeviceAddressRegionKHR raygenShaderSbtEntry = {};
-    raygenShaderSbtEntry.deviceAddress = raygenSbt.getHostAddress().deviceAddress;
-    raygenShaderSbtEntry.stride = stride;
-    raygenShaderSbtEntry.size = stride;
-
-    VkStridedDeviceAddressRegionKHR missShaderSbtEntry = {};
-    missShaderSbtEntry.deviceAddress = missSbt.getHostAddress().deviceAddress;
-    missShaderSbtEntry.stride = stride;
-    missShaderSbtEntry.size = stride;
-
-    VkStridedDeviceAddressRegionKHR hitShaderSbtEntry = {};
-    hitShaderSbtEntry.deviceAddress = hitSbt.getHostAddress().deviceAddress;
-    hitShaderSbtEntry.stride = stride;
-    hitShaderSbtEntry.size = stride;
-
+void dp::Context::traceRays(const VkCommandBuffer commandBuffer, VkStridedDeviceAddressRegionKHR* raygenSbt, VkStridedDeviceAddressRegionKHR* missSbt, VkStridedDeviceAddressRegionKHR* hitSbt, VkStridedDeviceAddressRegionKHR* callableSbt, const VkExtent3D size) const {
     VkStridedDeviceAddressRegionKHR callableShaderSbtEntry = {};
 
     vkCmdTraceRaysKHR(
         commandBuffer,
-        &raygenShaderSbtEntry,
-        &missShaderSbtEntry,
-        &hitShaderSbtEntry,
+        raygenSbt,
+        missSbt,
+        hitSbt,
         &callableShaderSbtEntry,
         size.width, size.height, size.depth
     );
@@ -307,7 +292,8 @@ auto dp::Context::getCheckpointData(const dp::Queue& queue, uint32_t queryCount)
 }
 
 void dp::Context::getRayTracingShaderGroupHandles(const VkPipeline& pipeline, uint32_t groupCount, uint32_t dataSize, std::vector<uint8_t>& shaderHandles) const {
-    vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, dataSize, shaderHandles.data());
+    auto result = vkGetRayTracingShaderGroupHandlesKHR(device, pipeline, 0, groupCount, dataSize, shaderHandles.data());
+    checkResult(*this, result, "Failed to get ray tracing shader group handles");
 }
 
 

@@ -83,7 +83,7 @@ namespace dp {
 
         void buildAccelerationStructures(VkCommandBuffer commandBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*>& buildRangeInfos) const;
         void setCheckpoint(VkCommandBuffer commandBuffer, const char* marker = nullptr) const;
-        void traceRays(VkCommandBuffer commandBuffer, const dp::Buffer& raygenSbt, const dp::Buffer& missSbt, const dp::Buffer& hitSbt, uint32_t stride, VkExtent3D size) const;
+        void traceRays(VkCommandBuffer commandBuffer, VkStridedDeviceAddressRegionKHR* raygenSbt, VkStridedDeviceAddressRegionKHR* missSbt, VkStridedDeviceAddressRegionKHR* hitSbt, VkStridedDeviceAddressRegionKHR* callableSbt, VkExtent3D size) const;
 
         void buildRayTracingPipeline(VkPipeline *pPipelines, const std::vector<VkRayTracingPipelineCreateInfoKHR>& createInfos) const;
         void createAccelerationStructure(VkAccelerationStructureCreateInfoKHR createInfo, VkAccelerationStructureKHR* accelerationStructure) const;

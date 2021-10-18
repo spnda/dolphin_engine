@@ -30,20 +30,18 @@ dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShader(const dp
     // Ray generation and ray miss are both classified as a general shader.
     // As we only use closest hit, we'll simply switch between the two to 
     // use the appropriate data.
-    VkRayTracingShaderGroupCreateInfoKHR shaderGroup = {};
-    shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-    shaderGroup.type = module.getShaderStage() == dp::ShaderStage::ClosestHit
-            ? VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR
-            : VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    VkRayTracingShaderGroupCreateInfoKHR shaderGroup = { .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR };
     switch (module.getShaderStage()) {
         case dp::ShaderStage::RayGeneration:
         case dp::ShaderStage::RayMiss:
+            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
             shaderGroup.generalShader = static_cast<uint32_t>(shaderStages.size()) - 1;
             shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
             shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
             shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
             break;
         case dp::ShaderStage::ClosestHit:
+            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
             shaderGroup.generalShader = VK_SHADER_UNUSED_KHR;
             shaderGroup.closestHitShader = static_cast<uint32_t>(shaderStages.size()) - 1;
             shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
@@ -181,6 +179,11 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     }
     vkCreatePipelineLayout(ctx.device, &pipelineLayoutCreateInfo, nullptr, &pipeline.pipelineLayout);
 
+    VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProperties = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR };
+    VkPhysicalDeviceProperties2 deviceProperties = { .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2, };
+    deviceProperties.pNext = &rtProperties;
+    vkGetPhysicalDeviceProperties2(ctx.physicalDevice, &deviceProperties);
+
     // Create RT pipeline
     VkRayTracingPipelineCreateInfoKHR pipelineCreateInfo = {};
     pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
@@ -189,6 +192,7 @@ dp::RayTracingPipeline dp::RayTracingPipelineBuilder::build() {
     pipelineCreateInfo.groupCount = static_cast<uint32_t>(shaderGroups.size());
     pipelineCreateInfo.pGroups = shaderGroups.data();
     pipelineCreateInfo.layout = pipeline.pipelineLayout;
+    pipelineCreateInfo.maxPipelineRayRecursionDepth = rtProperties.maxRayRecursionDepth;
 
     ctx.buildRayTracingPipeline(&pipeline.pipeline, { pipelineCreateInfo });
 

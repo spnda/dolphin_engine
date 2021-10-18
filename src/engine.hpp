@@ -22,10 +22,12 @@ namespace dp {
         dp::RayTracingPipeline pipeline;
         dp::TopLevelAccelerationStructure topLevelAccelerationStructure;
 
-        dp::Buffer raygenShaderBindingTable;
-        dp::Buffer missShaderBindingTable;
-        dp::Buffer hitShaderBindingTable;
-        uint32_t sbtStride;
+        dp::Buffer shaderBindingTable;
+        VkStridedDeviceAddressRegionKHR raygenRegion = {};
+        VkStridedDeviceAddressRegionKHR missRegion = {};
+        VkStridedDeviceAddressRegionKHR chitRegion = {};
+        VkStridedDeviceAddressRegionKHR callableRegion = {};
+        uint32_t sbtStride = 0;
 
         struct PushConstants {
             glm::vec3 lightPosition = glm::vec3();

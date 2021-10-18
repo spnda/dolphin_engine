@@ -6,7 +6,7 @@
 dp::Engine::Engine(dp::Context& context)
         : ctx(context), modelLoader(ctx), swapchain(ctx, ctx.surface),
           camera(ctx), ui(ctx, swapchain), storageImage(ctx), topLevelAccelerationStructure(ctx),
-          raygenShaderBindingTable(ctx, "raygenShaderBindingTable"), missShaderBindingTable(ctx, "missShaderBindingTable"), hitShaderBindingTable(ctx, "hitShaderBindingTable") {
+          shaderBindingTable(ctx, "shaderBindingTable") {
     this->getProperties();
 
     camera.setPerspective(70.0f, 0.01f, 512.0f);
@@ -40,13 +40,17 @@ void dp::Engine::buildPipeline() {
     dp::ShaderModule rayGenShader(ctx, "raygen", dp::ShaderStage::RayGeneration);
     dp::ShaderModule rayMissShader(ctx, "raymiss", dp::ShaderStage::RayMiss);
     dp::ShaderModule closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit);
+    dp::ShaderModule shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss);
     rayGenShader.createShader("shaders/raygen.rgen");
     rayMissShader.createShader("shaders/miss.rmiss");
     closestHitShader.createShader("shaders/closesthit.rchit");
+    shadowMissShader.createShader("shaders/shadow.rmiss");
 
+    // These need to be inputted in order.
     auto builder = dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
         .addShader(rayGenShader)
         .addShader(rayMissShader)
+        .addShader(shadowMissShader)
         .addShader(closestHitShader);
 
     builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit);
@@ -97,23 +101,56 @@ void dp::Engine::buildPipeline() {
 }
 
 void dp::Engine::buildSBT() {
+    uint32_t missCount = 2;
+    uint32_t chitCount = 1;
+    auto handleCount = 1 + missCount + chitCount;
     const uint32_t handleSize = rtProperties.shaderGroupHandleSize;
     sbtStride = dp::Buffer::alignedSize(handleSize, rtProperties.shaderGroupHandleAlignment);
-    const uint32_t groupCount = 3; // fix
-    const uint32_t sbtSize = groupCount * sbtStride;
 
-    std::vector<uint8_t> shaderHandleStorage(sbtSize);
-    ctx.getRayTracingShaderGroupHandles(pipeline.pipeline, groupCount, sbtSize, shaderHandleStorage);
+    raygenRegion.stride = dp::Buffer::alignedSize(sbtStride, rtProperties.shaderGroupBaseAlignment);
+    raygenRegion.size = raygenRegion.stride; // RayGen size must be equal to the stride.
+    missRegion.stride = sbtStride;
+    missRegion.size = dp::Buffer::alignedSize(missCount * sbtStride, rtProperties.shaderGroupBaseAlignment);
+    chitRegion.stride = sbtStride;
+    chitRegion.size = dp::Buffer::alignedSize(chitCount * sbtStride, rtProperties.shaderGroupBaseAlignment);
 
-    const VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-    const VmaMemoryUsage memoryUsageFlags = VMA_MEMORY_USAGE_CPU_ONLY;
-    raygenShaderBindingTable.create(handleSize, bufferUsageFlags, memoryUsageFlags, 0);
-    missShaderBindingTable.create(handleSize, bufferUsageFlags, memoryUsageFlags, 0);
-    hitShaderBindingTable.create(handleSize, bufferUsageFlags, memoryUsageFlags, 0);
+    const uint32_t sbtSize = raygenRegion.size + missRegion.size + chitRegion.size + callableRegion.size;
+    std::vector<uint8_t> handleStorage(sbtSize);
+    ctx.getRayTracingShaderGroupHandles(pipeline.pipeline, handleCount, sbtSize, handleStorage);
 
-    raygenShaderBindingTable.memoryCopy(shaderHandleStorage.data(), handleSize);
-    missShaderBindingTable.memoryCopy(shaderHandleStorage.data() + sbtStride, handleSize);
-    hitShaderBindingTable.memoryCopy(shaderHandleStorage.data() + sbtStride * 2, handleSize);
+    shaderBindingTable.create(sbtSize,
+                              VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR,
+                              VMA_MEMORY_USAGE_CPU_TO_GPU);
+    auto sbtAddress = shaderBindingTable.getDeviceAddress();
+    raygenRegion.deviceAddress = sbtAddress;
+    missRegion.deviceAddress = sbtAddress + raygenRegion.size;
+    chitRegion.deviceAddress = missRegion.deviceAddress + missRegion.size;
+
+    shaderBindingTable.memoryCopy(handleStorage.data(), sbtSize);
+
+    auto getHandleOffset = [&](uint32_t i) {
+        return handleStorage.data() + i * handleSize;
+    };
+    uint32_t curHandleIndex = 0;
+
+    // Write raygen shader
+    shaderBindingTable.memoryCopy(getHandleOffset(curHandleIndex++), handleSize, 0);
+
+    // Write miss shaders
+    for (uint32_t i = 0; i < missCount; i++) {
+        shaderBindingTable.memoryCopy(
+            getHandleOffset(curHandleIndex++),
+            handleSize,
+            raygenRegion.size + missRegion.stride * i);
+    }
+
+    // Write chit shaders
+    for (uint32_t i = 0; i < chitCount; i++) {
+        shaderBindingTable.memoryCopy(
+            getHandleOffset(curHandleIndex++),
+            handleSize,
+            raygenRegion.size + missRegion.size + chitRegion.stride * i);
+    }
 }
 
 void dp::Engine::renderLoop() {
@@ -143,15 +180,16 @@ void dp::Engine::renderLoop() {
         vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, nullptr);
 
         vkCmdPushConstants(ctx.drawCommandBuffer, pipeline.pipelineLayout,
-                           static_cast<VkShaderStageFlags>(dp::ShaderStage::ClosestHit), 0, sizeof(PushConstants), &pushConstants);
+                           static_cast<VkShaderStageFlags>(dp::ShaderStage::ClosestHit),
+                           0, sizeof(PushConstants), &pushConstants);
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Tracing rays.");
         ctx.traceRays(
             ctx.drawCommandBuffer,
-            raygenShaderBindingTable,
-            missShaderBindingTable,
-            hitShaderBindingTable,
-            sbtStride,
+            &raygenRegion,
+            &missRegion,
+            &chitRegion,
+            &callableRegion,
             storageImage.getImageSize3d()
         );
 
