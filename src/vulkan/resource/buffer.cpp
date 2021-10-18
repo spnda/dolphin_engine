@@ -36,6 +36,7 @@ void dp::Buffer::create(const VkDeviceSize newSize, const VkBufferUsageFlags buf
     auto bufferCreateInfo = getCreateInfo(bufferUsage);
 
     VmaAllocationCreateInfo allocationInfo = {
+        .flags = 0,
         .usage = usage,
         .requiredFlags = properties,
     };
@@ -100,7 +101,20 @@ auto dp::Buffer::getHostAddressConst() const -> const VkDeviceOrHostAddressConst
 }
 
 auto dp::Buffer::getHostAddress() const -> const VkDeviceOrHostAddressKHR {
-    return { .deviceAddress = address, };
+    return { .deviceAddress = address };
+}
+
+auto dp::Buffer::getMemoryBarrier(VkAccessFlags srcAccess, VkAccessFlags dstAccess) const -> VkBufferMemoryBarrier {
+    return VkBufferMemoryBarrier {
+        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+        .srcAccessMask = srcAccess,
+        .dstAccessMask = dstAccess,
+        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+        .buffer = getHandle(),
+        .offset = 0,
+        .size = getSize()
+    };
 }
 
 auto dp::Buffer::getSize() const -> VkDeviceSize {

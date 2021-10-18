@@ -134,7 +134,7 @@ void dp::Context::flushCommandBuffer(VkCommandBuffer commandBuffer, const dp::Qu
 
     auto guard = std::move(queue.getLock());
 
-    dp::Fence fence(*this, "tempFlushFence");
+    dp::Fence fence(*this);
     fence.create(0);
     result = queue.submit(fence, &submitInfo);
     checkResult(*this, result, "Failed to submit queue while flushing command buffer");
@@ -147,6 +147,7 @@ void dp::Context::oneTimeSubmit(const dp::Queue& queue, VkCommandPool pool,
     auto cmdBuffer = createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, pool, true, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     callback(cmdBuffer);
     flushCommandBuffer(cmdBuffer, queue);
+    vkFreeCommandBuffers(device, pool, 1, &cmdBuffer);
 }
 
 auto dp::Context::waitForFrame(const Swapchain& swapchain) -> VkResult {

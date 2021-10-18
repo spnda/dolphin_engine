@@ -25,14 +25,10 @@ namespace dp {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
         };
 
-        // Static vector used to delete all structures.
-        inline static std::vector<AccelerationStructure> structures;
-
         void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const ;
 
     public:
         static AccelerationStructureBuilder create(const Context& context, VkCommandPool commandPool);
-        static void destroyAllStructures(const dp::Context& ctx);
 
         uint32_t addMesh(const Mesh& mesh);
 

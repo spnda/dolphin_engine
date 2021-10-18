@@ -36,7 +36,7 @@ namespace dp {
 
         static auto alignedSize(size_t value, size_t alignment) -> size_t;
 
-        void create(VkDeviceSize newSize, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties);
+        void create(VkDeviceSize newSize, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties = 0);
         void destroy();
         void lock() const;
         void unlock() const;
@@ -46,6 +46,7 @@ namespace dp {
         auto getHandle() const -> const VkBuffer;
         auto getHostAddressConst() const -> const VkDeviceOrHostAddressConstKHR;
         auto getHostAddress() const -> const VkDeviceOrHostAddressKHR;
+        auto getMemoryBarrier(VkAccessFlags srcAccess, VkAccessFlags dstAccess) const -> VkBufferMemoryBarrier;
         auto getSize() const -> VkDeviceSize;
 
         /**

@@ -1,7 +1,6 @@
 #include "acceleration_structure_builder.hpp"
 
 #include <chrono>
-#include <iostream>
 #include <fmt/core.h>
 
 #include "../context.hpp"
@@ -16,27 +15,18 @@ void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuf
     resultBuffer.create(
         sizeInfo.accelerationStructureSize,
         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        VMA_MEMORY_USAGE_GPU_ONLY
     );
     scratchBuffer.create(
         dp::Buffer::alignedSize(sizeInfo.buildScratchSize, asProperties.minAccelerationStructureScratchOffsetAlignment),
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY,
-        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+        VMA_MEMORY_USAGE_CPU_TO_GPU // Don't ever set this to GPU_ONLY or make the memory DEVICE_LOCAL
     );
 }
 
 dp::AccelerationStructureBuilder dp::AccelerationStructureBuilder::create(const dp::Context& context, const VkCommandPool commandPool) {
     dp::AccelerationStructureBuilder builder(context, commandPool);
     return builder;
-}
-
-void dp::AccelerationStructureBuilder::destroyAllStructures(const dp::Context& ctx) {
-    for (auto& structure : structures) {
-        ctx.destroyAccelerationStructure(structure.handle);
-        structure.resultBuffer.destroy();
-    }
 }
 
 uint32_t dp::AccelerationStructureBuilder::addMesh(const dp::Mesh& mesh) {
@@ -62,21 +52,25 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
     for (const auto& mesh : meshes) {
         dp::BottomLevelAccelerationStructure blas(ctx, mesh, mesh.name);
 
-        blas.createMeshBuffers();
+        blas.createMeshBuffers(asProperties);
 
-        VkAccelerationStructureGeometryKHR structureGeometry = {};
-        structureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-        structureGeometry.pNext = nullptr;
-        structureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
-        structureGeometry.geometry.triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
-        structureGeometry.geometry.triangles.vertexFormat = mesh.vertexFormat;
-        structureGeometry.geometry.triangles.vertexData = blas.vertexBuffer.getHostAddressConst();
-        structureGeometry.geometry.triangles.maxVertex = mesh.vertices.size();
-        structureGeometry.geometry.triangles.vertexStride = dp::Mesh::vertexStride;
-        structureGeometry.geometry.triangles.indexType = mesh.indexType;
-        structureGeometry.geometry.triangles.indexData = blas.indexBuffer.getHostAddressConst();
-        structureGeometry.geometry.triangles.transformData.hostAddress = nullptr;
-        structureGeometry.geometry.triangles.transformData = blas.transformBuffer.getHostAddressConst();
+        VkAccelerationStructureGeometryKHR structureGeometry = {
+            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+            .pNext = nullptr,
+            .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+            .geometry = {
+                .triangles = {
+                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+                    .vertexFormat = mesh.vertexFormat,
+                    .vertexData = blas.vertexBuffer.getHostAddressConst(),
+                    .vertexStride = dp::Mesh::vertexStride,
+                    .maxVertex = static_cast<uint32_t>(mesh.vertices.size()),
+                    .indexType = mesh.indexType,
+                    .indexData = blas.indexBuffer.getHostAddressConst(),
+                    .transformData = blas.transformBuffer.getHostAddressConst(),
+                }
+            }
+        };
 
         // Get the sizes.
         VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {
@@ -116,14 +110,17 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         ctx.oneTimeSubmit(ctx.graphicsQueue, commandPool, [&](VkCommandBuffer cmdBuffer) {
             ctx.setCheckpoint(cmdBuffer, "Copying mesh buffers!");
             blas.copyMeshBuffers(cmdBuffer);
-            VkMemoryBarrier memoryBarrier = {
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-                .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT,
-                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+            std::vector<VkBufferMemoryBarrier> barriers = {
+                blas.vertexBuffer.getMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                   VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR),
+                blas.indexBuffer.getMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                   VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR),
+                blas.transformBuffer.getMemoryBarrier(VK_ACCESS_TRANSFER_WRITE_BIT,
+                                                   VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR),
             };
             vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0,
-                                 1, &memoryBarrier,
                                  0, nullptr,
+                                 barriers.size(), barriers.data(),
                                  0, nullptr);
             ctx.setCheckpoint(cmdBuffer, "Building BLAS!");
             ctx.buildAccelerationStructures(cmdBuffer, 1, &buildGeometryInfo, buildRangeInfos);
@@ -133,11 +130,9 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         blas.address = ctx.getAccelerationStructureDeviceAddress(blas.handle);
         blas.setName();
         blas.destroyMeshStagingBuffers();
+        scratchBuffer.destroy();
 
         blases.push_back(blas);
-        structures.push_back(blas);
-
-        scratchBuffer.destroy();
     }
 
     dp::TopLevelAccelerationStructure tlas(ctx);
@@ -146,6 +141,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         for (const auto& instance : instances) {
             size_t index = &instance - &instances[0];
+            if (index == asInstances.size() - 1) break;
             asInstances[index].transform = instance.transformMatrix;
             asInstances[index].instanceCustomIndex = instance.blasIndex;
             asInstances[index].mask = 0xFF;
@@ -169,8 +165,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
             instanceBuffer.create(
                 instanceBufferSize,
                 VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-                VMA_MEMORY_USAGE_GPU_ONLY,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                VMA_MEMORY_USAGE_GPU_ONLY);
 
             instanceDataDeviceAddress = instanceBuffer.getHostAddressConst();
         }
@@ -218,6 +213,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
 
         ctx.oneTimeSubmit(ctx.graphicsQueue, commandPool, [&](VkCommandBuffer cmdBuffer) {
             instanceStagingBuffer.copyToBuffer(cmdBuffer, instanceBuffer);
+            vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0, 0, nullptr, 0, nullptr, 0, nullptr);
             ctx.setCheckpoint(cmdBuffer, "Building TLAS!");
             ctx.buildAccelerationStructures(
                 cmdBuffer,
@@ -229,8 +225,6 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         tlas.address = ctx.getAccelerationStructureDeviceAddress(tlas.handle);
         tlas.setName();
         tlas.blases.insert(tlas.blases.end(), blases.begin(), blases.end());
-        
-        structures.push_back(tlas);
 
         scratchBuffer.destroy();
         if (primitiveCount > 0) instanceBuffer.destroy();

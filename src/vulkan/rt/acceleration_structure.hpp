@@ -57,7 +57,7 @@ namespace dp {
 
         explicit BottomLevelAccelerationStructure(const dp::Context& context, dp::Mesh  mesh, const std::string& name = "blas");
 
-        void createMeshBuffers();
+        void createMeshBuffers(VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties);
         void copyMeshBuffers(VkCommandBuffer cmdBuffer);
         void destroyMeshStagingBuffers();
     };
