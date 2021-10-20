@@ -17,6 +17,8 @@ namespace dp {
         void initFramebuffers();
 
     public:
+        bool reloadingScene = false;
+
         Ui(const dp::Context& context, const dp::Swapchain& vkSwapchain);
 
         void init();
@@ -25,7 +27,7 @@ namespace dp {
         void prepare();
         void draw(dp::Engine& engine, VkCommandBuffer cmdBuffer);
 
-        void resize();
+        void recreate();
 
         static bool isInputting();
     };

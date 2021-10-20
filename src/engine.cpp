@@ -4,9 +4,13 @@
 #include "vulkan/utils.hpp"
 
 dp::Engine::Engine(dp::Context& context)
-        : ctx(context), modelLoader(ctx), swapchain(ctx, ctx.surface),
-          camera(ctx), ui(ctx, swapchain), storageImage(ctx), topLevelAccelerationStructure(ctx),
-          shaderBindingTable(ctx, "shaderBindingTable") {
+        : ctx(context), modelManager(ctx, *this), swapchain(ctx, ctx.surface),
+          camera(ctx), ui(ctx, swapchain), storageImage(ctx),
+          shaderBindingTable(ctx, "shaderBindingTable"),
+          rayGenShader(ctx, "raygen", dp::ShaderStage::RayGeneration),
+          rayMissShader(ctx, "raymiss", dp::ShaderStage::RayMiss),
+          closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit),
+          shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss) {
     this->getProperties();
 
     camera.setPerspective(70.0f, 0.01f, 512.0f);
@@ -22,9 +26,12 @@ dp::Engine::Engine(dp::Context& context)
            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
     });
 
-    // Load the models and create the pipeline.
-    modelLoader.loadFile("models/CornellBox/CornellBox-Original.obj");
-    topLevelAccelerationStructure = modelLoader.buildAccelerationStructure(ctx);
+    rayGenShader.createShader("shaders/raygen.rgen");
+    rayMissShader.createShader("shaders/miss.rmiss");
+    closestHitShader.createShader("shaders/closesthit.rchit");
+    shadowMissShader.createShader("shaders/shadow.rmiss");
+
+    modelManager.init();
     this->buildPipeline();
 
     this->buildSBT();
@@ -37,14 +44,11 @@ void dp::Engine::getProperties() {
 }
 
 void dp::Engine::buildPipeline() {
-    dp::ShaderModule rayGenShader(ctx, "raygen", dp::ShaderStage::RayGeneration);
-    dp::ShaderModule rayMissShader(ctx, "raymiss", dp::ShaderStage::RayMiss);
-    dp::ShaderModule closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit);
-    dp::ShaderModule shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss);
-    rayGenShader.createShader("shaders/raygen.rgen");
-    rayMissShader.createShader("shaders/miss.rmiss");
-    closestHitShader.createShader("shaders/closesthit.rchit");
-    shadowMissShader.createShader("shaders/shadow.rmiss");
+    if (pipeline.pipeline != nullptr) {
+        vkDestroyDescriptorSetLayout(ctx.device, pipeline.descriptorLayout, nullptr);
+        vkDestroyPipelineLayout(ctx.device, pipeline.pipelineLayout, nullptr);
+        vkDestroyPipeline(ctx.device, pipeline.pipeline, nullptr);
+    }
 
     // These need to be inputted in order.
     auto builder = dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
@@ -55,10 +59,7 @@ void dp::Engine::buildPipeline() {
 
     builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit);
 
-    VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = {};
-    descriptorAccelerationStructureInfo.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR;
-    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-    descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAccelerationStructure.handle;
+    auto descriptorAccelerationStructureInfo = modelManager.tlas.getDescriptorWrite();
     builder.addAccelerationStructureDescriptor(
         0, &descriptorAccelerationStructureInfo,
         VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, dp::ShaderStage::RayGeneration | dp::ShaderStage::ClosestHit
@@ -76,21 +77,20 @@ void dp::Engine::buildPipeline() {
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, dp::ShaderStage::RayGeneration
     );
 
-    modelLoader.createMaterialBuffer();
-    VkDescriptorBufferInfo materialBufferInfo = modelLoader.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
+    modelManager.createDescriptionBuffers();
+    VkDescriptorBufferInfo materialBufferInfo = modelManager.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         3, &materialBufferInfo,
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
     );
 
-    modelLoader.createDescriptionsBuffer(topLevelAccelerationStructure);
-    VkDescriptorBufferInfo descriptionsBufferInfo = modelLoader.descriptionsBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
+    VkDescriptorBufferInfo descriptionsBufferInfo = modelManager.descriptionBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         4, &descriptionsBufferInfo,
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
     );
 
-    std::vector<VkDescriptorImageInfo> textureInfos = modelLoader.getTextureDescriptorInfos();
+    std::vector<VkDescriptorImageInfo> textureInfos = modelManager.getTextureDescriptorInfos();
     builder.addImageDescriptor(
         5, textureInfos.data(),
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, dp::ShaderStage::ClosestHit,
@@ -168,6 +168,9 @@ void dp::Engine::renderLoop() {
             }
         }
         if (needsResize) break;
+
+        // Check model loading status
+        modelManager.renderTick();
 
         // Update the camera buffer.
         camera.updateBuffer();
@@ -269,10 +272,19 @@ void dp::Engine::resize(const uint32_t width, const uint32_t height) {
     };
     vkUpdateDescriptorSets(ctx.device, 1, &resultImageWrite, 0, nullptr);
 
-    // Let the UI resize.
-    ui.resize();
+    // Let the UI recreate.
+    ui.recreate();
 
     needsResize = false;
+}
+
+void dp::Engine::updateTlas() {
+    // We'll have to rebuild the pipeline to account for new images and resized buffers.
+    // This also implicitly updates the TLAS.
+    buildPipeline();
+
+    // Descriptor set has been updated, recreate the UI's render passes too.
+    ui.recreate();
 }
 
 dp::Engine::PushConstants& dp::Engine::getConstants() {

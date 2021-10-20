@@ -63,7 +63,7 @@ inline void checkResult(const dp::Context& ctx, VkResult result, const std::stri
         // Get checkpoint data
         auto checkpoints = ctx.getCheckpointData(ctx.graphicsQueue, 10);
         if (checkpoints.empty()) {
-            std::cout << "No checkpoints have been created." << std::endl;
+            fmt::print("No checkpoints have been created.\n");
         }
         for (const auto& cp : checkpoints) {
             fmt::print("Checkpoint: {}\n", static_cast<const char*>(cp.pCheckpointMarker));

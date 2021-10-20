@@ -81,7 +81,7 @@ namespace dp {
         [[nodiscard]] auto waitForFrame(const Swapchain& swapchain) -> VkResult;
         [[nodiscard]] auto submitFrame(const Swapchain& swapchain) -> VkResult;
 
-        void buildAccelerationStructures(VkCommandBuffer commandBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfos, std::vector<VkAccelerationStructureBuildRangeInfoKHR*>& buildRangeInfos) const;
+        void buildAccelerationStructures(VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo) const;
         void setCheckpoint(VkCommandBuffer commandBuffer, const char* marker = nullptr) const;
         void traceRays(VkCommandBuffer commandBuffer, VkStridedDeviceAddressRegionKHR* raygenSbt, VkStridedDeviceAddressRegionKHR* missSbt, VkStridedDeviceAddressRegionKHR* hitSbt, VkStridedDeviceAddressRegionKHR* callableSbt, VkExtent3D size) const;
 
@@ -90,7 +90,7 @@ namespace dp {
         [[nodiscard]] auto createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags) const -> VkCommandPool;
         void createDescriptorPool(uint32_t maxSets, const std::vector<VkDescriptorPoolSize>& poolSizes, VkDescriptorPool* descriptorPool) const;
         void destroyAccelerationStructure(VkAccelerationStructureKHR handle) const;
-        [[nodiscard]] auto getAccelerationStructureBuildSizes(uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR& buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
+        [[nodiscard]] auto getAccelerationStructureBuildSizes(uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR;
         [[nodiscard]] auto getAccelerationStructureDeviceAddress(VkAccelerationStructureKHR handle) const -> VkDeviceAddress;
         [[nodiscard]] auto getBufferDeviceAddress(const VkBufferDeviceAddressInfoKHR& addressInfo) const -> uint32_t;
         [[nodiscard]] auto getCheckpointData(const dp::Queue& queue, uint32_t queryCount) const -> std::vector<VkCheckpointDataNV>;

@@ -1,9 +1,13 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
 #include <glm/glm.hpp>
+#include <vulkan/vulkan.h>
+
+namespace fs = std::filesystem;
 
 namespace dp {
     // An index type for the mesh.
@@ -12,10 +16,10 @@ namespace dp {
     struct Vertex {
         // The relative vertex position.
         // Has to be at the start because of the AS.
-        glm::fvec4 pos;
-        glm::fvec4 normals;
+        glm::fvec3 pos;
+        glm::fvec3 normals;
         glm::fvec2 uv;
-        glm::fvec2 padding = glm::fvec2(1.0);
+        float padding = 1.0f;
     };
 
     /**
@@ -23,16 +27,24 @@ namespace dp {
      * Used for the shader to obtain vertex data per mesh.
      */
     struct ObjectDescription {
-        VkDeviceAddress vertexBufferAddress;
-        VkDeviceAddress indexBufferAddress;
-        Index materialIndex;
+        VkDeviceAddress vertexBufferAddress = 0;
+        VkDeviceAddress indexBufferAddress = 0;
+        Index materialIndex = 0;
     };
 
     struct Material {
         glm::vec4 diffuse = glm::vec4(1.0f);
         glm::vec4 specular = glm::vec4(1.0f);
         glm::vec4 emissive = glm::vec4(1.0f);
-        int32_t textureIndex = -1; // Negative values represent invalid or no texture.
+        Index textureIndex = 0; // 0 is just the default white image.
+    };
+
+    /** Represents a single texture file that can be uploaded to a dp::Texture later. */
+    struct TextureFile {
+        fs::path filePath;
+        uint32_t width = 0, height = 0;
+        std::vector<uint8_t> pixels = {};
+        VkFormat format = VK_FORMAT_UNDEFINED;
     };
 
     struct Mesh {
@@ -40,13 +52,13 @@ namespace dp {
         std::vector<Vertex> vertices = {};
         std::vector<Index> indices = {};
         VkTransformMatrixKHR transform;
-        VkFormat vertexFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
+        VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
         VkIndexType indexType = VK_INDEX_TYPE_UINT32;
         // Typically, just the size of a single Vertex.
         static const uint32_t vertexStride = sizeof(Vertex);
         // The material index for the material buffer.
         // We use this together with instanceCustomIndex to provide
         // material data to ray shaders.
-        Index materialIndex;
+        Index materialIndex = 0;
     };
 }

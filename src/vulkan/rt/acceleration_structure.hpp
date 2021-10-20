@@ -1,73 +1,69 @@
 #pragma once
 
-#include <string>
 #include <vector>
-#include <vulkan/vulkan.h>
 
 #include "../resource/buffer.hpp"
+#include "../../models/mesh.hpp"
 #include "../resource/stagingbuffer.hpp"
-#include "../../render/mesh.hpp"
 
 namespace dp {
-    // fwd
+    // fwd.
     class Context;
-    
-    enum AccelerationStructureType : uint32_t {
-        TopLevel = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+
+    enum class AccelerationStructureType : uint64_t {
         BottomLevel = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-        Generic = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR
+        TopLevel = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR,
+        Generic = VK_ACCELERATION_STRUCTURE_TYPE_GENERIC_KHR,
     };
 
-    struct AccelerationStructureInstance {
-        VkTransformMatrixKHR transformMatrix;
-        VkGeometryInstanceFlagBitsKHR flags;
-        uint32_t blasIndex; // TODO: Have a better system of referencing the mesh.
-    };
-
-    class AccelerationStructure {
+    /** The base of any acceleration structure */
+    struct AccelerationStructure {
     protected:
         const dp::Context& ctx;
 
     public:
-        std::string name;
-        dp::AccelerationStructureType type = AccelerationStructureType::Generic;
-        VkAccelerationStructureKHR handle = nullptr;
-        VkDeviceAddress address = 0;
         dp::Buffer resultBuffer;
         dp::Buffer scratchBuffer;
+        dp::AccelerationStructureType type = AccelerationStructureType::Generic;
+        VkDeviceAddress address = 0;
+        VkAccelerationStructureKHR handle = nullptr;
 
-        explicit AccelerationStructure(const dp::Context& context, AccelerationStructureType type = AccelerationStructureType::Generic, std::string asName = {});
-        AccelerationStructure(const AccelerationStructure& structure);
+        explicit AccelerationStructure(const dp::Context& ctx, dp::AccelerationStructureType type, std::string name);
+        AccelerationStructure(const AccelerationStructure& as) = default;
 
-        AccelerationStructure& operator=(const dp::AccelerationStructure& structure);
-
-        void createBuildBuffers(VkAccelerationStructureBuildSizesInfoKHR sizeInfo, VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties);
-        void setName();
+        void buildStructure(VkCommandBuffer cmdBuffer, uint32_t geometryCount,
+                            VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo);
+        void createScratchBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
+        void createResultBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
+        void createStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
+        void destroy();
+        /** Returns already aligned build sizes. */
+        auto getBuildSizes(uint64_t primitiveCount,
+                           VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo,
+                           VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) -> VkAccelerationStructureBuildSizesInfoKHR;
+        auto getDescriptorWrite() const -> VkWriteDescriptorSetAccelerationStructureKHR;
     };
 
-    class BottomLevelAccelerationStructure : public AccelerationStructure {
+    struct BottomLevelAccelerationStructure final : public AccelerationStructure {
         dp::Mesh mesh;
-
-        dp::StagingBuffer vertexStagingBuffer;
-        dp::StagingBuffer indexStagingBuffer;
         dp::StagingBuffer transformStagingBuffer;
+        dp::StagingBuffer meshStagingBuffer;
 
     public:
-        dp::Buffer vertexBuffer;
-        dp::Buffer indexBuffer;
         dp::Buffer transformBuffer;
+        dp::Buffer meshBuffer;
+        uint64_t vertexOffset;
+        uint64_t indexOffset;
 
-        explicit BottomLevelAccelerationStructure(const dp::Context& context, dp::Mesh  mesh, const std::string& name = "blas");
+        explicit BottomLevelAccelerationStructure(const dp::Context& ctx, const dp::Mesh& mesh);
 
         void createMeshBuffers(VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties);
         void copyMeshBuffers(VkCommandBuffer cmdBuffer);
-        void destroyMeshStagingBuffers();
+        void destroyMeshBuffers();
     };
 
-    class TopLevelAccelerationStructure : public AccelerationStructure {
+    struct TopLevelAccelerationStructure final : public AccelerationStructure {
     public:
-        std::vector<BottomLevelAccelerationStructure> blases = {};
-
-        explicit TopLevelAccelerationStructure(const dp::Context& context, const std::string& name = "tlas");
+        explicit TopLevelAccelerationStructure(const dp::Context& ctx);
     };
 }

@@ -55,6 +55,7 @@ void dp::Image::create(const VkFormat newFormat, const VkImageUsageFlags usageFl
     imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
     vkCreateImageView(ctx.device, &imageViewCreateInfo, nullptr, &imageView);
+    ctx.setDebugUtilsName(image, name);
 }
 
 void dp::Image::create(VkImageCreateInfo* imageCreateInfo, VkImageViewCreateInfo* viewCreateInfo, VkImageLayout initialLayout) {

@@ -55,13 +55,13 @@ void main() {
     float lightDistance = length(lightDirection);
     lightDirection = normalize(lightDirection);
 
-    // Sample texture
+    // Get diffuse
     float intensity = constants.lightIntensity / pow(lightDistance, 2.0);
     vec3 diffuse = computeDiffuse(material, worldNormal, lightDirection) * intensity;
+
+    // Sample texture
     vec2 textureCoords = v0.uv * barycentrics.x + v1.uv * barycentrics.y + v2.uv * barycentrics.z;
-    if (material.textureIndex >= 0) {
-        diffuse *= texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
-    }
+    diffuse *= texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
 
     // Trace a shadow ray
     if (dot(worldNormal, lightDirection) > 0) {

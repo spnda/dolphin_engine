@@ -6,10 +6,10 @@ struct HitPayload {
 };
 
 struct Vertex {
-    vec4 position;
-    vec4 normal;
+    vec3 position;
+    vec3 normal;
     vec2 uv;
-    vec2 padding;
+    float padding;
 };
 
 struct ObjectDescription {

@@ -1,95 +1,112 @@
 #include "acceleration_structure.hpp"
 
-#include <utility>
-
 #include "../context.hpp"
 #include "../resource/stagingbuffer.hpp"
 
-dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const AccelerationStructureType type, std::string asName)
-        : ctx(context), name(std::move(asName)), type(type),
-          resultBuffer(context, name + " resultBuffer"),
-          scratchBuffer(context, name + " scratchBuffer") {
+dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, dp::AccelerationStructureType asType, std::string name)
+        : ctx(context), type(asType),
+        resultBuffer(ctx, std::move(name)), scratchBuffer(ctx, std::move(name)) {
 }
 
-dp::AccelerationStructure::AccelerationStructure(const dp::AccelerationStructure& structure) = default;
-
-dp::AccelerationStructure& dp::AccelerationStructure::operator=(const dp::AccelerationStructure& structure) {
-    this->address = structure.address;
-    this->handle = structure.handle;
-    this->name = structure.name;
-    this->type = structure.type;
-    this->resultBuffer = structure.resultBuffer;
-    return *this;
+void dp::AccelerationStructure::buildStructure(VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo) {
+    ctx.buildAccelerationStructures(cmdBuffer, geometryCount, geometryInfo, rangeInfo);
 }
 
-void dp::AccelerationStructure::createBuildBuffers(const VkAccelerationStructureBuildSizesInfoKHR sizeInfo, const VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
-    resultBuffer.create(
-        sizeInfo.accelerationStructureSize,
-        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY
-    );
+void dp::AccelerationStructure::createScratchBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes) {
     scratchBuffer.create(
-        dp::Buffer::alignedSize(sizeInfo.buildScratchSize, asProperties.minAccelerationStructureScratchOffsetAlignment),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY
+        buildSizes.buildScratchSize,
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
     );
 }
 
-void dp::AccelerationStructure::setName() {
-    ctx.setDebugUtilsName(handle, name);
+void dp::AccelerationStructure::createResultBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes) {
+    resultBuffer.create(
+        buildSizes.accelerationStructureSize,
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+    );
 }
 
-dp::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(const dp::Context& context, dp::Mesh mesh, const std::string& name)
-    : AccelerationStructure(context, AccelerationStructureType::BottomLevel, name),
-      mesh(std::move(mesh)),
-      vertexBuffer(context, "vertexBuffer"),
-      indexBuffer(context, "indexBuffer"),
-      transformBuffer(context, "transformBuffer"),
-      vertexStagingBuffer(ctx, "vertexStagingBuffer"),
-      indexStagingBuffer(ctx, "indexStagingBuffer"),
-      transformStagingBuffer(ctx, "transformStagingBuffer") {
+void dp::AccelerationStructure::createStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizes) {
+    VkAccelerationStructureCreateInfoKHR createInfo = {
+        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR,
+        .pNext = nullptr,
+        .buffer = resultBuffer.getHandle(),
+        .size = buildSizes.accelerationStructureSize,
+        .type = static_cast<VkAccelerationStructureTypeKHR>(type),
+    };
+    ctx.createAccelerationStructure(createInfo, &handle);
+    address = ctx.getAccelerationStructureDeviceAddress(handle);
+}
 
+void dp::AccelerationStructure::destroy() {
+    ctx.destroyAccelerationStructure(handle);
+    resultBuffer.destroy();
+    scratchBuffer.destroy();
+}
+
+VkAccelerationStructureBuildSizesInfoKHR dp::AccelerationStructure::getBuildSizes(uint64_t primitiveCount,
+                                                                                  VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo,
+                                                                                  VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
+    VkAccelerationStructureBuildSizesInfoKHR buildSizes = ctx.getAccelerationStructureBuildSizes(primitiveCount, buildGeometryInfo);
+    buildSizes.accelerationStructureSize = dp::Buffer::alignedSize(buildSizes.accelerationStructureSize, 256); // Apparently, this is part of the Vulkan Spec
+    buildSizes.buildScratchSize = dp::Buffer::alignedSize(buildSizes.buildScratchSize, asProperties.minAccelerationStructureScratchOffsetAlignment);
+    return buildSizes;
+}
+
+VkWriteDescriptorSetAccelerationStructureKHR dp::AccelerationStructure::getDescriptorWrite() const {
+    return {
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_KHR,
+        .pNext = nullptr,
+        .accelerationStructureCount = 1,
+        .pAccelerationStructures = &handle,
+    };
+}
+
+dp::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(const dp::Context& context, const dp::Mesh& mesh)
+        : AccelerationStructure(context, dp::AccelerationStructureType::BottomLevel, mesh.name),
+          mesh(mesh),
+          meshBuffer(ctx, "meshBuffer"),
+          transformBuffer(ctx, "transformBuffer"),
+          meshStagingBuffer(ctx, "meshStagingBuffer"),
+          transformStagingBuffer(ctx, "transformStagingBufer") {
 }
 
 void dp::BottomLevelAccelerationStructure::createMeshBuffers(const VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
-    vertexStagingBuffer.create(mesh.vertices.size() * sizeof(Vertex));
-    vertexStagingBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
+    uint64_t vertexSize = mesh.vertices.size() * dp::Mesh::vertexStride;
+    uint64_t indexSize = mesh.indices.size() * sizeof(Index);
+    uint64_t totalSize = vertexSize + indexSize;
+    vertexOffset = 0;
+    indexOffset = vertexSize;
+    meshStagingBuffer.create(totalSize);
+    transformStagingBuffer.create(sizeof(VkTransformMatrixKHR));
 
-    uint64_t maxTriangles = std::min(mesh.indices.size() / 3, asProperties.maxPrimitiveCount);
-    indexStagingBuffer.create(maxTriangles * 3 * sizeof(Index));
-    indexStagingBuffer.memoryCopy(mesh.indices.data(), maxTriangles * 3 * sizeof(Index));
-
-    size_t transformBufferSize = dp::Buffer::alignedSize(sizeof(VkTransformMatrixKHR), 16); // See VUID-vkCmdBuildAccelerationStructuresKHR-pInfos-03810
-    transformStagingBuffer.create(transformBufferSize);
+    meshStagingBuffer.memoryCopy(mesh.vertices.data(), vertexSize, vertexOffset);
+    meshStagingBuffer.memoryCopy(mesh.indices.data(), indexSize, indexOffset);
     transformStagingBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
 
-    VkBufferUsageFlags bufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    VmaMemoryUsage usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+    VkBufferUsageFlags asInputBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    meshBuffer.create(totalSize,
+                      asInputBufferUsage,
+                      VMA_MEMORY_USAGE_GPU_ONLY);
 
-    vertexBuffer.create(mesh.vertices.size() * sizeof(Vertex), bufferUsage, usage, properties);
-
-    indexBuffer.create(maxTriangles * 3 * sizeof(Index), bufferUsage, usage, properties);
-
-    transformBuffer.create(transformBufferSize, bufferUsage, usage, properties);
+    transformBuffer.create(sizeof(VkTransformMatrixKHR),
+                           asInputBufferUsage,
+                           VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
-void dp::BottomLevelAccelerationStructure::copyMeshBuffers(VkCommandBuffer cmdBuffer) {
-    vertexStagingBuffer.copyToBuffer(cmdBuffer, vertexBuffer);
-    indexStagingBuffer.copyToBuffer(cmdBuffer, indexBuffer);
+void dp::BottomLevelAccelerationStructure::copyMeshBuffers(VkCommandBuffer const cmdBuffer) {
+    meshStagingBuffer.copyToBuffer(cmdBuffer, meshBuffer);
     transformStagingBuffer.copyToBuffer(cmdBuffer, transformBuffer);
 }
 
-void dp::BottomLevelAccelerationStructure::destroyMeshStagingBuffers() {
-    vertexStagingBuffer.destroy();
-    indexStagingBuffer.destroy();
-    transformStagingBuffer.destroy();
+void dp::BottomLevelAccelerationStructure::destroyMeshBuffers() {
+    meshStagingBuffer.destroy();
 }
 
-dp::TopLevelAccelerationStructure::TopLevelAccelerationStructure(const dp::Context& context, const std::string& name)
-    : AccelerationStructure(context, AccelerationStructureType::TopLevel, name) {
-
+dp::TopLevelAccelerationStructure::TopLevelAccelerationStructure(const dp::Context& ctx)
+        : AccelerationStructure(ctx, dp::AccelerationStructureType::TopLevel, "tlas") {
 }

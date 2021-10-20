@@ -13,8 +13,15 @@ dp::Texture::operator VkImageView() const {
     return getImageView();
 }
 
-void dp::Texture::createTexture() {
-    dp::Image::create(imageFormat, imageUsage, VK_IMAGE_LAYOUT_UNDEFINED);
+dp::Texture& dp::Texture::operator=(const Texture& newImage) {
+    sampler = newImage.sampler;
+    name = newImage.name;
+    dp::Image::operator=(newImage);
+    return *this;
+}
+
+void dp::Texture::createTexture(VkFormat format) {
+    dp::Image::create(format, imageUsage, VK_IMAGE_LAYOUT_UNDEFINED);
 
     VkSamplerCreateInfo samplerCreateInfo = {
         .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,

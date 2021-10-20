@@ -1,26 +1,27 @@
 #pragma once
 
+#include "models/modelmanager.hpp"
 #include "render/camera.hpp"
-#include "render/modelloader.hpp"
 #include "render/ui.hpp"
 #include "vulkan/base/swapchain.hpp"
 #include "vulkan/resource/storageimage.hpp"
-#include "vulkan/rt/acceleration_structure_builder.hpp"
-#include "vulkan/rt/acceleration_structure.hpp"
 #include "vulkan/rt/rt_pipeline.hpp"
+#include "options.hpp"
 
 namespace dp {
     class Engine {
         const VkImageSubresourceRange defaultSubresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
         dp::Context& ctx;
-        dp::ModelLoader modelLoader;
-        dp::Ui ui;
 
         dp::StorageImage storageImage;
         dp::Swapchain swapchain;
         dp::RayTracingPipeline pipeline;
-        dp::TopLevelAccelerationStructure topLevelAccelerationStructure;
+
+        dp::ShaderModule rayGenShader;
+        dp::ShaderModule rayMissShader;
+        dp::ShaderModule closestHitShader;
+        dp::ShaderModule shadowMissShader;
 
         dp::Buffer shaderBindingTable;
         VkStridedDeviceAddressRegionKHR raygenRegion = {};
@@ -44,6 +45,9 @@ namespace dp {
 
     public:
         dp::Camera camera;
+        dp::EngineOptions options = {};
+        dp::ModelManager modelManager;
+        dp::Ui ui;
 
         bool needsResize = false;
 
@@ -51,6 +55,7 @@ namespace dp {
 
         void renderLoop();
         void resize(uint32_t width, uint32_t height);
+        void updateTlas();
         PushConstants& getConstants();
     };
 }

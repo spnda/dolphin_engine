@@ -64,7 +64,13 @@ if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/nv-aftermath AND build_type STREQUAL "deb
   endif() # Add non-windows support?
 endif()
 
+add_subdirectory(${CMAKE_SOURCE_DIR}/src)
+add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/dds_image)
+add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-bootstrap)
+add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-mem-alloc)
+
 target_link_libraries(dolphin_engine PRIVATE assimp::assimp)
+target_link_libraries(dolphin_engine PRIVATE dds_image)
 target_link_libraries(dolphin_engine PRIVATE fmt::fmt-header-only)
 target_link_libraries(dolphin_engine PRIVATE glm::glm)
 target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
@@ -73,10 +79,6 @@ target_include_directories(dolphin_engine PRIVATE ${STB_INCLUDE_DIRS})
 target_link_libraries(dolphin_engine PRIVATE PNG::PNG)
 target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan)
 target_link_libraries(dolphin_engine PRIVATE vk-bootstrap::vk-bootstrap)
-
-add_subdirectory(${CMAKE_SOURCE_DIR}/src)
-add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-bootstrap)
-add_subdirectory(${CMAKE_SOURCE_DIR}/submodules/vk-mem-alloc)
 
 # Copy shaders to bin directory.
 set(SHADER_FILES closesthit.rchit miss.rmiss raygen.rgen shadow.rmiss include/raycommon.glsl)

@@ -12,12 +12,12 @@ namespace dp {
         PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
 
     public:
-        VkPipeline pipeline;
-        VkPipelineLayout pipelineLayout;
+        VkPipeline pipeline = nullptr;
+        VkPipelineLayout pipelineLayout = nullptr;
 
-        VkDescriptorPool descriptorPool;
-        VkDescriptorSetLayout descriptorLayout;
-        VkDescriptorSet descriptorSet;
+        VkDescriptorPool descriptorPool = nullptr;
+        VkDescriptorSetLayout descriptorLayout = nullptr;
+        VkDescriptorSet descriptorSet = nullptr;
 
         explicit operator VkPipeline() const;
 

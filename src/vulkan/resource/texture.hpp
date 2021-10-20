@@ -20,8 +20,9 @@ namespace dp {
         Texture(const dp::Context& context, VkExtent2D imageSize, std::string name = "texture");
 
         explicit operator VkImageView() const;
+        Texture& operator=(const Texture& newImage);
 
-        void createTexture();
+        void createTexture(VkFormat newFormat = VK_FORMAT_R8G8B8A8_SRGB);
         void changeLayout(
             VkCommandBuffer commandBuffer,
             VkImageLayout newLayout,
