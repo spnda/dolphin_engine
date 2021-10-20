@@ -27,7 +27,8 @@ namespace dp {
         operator VkImage() const;
         Image& operator=(const Image& newImage);
 
-        void create(VkFormat format, VkImageUsageFlags usageFlags, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
+        void create(VkFormat newFormat, VkImageUsageFlags usageFlags, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
+        void create(VkImageCreateInfo* createInfo, VkImageViewCreateInfo* viewCreateInfo, VkImageLayout initialLayout = VK_IMAGE_LAYOUT_UNDEFINED);
         void copyImage(VkCommandBuffer cmdBuffer, VkImage image, VkImageLayout imageLayout) const;
         /** Destroys the image view, frees all memory and destroys the image. */
         void destroy();

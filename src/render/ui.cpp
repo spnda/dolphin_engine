@@ -98,7 +98,7 @@ void dp::Ui::prepare() {
 void dp::Ui::draw(dp::Engine& engine, const VkCommandBuffer cmdBuffer) {
     ImGui::Begin(ctx.applicationName.c_str());
 
-    ImGui::SliderFloat3("Light position", reinterpret_cast<float*>(&engine.getConstants().lightPosition), -10.0f, 10.0f);
+    ImGui::SliderFloat3("Light position", reinterpret_cast<float*>(&engine.getConstants().lightPosition), -20.0f, 20.0f);
     ImGui::SliderFloat("Light intensity", &engine.getConstants().lightIntensity, 0.0f, 32.0f);
 
     ImGui::End();

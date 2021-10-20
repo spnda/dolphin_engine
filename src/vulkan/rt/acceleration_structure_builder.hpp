@@ -25,8 +25,6 @@ namespace dp {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_PROPERTIES_KHR,
         };
 
-        void createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const ;
-
     public:
         static AccelerationStructureBuilder create(const Context& context, VkCommandPool commandPool);
 

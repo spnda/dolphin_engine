@@ -11,19 +11,6 @@ dp::AccelerationStructureBuilder::AccelerationStructureBuilder(const dp::Context
     
 }
 
-void dp::AccelerationStructureBuilder::createBuildBuffers(dp::Buffer& scratchBuffer, dp::Buffer& resultBuffer, const VkAccelerationStructureBuildSizesInfoKHR sizeInfo) const {
-    resultBuffer.create(
-        sizeInfo.accelerationStructureSize,
-        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY
-    );
-    scratchBuffer.create(
-        dp::Buffer::alignedSize(sizeInfo.buildScratchSize, asProperties.minAccelerationStructureScratchOffsetAlignment),
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-        VMA_MEMORY_USAGE_CPU_TO_GPU // Don't ever set this to GPU_ONLY or make the memory DEVICE_LOCAL
-    );
-}
-
 dp::AccelerationStructureBuilder dp::AccelerationStructureBuilder::create(const dp::Context& context, const VkCommandPool commandPool) {
     dp::AccelerationStructureBuilder builder(context, commandPool);
     return builder;
@@ -39,6 +26,9 @@ void dp::AccelerationStructureBuilder::addInstance(dp::AccelerationStructureInst
 }
 
 dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(5s);
+
     std::chrono::steady_clock::time_point beginBuild = std::chrono::steady_clock::now();
 
     VkPhysicalDeviceProperties2 deviceProperties = {
@@ -86,8 +76,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = ctx.getAccelerationStructureBuildSizes(numTriangles, buildGeometryInfo);
 
         // Create result and scratch buffers.
-        dp::Buffer scratchBuffer(ctx, mesh.name + " scratchBuffer");
-        createBuildBuffers(scratchBuffer, blas.resultBuffer, buildSizeInfo);
+        blas.createBuildBuffers(buildSizeInfo, asProperties);
 
         VkAccelerationStructureCreateInfoKHR createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -95,10 +84,11 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         createInfo.size = buildSizeInfo.accelerationStructureSize;
         createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
         ctx.createAccelerationStructure(createInfo, &blas.handle);
+        blas.address = ctx.getAccelerationStructureDeviceAddress(blas.handle);
 
         buildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         buildGeometryInfo.dstAccelerationStructure = blas.handle;
-        buildGeometryInfo.scratchData.deviceAddress = scratchBuffer.getDeviceAddress();
+        buildGeometryInfo.scratchData.deviceAddress = blas.scratchBuffer.getDeviceAddress();
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
         accelerationStructureBuildRangeInfo.primitiveCount = numTriangles;
@@ -128,10 +118,12 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         });
 
         // Get AS device address
-        blas.address = ctx.getAccelerationStructureDeviceAddress(blas.handle);
         blas.setName();
         blas.destroyMeshStagingBuffers();
-        scratchBuffer.destroy();
+        blas.vertexBuffer.destroy();
+        blas.indexBuffer.destroy();
+        blas.transformBuffer.destroy();
+        blas.scratchBuffer.destroy();
         fmt::print("Finished building AS: {}\n", mesh.name);
 
         blases.push_back(blas);
@@ -192,8 +184,7 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = ctx.getAccelerationStructureBuildSizes(primitiveCount, accelerationBuildGeometryInfo);
 
         // Create result and scratch buffers.
-        dp::Buffer scratchBuffer(ctx, "tlasScratchBuffer");
-        createBuildBuffers(scratchBuffer, tlas.resultBuffer, buildSizeInfo);
+        tlas.createBuildBuffers(buildSizeInfo, asProperties);
 
         VkAccelerationStructureCreateInfoKHR accelerationStructureCreateInfo = {};
         accelerationStructureCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
@@ -201,10 +192,11 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
         accelerationStructureCreateInfo.size = buildSizeInfo.accelerationStructureSize;
         accelerationStructureCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
         ctx.createAccelerationStructure(accelerationStructureCreateInfo, &tlas.handle);
+        tlas.address = ctx.getAccelerationStructureDeviceAddress(tlas.handle);
 
         accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
         accelerationBuildGeometryInfo.dstAccelerationStructure = tlas.handle;
-        accelerationBuildGeometryInfo.scratchData = scratchBuffer.getDeviceOrHostAddress();
+        accelerationBuildGeometryInfo.scratchData = tlas.scratchBuffer.getDeviceOrHostAddress();
 
         VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo = {};
         accelerationStructureBuildRangeInfo.primitiveCount = primitiveCount;
@@ -222,13 +214,12 @@ dp::TopLevelAccelerationStructure dp::AccelerationStructureBuilder::build() {
                 1, &accelerationBuildGeometryInfo,
                 accelerationBuildStructureRangeInfos);
         });
-        instanceStagingBuffer.destroy();
 
-        tlas.address = ctx.getAccelerationStructureDeviceAddress(tlas.handle);
         tlas.setName();
         tlas.blases.insert(tlas.blases.end(), blases.begin(), blases.end());
 
-        scratchBuffer.destroy();
+        instanceStagingBuffer.destroy();
+        tlas.scratchBuffer.destroy();
         if (primitiveCount > 0) instanceBuffer.destroy();
     }
 

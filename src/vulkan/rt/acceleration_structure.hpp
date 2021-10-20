@@ -34,12 +34,14 @@ namespace dp {
         VkAccelerationStructureKHR handle = nullptr;
         VkDeviceAddress address = 0;
         dp::Buffer resultBuffer;
+        dp::Buffer scratchBuffer;
 
         explicit AccelerationStructure(const dp::Context& context, AccelerationStructureType type = AccelerationStructureType::Generic, std::string asName = {});
         AccelerationStructure(const AccelerationStructure& structure);
 
         AccelerationStructure& operator=(const dp::AccelerationStructure& structure);
 
+        void createBuildBuffers(VkAccelerationStructureBuildSizesInfoKHR sizeInfo, VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties);
         void setName();
     };
 

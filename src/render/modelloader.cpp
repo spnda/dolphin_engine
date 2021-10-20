@@ -7,6 +7,7 @@
 
 #include <stb_image.h>
 #include <vk_mem_alloc.h>
+#include <dds.hpp>
 #include <fmt/core.h>
 
 #include "../vulkan/rt/acceleration_structure_builder.hpp"
@@ -75,9 +76,18 @@ bool dp::ModelLoader::loadTexture(const std::string& path) {
     fmt::print("Importing texture {}\n", path);
 
     // Read the texture file.
-    uint32_t width, height, channels;
+    uint32_t width, height, channels, imageSize;
     void* pixels;
-    {
+    dds::Image image;
+    if (path.ends_with(".dds")) {
+        // DirectDraw Surface image file
+        auto result = dds::readFile(path, &image);
+        if (result != dds::ReadResult::Success) return false;
+        width = image.width;
+        height = image.height;
+        imageSize = image.data.size() * sizeof(uint8_t);
+        pixels = image.data.data();
+    } else {
         int tWidth = 0, tHeight = 0, tChannels = 0;
         stbi_uc* stbPixels = stbi_load(path.c_str(), &tWidth, &tHeight, &tChannels, STBI_rgb_alpha);
         if (!stbPixels) {
@@ -86,17 +96,31 @@ bool dp::ModelLoader::loadTexture(const std::string& path) {
         }
         width = tWidth; height = tHeight; channels = tChannels;
         pixels = stbPixels;
+
+        imageSize = width * height * 4;
     }
 
-    uint64_t imageSize = width * height * 4;
-    dp::Texture texture(ctx, { width, height }, fs::path(path).filename().string());
-    texture.create();
+    // Create the texture.
+    dp::Texture texture(ctx, {width, height}, fs::path(path).filename().string());
+    if (path.ends_with(".dds")) {
+        auto imageCreateInfo = dds::getVulkanImageCreateInfo(&image);
+        imageCreateInfo.usage = dp::Texture::imageUsage;
+        imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        auto imageViewCreateInfo = dds::getVulkanImageViewCreateInfo(&image);
+        texture.create(&imageCreateInfo, &imageViewCreateInfo);
+    } else {
+        texture.createTexture();
+    }
 
     // Stage the pixels in a buffer
     dp::StagingBuffer stagingBuffer(ctx, "textureStagingBuffer");
     stagingBuffer.create(imageSize);
     stagingBuffer.memoryCopy(pixels, imageSize);
-    stbi_image_free(pixels);
+    if (path.ends_with(".dds")) {
+
+    } else {
+        stbi_image_free(pixels);
+    }
 
     // Change layout and copy the buffer to the image
     ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
@@ -154,7 +178,7 @@ bool dp::ModelLoader::loadFile(const std::string& fileName) {
 
     // Load default, empty, white texture.
     dp::Texture defaultTexture(ctx, { 1, 1 });
-    defaultTexture.create();
+    defaultTexture.createTexture();
     dp::StagingBuffer stagingBuffer(ctx, "defaultTextureStagingBuffer");
     stagingBuffer.create(4);
     std::vector<uint8_t> emptyImage = { 0xFF, 0xFF, 0xFF, 0xFF };

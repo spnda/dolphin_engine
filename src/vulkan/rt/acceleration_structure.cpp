@@ -7,7 +7,8 @@
 
 dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, const AccelerationStructureType type, std::string asName)
         : ctx(context), name(std::move(asName)), type(type),
-          resultBuffer(context, name + " resultBuffer") {
+          resultBuffer(context, name + " resultBuffer"),
+          scratchBuffer(context, name + " scratchBuffer") {
 }
 
 dp::AccelerationStructure::AccelerationStructure(const dp::AccelerationStructure& structure) = default;
@@ -19,6 +20,19 @@ dp::AccelerationStructure& dp::AccelerationStructure::operator=(const dp::Accele
     this->type = structure.type;
     this->resultBuffer = structure.resultBuffer;
     return *this;
+}
+
+void dp::AccelerationStructure::createBuildBuffers(const VkAccelerationStructureBuildSizesInfoKHR sizeInfo, const VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
+    resultBuffer.create(
+        sizeInfo.accelerationStructureSize,
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY
+    );
+    scratchBuffer.create(
+        dp::Buffer::alignedSize(sizeInfo.buildScratchSize, asProperties.minAccelerationStructureScratchOffsetAlignment),
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY
+    );
 }
 
 void dp::AccelerationStructure::setName() {
@@ -53,17 +67,14 @@ void dp::BottomLevelAccelerationStructure::createMeshBuffers(const VkPhysicalDev
         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
         VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
         VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    VmaMemoryUsage usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+    VmaMemoryUsage usage = VMA_MEMORY_USAGE_GPU_ONLY;
     VkMemoryPropertyFlags properties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
     vertexBuffer.create(mesh.vertices.size() * sizeof(Vertex), bufferUsage, usage, properties);
-    vertexBuffer.memoryCopy(mesh.vertices.data(), mesh.vertices.size() * sizeof(Vertex));
 
     indexBuffer.create(maxTriangles * 3 * sizeof(Index), bufferUsage, usage, properties);
-    indexBuffer.memoryCopy(mesh.indices.data(), maxTriangles * 3 * sizeof(Index));
 
     transformBuffer.create(transformBufferSize, bufferUsage, usage, properties);
-    transformBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
 }
 
 void dp::BottomLevelAccelerationStructure::copyMeshBuffers(VkCommandBuffer cmdBuffer) {

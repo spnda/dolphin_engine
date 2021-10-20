@@ -15,11 +15,13 @@ namespace dp {
         VkSampler sampler = nullptr;
 
     public:
+        static const VkImageUsageFlags imageUsage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
         Texture(const dp::Context& context, VkExtent2D imageSize, std::string name = "texture");
 
         explicit operator VkImageView() const;
 
-        void create();
+        void createTexture();
         void changeLayout(
             VkCommandBuffer commandBuffer,
             VkImageLayout newLayout,

@@ -1,4 +1,5 @@
 #include "image.hpp"
+#include "../utils.hpp"
 
 dp::Image::Image(const Context& context, const VkExtent2D extent, std::string name)
         : ctx(context), imageExtent(extent), name(std::move(name)) {
@@ -17,7 +18,7 @@ dp::Image& dp::Image::operator=(const dp::Image& newImage) {
     return *this;
 }
 
-void dp::Image::create(const VkFormat format, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout) {
+void dp::Image::create(const VkFormat newFormat, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout) {
     currentLayout = initialLayout;
 
     VkImageCreateInfo imageCreateInfo = {};
@@ -25,7 +26,7 @@ void dp::Image::create(const VkFormat format, const VkImageUsageFlags usageFlags
     imageCreateInfo.pNext = nullptr;
 
     imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageCreateInfo.format = format;
+    imageCreateInfo.format = newFormat;
     imageCreateInfo.extent = { imageExtent.width, imageExtent.height, 1 };
     imageCreateInfo.mipLevels = 1;
     imageCreateInfo.arrayLayers = 1;
@@ -46,7 +47,7 @@ void dp::Image::create(const VkFormat format, const VkImageUsageFlags usageFlags
 
     imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageViewCreateInfo.image = image;
-    imageViewCreateInfo.format = format;
+    imageViewCreateInfo.format = newFormat;
     imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
     imageViewCreateInfo.subresourceRange.levelCount = 1;
     imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
@@ -54,7 +55,22 @@ void dp::Image::create(const VkFormat format, const VkImageUsageFlags usageFlags
     imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 
     vkCreateImageView(ctx.device, &imageViewCreateInfo, nullptr, &imageView);
+}
 
+void dp::Image::create(VkImageCreateInfo* imageCreateInfo, VkImageViewCreateInfo* viewCreateInfo, VkImageLayout initialLayout) {
+    currentLayout = initialLayout;
+
+    VmaAllocationCreateInfo allocationInfo = {
+        .usage = VMA_MEMORY_USAGE_GPU_ONLY,
+        .requiredFlags = VkMemoryPropertyFlags(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+    };
+
+    auto result = vmaCreateImage(ctx.vmaAllocator, imageCreateInfo, &allocationInfo, &image, &allocation, nullptr);
+    checkResult(ctx, result, "Failed to create image");
+
+    viewCreateInfo->image = image;
+    result = vkCreateImageView(ctx.device, viewCreateInfo, nullptr, &imageView);
+    checkResult(ctx, result, "Failed to create imageView");
     ctx.setDebugUtilsName(image, name);
 }
 

@@ -4,3 +4,6 @@
 [submodule "submodules/vk-mem-alloc"]
 	path = submodules/vk-mem-alloc
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "submodules/dds_image"]
+	path = submodules/dds_image
+	url = https://github.com/spnda/dds_image
