@@ -3,9 +3,11 @@
 #ifdef WITH_NV_AFTERMATH
 // We only want this to exist if aftermath exists as well.
 
+#include <map>
 #include <mutex>
 #include <unordered_map>
 
+#include <vulkan/vulkan.h>
 #include "GFSDK_Aftermath.h"
 #include "GFSDK_Aftermath_GpuCrashDump.h"
 #include "GFSDK_Aftermath_GpuCrashDumpDecoding.h"
@@ -54,6 +56,11 @@ namespace dp {
 
         void onCrashDump(const void* pGpuCrashDump, uint32_t gpuCrashDumpSize);
         void onShaderDebugInfo(const void* pShaderDebugInfo, uint32_t shaderDebugInfoSize);
+        void onShaderLookup(const GFSDK_Aftermath_ShaderHash* shaderHash, PFN_GFSDK_Aftermath_SetData setShaderBinary);
+        /** Callback function invoked to find shader debug information data. */
+        void onShaderDebugInfoLookup(const GFSDK_Aftermath_ShaderDebugInfoIdentifier* identifier, PFN_GFSDK_Aftermath_SetData setShaderDebugInfo);
+        /** Callback function invoked to find shader source debug data by shader debug name. */
+        void onShaderSourceLookup(const GFSDK_Aftermath_ShaderDebugName* shaderDebugName, PFN_GFSDK_Aftermath_SetData setShaderBinary);
         void onDescription(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription);
 
         /**

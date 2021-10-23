@@ -23,6 +23,11 @@ namespace dp {
     // fwd.
     class Context;
 
+    struct ShaderCompileResult {
+        std::vector<uint32_t> binary;
+        std::vector<uint32_t> debugBinary;
+    };
+
     class ShaderModule {
         const dp::Context& ctx;
         std::string name;
@@ -30,10 +35,10 @@ namespace dp {
         VkShaderModule shaderModule = nullptr;
         dp::ShaderStage shaderStage;
 
-        std::vector<uint32_t> shaderBinary;
+        ShaderCompileResult shaderCompileResult;
 
         void createShaderModule();
-        [[nodiscard]] auto compileShader(const std::string& shaderName, const std::string& shader_source) const -> std::vector<uint32_t>;
+        [[nodiscard]] auto compileShader(const std::string& shaderName, const std::string& shader_source) const -> ShaderCompileResult;
         [[nodiscard]] static auto readFile(const std::string& filepath) -> std::string;
 
     public:

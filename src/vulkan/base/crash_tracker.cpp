@@ -7,23 +7,50 @@
 #include <fmt/core.h>
 
 #include "../context.hpp"
+#include "../shaders/shader_database.hpp"
 
 // Static callback functions.
-[[maybe_unused]] void gpuCrashDumpCallback(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize, void* pUserData) {
+[[maybe_unused]] void crashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription,
+                                                   void* pUserData) {
+    auto crashTracker = reinterpret_cast<dp::GpuCrashTracker*>(pUserData);
+    crashTracker->onDescription(addDescription);
+}
+
+[[maybe_unused]] void gpuCrashDumpCallback(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize,
+                                           void* pUserData) {
     auto crashTracker = reinterpret_cast<dp::GpuCrashTracker*>(pUserData);
     crashTracker->onCrashDump(pGpuCrashDump, gpuCrashDumpSize);
 }
 
+/** Callback for storing shader debug infos */
 [[maybe_unused]] void shaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32_t shaderDebugInfoSize,
                                               void* pUserData) {
     auto crashTracker = reinterpret_cast<dp::GpuCrashTracker*>(pUserData);
     crashTracker->onShaderDebugInfo(pShaderDebugInfo, shaderDebugInfoSize);
 }
 
-[[maybe_unused]] void crashDumpDescriptionCallback(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription,
-                                                   void* pUserData) {
+/** Lookup callback for shader debug info */
+[[maybe_unused]] void shaderDebugInfoLookupCallback(const GFSDK_Aftermath_ShaderDebugInfoIdentifier* identifier,
+                                                    PFN_GFSDK_Aftermath_SetData setShaderDebugInfo,
+                                                    void* pUserData) {
     auto crashTracker = reinterpret_cast<dp::GpuCrashTracker*>(pUserData);
-    crashTracker->onDescription(addDescription);
+    crashTracker->onShaderDebugInfoLookup(identifier, setShaderDebugInfo);
+}
+
+/** Lookup callback for shaders by hashes */
+[[maybe_unused]] void shaderLookupCallback(const GFSDK_Aftermath_ShaderHash* shaderHash,
+                                           PFN_GFSDK_Aftermath_SetData setShaderBinary,
+                                           void* pUserData) {
+    auto crashTracker = reinterpret_cast<dp::GpuCrashTracker*>(pUserData);
+    crashTracker->onShaderLookup(shaderHash, setShaderBinary);
+}
+
+/** Lookup callback for shader source with debug info */
+[[maybe_unused]] void shaderSourceLookupCallback(const GFSDK_Aftermath_ShaderDebugName* shaderDebugName,
+                                                 PFN_GFSDK_Aftermath_SetData setShaderBinary,
+                                                 void* pUserData) {
+    auto crashTracker = reinterpret_cast<dp::GpuCrashTracker*>(pUserData);
+    crashTracker->onShaderSourceLookup(shaderDebugName, setShaderBinary);
 }
 
 dp::GpuCrashTracker::GpuCrashTracker(const Context& context) : ctx(context) {}
@@ -101,7 +128,7 @@ void dp::GpuCrashTracker::onCrashDump(const void* pGpuCrashDump, const uint32_t 
     uint32_t jsonSize = 0;
     result = GFSDK_Aftermath_GpuCrashDump_GenerateJSON(
         decoder, jsonDecoderFlags, GFSDK_Aftermath_GpuCrashDumpFormatterFlags_UTF8_OUTPUT,
-        nullptr, nullptr, nullptr, nullptr,
+        shaderDebugInfoLookupCallback, shaderLookupCallback, nullptr, shaderSourceLookupCallback,
         this, &jsonSize);
 
     if (checkAftermathError(result)) {
@@ -118,17 +145,52 @@ void dp::GpuCrashTracker::onCrashDump(const void* pGpuCrashDump, const uint32_t 
     checkAftermathError(GFSDK_Aftermath_GpuCrashDump_DestroyDecoder(decoder), "Failed to destroy crash dump decoder");
 }
 
-void dp::GpuCrashTracker::onShaderDebugInfo(const void* pShaderDebugInfo, const uint32_t shaderDebugInfoSize) {
+void dp::GpuCrashTracker::onShaderDebugInfo(const void* shaderDebugInfo, const uint32_t shaderDebugInfoSize) {
     std::lock_guard<std::mutex> lock(crashMutex);
 
     GFSDK_Aftermath_ShaderDebugInfoIdentifier identifier = {};
     auto result = GFSDK_Aftermath_GetShaderDebugInfoIdentifier(
         GFSDK_Aftermath_Version_API,
-        pShaderDebugInfo,
+        shaderDebugInfo,
         shaderDebugInfoSize,
         &identifier
     );
     if (!checkAftermathError(result, "Failed to get shader debug info")) return;
+
+    // Store shader debug info in map.
+    std::vector<uint8_t> data((uint8_t*)shaderDebugInfo, (uint8_t*)shaderDebugInfo + shaderDebugInfoSize);
+    dp::ShaderDatabase::addShaderDebugInfos(identifier, data);
+}
+
+void dp::GpuCrashTracker::onShaderLookup(const GFSDK_Aftermath_ShaderHash* shaderHash,
+                                         PFN_GFSDK_Aftermath_SetData setShaderBinary) {
+    std::vector<uint32_t> shaderBinary;
+    if (!dp::ShaderDatabase::findShaderBinary(shaderHash, shaderBinary)) {
+        return; // Shader not found.
+    }
+    setShaderBinary(shaderBinary.data(), static_cast<uint32_t>(shaderBinary.size()));
+}
+
+/**
+ * Lookup for shader debug infos for given identifier.
+ * Used to map SPIR-V lines to GLSL source lines.
+ */
+void dp::GpuCrashTracker::onShaderDebugInfoLookup(const GFSDK_Aftermath_ShaderDebugInfoIdentifier* identifier,
+                                                  PFN_GFSDK_Aftermath_SetData setShaderDebugInfo) {
+    std::vector<uint8_t> debugInfos;
+    if (!dp::ShaderDatabase::findShaderDebugInfos(identifier, debugInfos))
+        return;
+    setShaderDebugInfo(debugInfos.data(), static_cast<uint32_t>(debugInfos.size()));
+}
+
+/** Lookup callback for shader source with debug information. */
+void dp::GpuCrashTracker::onShaderSourceLookup(const GFSDK_Aftermath_ShaderDebugName* shaderDebugName,
+                                               PFN_GFSDK_Aftermath_SetData setShaderBinary) {
+    std::vector<uint32_t> shaderBinary;
+    if (!dp::ShaderDatabase::findShaderBinaryWithDebugInfo(shaderDebugName, shaderBinary)) {
+        return; // Shader not found.
+    }
+    setShaderBinary(shaderBinary.data(), static_cast<uint32_t>(shaderBinary.size()));
 }
 
 void dp::GpuCrashTracker::onDescription(PFN_GFSDK_Aftermath_AddGpuCrashDumpDescription addDescription) {

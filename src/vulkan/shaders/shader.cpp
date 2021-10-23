@@ -2,8 +2,11 @@
 
 #include <fstream>
 #include <iostream>
-#include <sstream>
 #include <utility>
+
+#ifdef WITH_NV_AFTERMATH
+#include "shader_database.hpp"
+#endif // #ifdef WITH_NV_AFTERMATH
 
 #include "../context.hpp"
 #include "file_includer.hpp"
@@ -34,7 +37,7 @@ std::string dp::ShaderModule::readFile(const std::string& filename) {
     }
 }
 
-std::vector<uint32_t> dp::ShaderModule::compileShader(const std::string& shaderName, const std::string& shader_source) const {
+dp::ShaderCompileResult dp::ShaderModule::compileShader(const std::string& shaderName, const std::string& shader_source) const {
     shaderc::Compiler compiler;
     shaderc::CompileOptions options;
 
@@ -63,7 +66,12 @@ std::vector<uint32_t> dp::ShaderModule::compileShader(const std::string& shaderN
 
     // Compile to SPIR-V
     auto compileResult = compiler.CompileGlslToSpv(preProcessedSource, kind, shaderName.c_str(), options);
-    return checkResult(compileResult);
+    auto binary = checkResult(compileResult);
+
+    options.SetGenerateDebugInfo();
+    auto debugCompileResult = compiler.CompileGlslToSpv(preProcessedSource, kind, shaderName.c_str(), options);
+    auto debugBinary = checkResult(debugCompileResult);
+    return { binary, debugBinary };
 }
 
 void dp::ShaderModule::createShaderModule() {
@@ -71,18 +79,22 @@ void dp::ShaderModule::createShaderModule() {
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
         .pNext = nullptr,
         .flags = 0,
-        .codeSize = shaderBinary.size() * 4,
-        .pCode = shaderBinary.data(),
+        .codeSize = shaderCompileResult.binary.size() * 4,
+        .pCode = shaderCompileResult.binary.data(),
     };
 
     vkCreateShaderModule(ctx.device, &moduleCreateInfo, nullptr, &shaderModule);
 
     ctx.setDebugUtilsName(shaderModule, name);
+#ifdef WITH_NV_AFTERMATH
+    dp::ShaderDatabase::addShaderBinary(shaderCompileResult.binary);
+    dp::ShaderDatabase::addShaderWithDebugInfo(shaderCompileResult.debugBinary, shaderCompileResult.binary);
+#endif // #ifdef WITH_NV_AFTERMATH
 }
 
 void dp::ShaderModule::createShader(const std::string& filename) {
     auto fileContents = readFile(filename);
-    shaderBinary = compileShader(filename, fileContents);
+    shaderCompileResult = compileShader(filename, fileContents);
     createShaderModule();
 }
 

@@ -47,6 +47,8 @@ add_files(
     "vulkan/shaders/file_includer.hpp"
     "vulkan/shaders/shader.cpp"
     "vulkan/shaders/shader.hpp"
+    "vulkan/shaders/shader_database.cpp"
+    "vulkan/shaders/shader_database.hpp"
     "vulkan/context.cpp"
     "vulkan/context.hpp"
     "vulkan/utils.hpp"
