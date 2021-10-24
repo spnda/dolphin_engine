@@ -43,6 +43,7 @@ namespace dp {
     struct TextureFile {
         fs::path filePath;
         uint32_t width = 0, height = 0;
+        uint32_t mipLevels = 1;
         std::vector<uint8_t> pixels = {};
         VkFormat format = VK_FORMAT_UNDEFINED;
     };

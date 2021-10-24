@@ -19,7 +19,7 @@ dp::Image& dp::Image::operator=(const dp::Image& newImage) {
 }
 
 void dp::Image::create(const VkFormat newFormat, const VkImageUsageFlags usageFlags, const VkImageLayout initialLayout) {
-    currentLayout = initialLayout;
+    currentLayouts[0] = initialLayout;
 
     VkImageCreateInfo imageCreateInfo = {};
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -33,7 +33,7 @@ void dp::Image::create(const VkFormat newFormat, const VkImageUsageFlags usageFl
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageCreateInfo.usage = usageFlags;
-    imageCreateInfo.initialLayout = currentLayout;
+    imageCreateInfo.initialLayout = currentLayouts[0];
 
     VmaAllocationCreateInfo allocationInfo = {};
     allocationInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -59,7 +59,7 @@ void dp::Image::create(const VkFormat newFormat, const VkImageUsageFlags usageFl
 }
 
 void dp::Image::create(VkImageCreateInfo* imageCreateInfo, VkImageViewCreateInfo* viewCreateInfo, VkImageLayout initialLayout) {
-    currentLayout = initialLayout;
+    currentLayouts[0] = initialLayout;
 
     VmaAllocationCreateInfo allocationInfo = {
         .usage = VMA_MEMORY_USAGE_GPU_ONLY,
@@ -75,7 +75,7 @@ void dp::Image::create(VkImageCreateInfo* imageCreateInfo, VkImageViewCreateInfo
     ctx.setDebugUtilsName(image, name);
 }
 
-void dp::Image::copyImage(VkCommandBuffer cmdBuffer, VkImage destination, VkImageLayout destinationLayout) const {
+void dp::Image::copyImage(VkCommandBuffer cmdBuffer, VkImage destination, VkImageLayout destinationLayout) {
     VkImageCopy copyRegion = {
         .srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 },
         .srcOffset = { 0, 0, 0 },
@@ -109,8 +109,8 @@ VkExtent3D dp::Image::getImageSize3d() const {
     };
 }
 
-VkImageLayout dp::Image::getImageLayout() const {
-    return currentLayout;
+VkImageLayout dp::Image::getImageLayout() {
+    return currentLayouts[0];
 }
 
 void dp::Image::changeLayout(
@@ -118,16 +118,14 @@ void dp::Image::changeLayout(
         const VkImageLayout newLayout,
         const VkImageSubresourceRange subresourceRange,
         const VkPipelineStageFlags srcStage, const VkPipelineStageFlags dstStage) {
-    dp::Image::changeLayout(image, commandBuffer, currentLayout, newLayout, srcStage, dstStage, subresourceRange);
-    currentLayout = newLayout;
+    dp::Image::changeLayout(image, commandBuffer, currentLayouts[subresourceRange.baseMipLevel], newLayout, srcStage, dstStage, subresourceRange);
+    currentLayouts[subresourceRange.baseMipLevel] = newLayout;
 }
 
 void dp::Image::changeLayout(VkImage image, VkCommandBuffer commandBuffer,
                              VkImageLayout oldLayout, VkImageLayout newLayout,
                              VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
                              VkImageSubresourceRange subresourceRange) {
-    if (oldLayout == newLayout) return;
-
     uint32_t srcAccessMask, dstAccessMask;
     switch (srcStage) {
         default:
@@ -148,6 +146,7 @@ void dp::Image::changeLayout(VkImage image, VkCommandBuffer commandBuffer,
         case VK_PIPELINE_STAGE_TRANSFER_BIT:
             dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_TRANSFER_READ_BIT;
             break;
+        case VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR:
         case VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT:
             dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
             break;

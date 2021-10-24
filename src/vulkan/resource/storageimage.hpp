@@ -13,7 +13,7 @@ namespace dp {
     public:
         explicit StorageImage(const dp::Context& context);
 
-        [[nodiscard]] VkDescriptorImageInfo getDescriptorImageInfo() const;
+        [[nodiscard]] VkDescriptorImageInfo getDescriptorImageInfo();
 
         void create();
         void recreateImage();

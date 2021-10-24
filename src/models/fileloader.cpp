@@ -88,6 +88,7 @@ bool dp::FileLoader::loadTexture(const std::string& path) {
         textureFile.width = ddsImage.width;
         textureFile.height = ddsImage.height;
         textureFile.format = dds::getVulkanFormat(ddsImage.format, ddsImage.supportsAlpha);
+        textureFile.mipLevels = ddsImage.numMips;
         textureFile.pixels.assign(ddsImage.data.begin(), ddsImage.data.end());
     } else if (extension == ".png" || extension == ".jpg" || extension == ".bmp") {
         // STB supports JPG, PNG, TGA, BMP, PSD, GIF, HDR, PIC.
@@ -101,6 +102,9 @@ bool dp::FileLoader::loadTexture(const std::string& path) {
         textureFile.height = tHeight;
         textureFile.format = VK_FORMAT_R8G8B8A8_SRGB; // The format STB uses.
         textureFile.pixels.resize(tWidth * tHeight * 4);
+
+        textureFile.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(tWidth, tHeight))));
+
         memcpy(textureFile.pixels.data(), stbPixels, textureFile.pixels.size());
 
         stbi_image_free(stbPixels);

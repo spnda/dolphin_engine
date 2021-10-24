@@ -5,7 +5,7 @@ dp::StorageImage::StorageImage(const dp::Context& context)
 
 }
 
-VkDescriptorImageInfo dp::StorageImage::getDescriptorImageInfo() const {
+VkDescriptorImageInfo dp::StorageImage::getDescriptorImageInfo() {
     return {
         .imageView = getImageView(),
         .imageLayout = getImageLayout(),

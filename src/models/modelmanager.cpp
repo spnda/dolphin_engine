@@ -259,7 +259,7 @@ void dp::ModelManager::init() {
     buildTlas();
 }
 
-std::vector<VkDescriptorImageInfo> dp::ModelManager::getTextureDescriptorInfos() const {
+std::vector<VkDescriptorImageInfo> dp::ModelManager::getTextureDescriptorInfos() {
     // Create the image infos for each texture
     std::vector<VkDescriptorImageInfo> descriptors(textures.size());
     for (size_t i = 0; i < descriptors.size(); i++) {
@@ -324,12 +324,20 @@ void dp::ModelManager::uploadTexture(dp::TextureFile& textureFile) {
     stagingBuffer.create(textureFile.pixels.size());
     stagingBuffer.memoryCopy(textureFile.pixels.data(), textureFile.pixels.size());
 
+    // Generating mip levels requires blit support
+    uint32_t mipLevels = 1;
+    if (dp::Texture::formatSupportsBlit(ctx, textureFile.format)) {
+        mipLevels = textureFile.mipLevels;
+    }
+
     dp::Texture texture(ctx, { textureFile.width, textureFile.height }, textureFile.filePath.filename().string());
-    texture.createTexture(textureFile.format);
+    texture.createTexture(textureFile.format, mipLevels);
 
     ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
+        // Copy the staging buffer into the image.
         texture.changeLayout(
             cmdBuffer, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            { VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1 },
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
         VkBufferImageCopy copy = {
             .bufferOffset = 0,
@@ -339,9 +347,16 @@ void dp::ModelManager::uploadTexture(dp::TextureFile& textureFile) {
             .imageExtent = texture.getImageSize3d(),
         };
         stagingBuffer.copyToImage(cmdBuffer, texture, texture.getImageLayout(), &copy);
-        texture.changeLayout(
-            cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+        if (mipLevels == 1) {
+            texture.changeLayout(
+                cmdBuffer, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                { VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1 },
+                VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+        } else {
+            // Generate mipmaps. Generating mipmaps will automatically transition to SHADER_READ_ONLY_OPTIMAL
+            texture.generateMipmaps(cmdBuffer);
+        }
     });
     stagingBuffer.destroy();
 

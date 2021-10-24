@@ -43,7 +43,7 @@ namespace dp {
         void destroy();
         /** First init call, creating a basic TLAS and a basic empty image. */
         void init();
-        auto getTextureDescriptorInfos() const -> std::vector<VkDescriptorImageInfo>;
+        auto getTextureDescriptorInfos() -> std::vector<VkDescriptorImageInfo>;
         void loadScene(const std::string& path);
         void renderTick();
     };
