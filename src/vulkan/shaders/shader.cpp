@@ -14,7 +14,10 @@
 static std::map<dp::ShaderStage, shaderc_shader_kind> shader_kinds {
     { dp::ShaderStage::RayGeneration, shaderc_raygen_shader },
     { dp::ShaderStage::ClosestHit, shaderc_closesthit_shader },
-    { dp::ShaderStage::RayMiss, shaderc_miss_shader }
+    { dp::ShaderStage::RayMiss, shaderc_miss_shader },
+    { dp::ShaderStage::AnyHit, shaderc_anyhit_shader },
+    { dp::ShaderStage::Intersection, shaderc_intersection_shader },
+    { dp::ShaderStage::Callable, shaderc_callable_shader },
 };
 
 dp::ShaderModule::ShaderModule(const dp::Context& context, std::string name, const dp::ShaderStage shaderStage)

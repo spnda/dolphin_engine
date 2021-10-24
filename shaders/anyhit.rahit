@@ -1,0 +1,34 @@
+#version 460
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_EXT_ray_tracing : enable
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_buffer_reference2 : require
+
+#include "include/raycommon.glsl"
+
+hitAttributeEXT vec2 attribs;
+
+layout(buffer_reference, scalar) buffer Vertices { Vertex v[]; };
+layout(buffer_reference, scalar) buffer Indices { ivec3 i[]; };
+
+layout(binding = 3, set = 0, scalar) buffer Materials { Material m[]; } materials;
+layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
+layout(binding = 5, set = 0) uniform sampler2D textures[];
+
+#include "include/utilities.glsl"
+
+void main() {
+    // We use this any hit shader to test for transparent texture values
+    const vec3 barycentrics = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
+
+    Triangle tri = getTriangle(gl_InstanceCustomIndexEXT, gl_PrimitiveID, barycentrics);
+    Material material = materials.m[tri.materialIndex];
+
+    // Sample texture
+    vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
+    vec4 color = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords);
+    if (color.a < 0.9) {
+        ignoreIntersectionEXT;
+    }
+}

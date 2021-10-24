@@ -24,6 +24,8 @@ layout(push_constant) uniform PushConstants {
     float lightIntensity;
 } constants;
 
+#include "include/utilities.glsl"
+
 vec3 computeDiffuse(Material material, vec3 normal, vec3 lightDir) {
     float dotNL = max(dot(normal, lightDir), 1.0);
     return material.diffuse.xyz * dotNL;
@@ -32,22 +34,13 @@ vec3 computeDiffuse(Material material, vec3 normal, vec3 lightDir) {
 void main() {
     const vec3 barycentrics = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
-    // Get the object description, materials, indices and vertices.
-    ObjectDescription description = descriptions.d[gl_InstanceCustomIndexEXT];
-    Material material = materials.m[description.materialIndex];
-    Indices indices = Indices(description.indexBufferAddress);
-    Vertices vertices = Vertices(description.vertexBufferAddress);
-
-    // Get the three vertices for the hit triangle.
-    ivec3 index = indices.i[gl_PrimitiveID];
-    Vertex v0 = vertices.v[index.x];
-    Vertex v1 = vertices.v[index.y];
-    Vertex v2 = vertices.v[index.z];
+    Triangle tri = getTriangle(gl_InstanceCustomIndexEXT, gl_PrimitiveID, barycentrics);
+    Material material = materials.m[tri.materialIndex];
 
     // Get the position and normals of the hit in world space.
-    const vec3 position = v0.position.xyz * barycentrics.x + v1.position.xyz * barycentrics.y + v2.position.xyz * barycentrics.z;
+    const vec3 position = tri.vert[0].position.xyz * barycentrics.x + tri.vert[1].position.xyz * barycentrics.y + tri.vert[2].position.xyz * barycentrics.z;
     const vec3 worldPos = vec3(gl_ObjectToWorldEXT * vec4(position, 1.0));
-    const vec3 normal = v0.normal.xyz * barycentrics.x + v1.normal.xyz * barycentrics.y + v2.normal.xyz * barycentrics.z;
+    const vec3 normal = tri.vert[0].normal.xyz * barycentrics.x + tri.vert[1].normal.xyz * barycentrics.y + tri.vert[2].normal.xyz * barycentrics.z;
     const vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT));
 
     // Calculate light direction and distance
@@ -56,15 +49,16 @@ void main() {
     lightDirection = normalize(lightDirection);
 
     // Get diffuse
-    float intensity = constants.lightIntensity / pow(lightDistance, 2.0);
+    float intensity = 1.0;
+    //float intensity = constants.lightIntensity / pow(lightDistance, 2.0);
     vec3 diffuse = computeDiffuse(material, worldNormal, lightDirection) * intensity;
 
     // Sample texture
-    vec2 textureCoords = v0.uv * barycentrics.x + v1.uv * barycentrics.y + v2.uv * barycentrics.z;
+    vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
     diffuse *= texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
 
     // Trace a shadow ray
-    if (dot(worldNormal, lightDirection) > 0) {
+    if (abs(dot(worldNormal, lightDirection)) > 0) {
         vec3 shadowRayPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
         hitPayloadOut = true;
         traceRayEXT(

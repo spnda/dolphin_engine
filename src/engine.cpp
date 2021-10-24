@@ -10,7 +10,8 @@ dp::Engine::Engine(dp::Context& context)
           rayGenShader(ctx, "raygen", dp::ShaderStage::RayGeneration),
           rayMissShader(ctx, "raymiss", dp::ShaderStage::RayMiss),
           closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit),
-          shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss) {
+          shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss),
+          anyHitShader(ctx, "anyHit", dp::ShaderStage::AnyHit) {
     this->getProperties();
 
     camera.setPerspective(70.0f, 0.01f, 512.0f);
@@ -28,8 +29,9 @@ dp::Engine::Engine(dp::Context& context)
 
     rayGenShader.createShader("shaders/raygen.rgen");
     rayMissShader.createShader("shaders/miss.rmiss");
-    closestHitShader.createShader("shaders/closesthit.rchit");
     shadowMissShader.createShader("shaders/shadow.rmiss");
+    closestHitShader.createShader("shaders/closesthit.rchit");
+    anyHitShader.createShader("shaders/anyhit.rahit");
 
     modelManager.init();
     this->buildPipeline();
@@ -52,10 +54,10 @@ void dp::Engine::buildPipeline() {
 
     // These need to be inputted in order.
     auto builder = dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
-        .addShader(rayGenShader)
-        .addShader(rayMissShader)
-        .addShader(shadowMissShader)
-        .addShader(closestHitShader);
+        .addShaderGroup(dp::RtShaderGroup::General, { rayGenShader })
+        .addShaderGroup(dp::RtShaderGroup::General, { rayMissShader })
+        .addShaderGroup(dp::RtShaderGroup::General, { shadowMissShader })
+        .addShaderGroup(dp::RtShaderGroup::TriangleHit, { closestHitShader, anyHitShader });
 
     builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit);
 
@@ -81,19 +83,19 @@ void dp::Engine::buildPipeline() {
     VkDescriptorBufferInfo materialBufferInfo = modelManager.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         3, &materialBufferInfo,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit | dp::ShaderStage::AnyHit
     );
 
     VkDescriptorBufferInfo descriptionsBufferInfo = modelManager.descriptionBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         4, &descriptionsBufferInfo,
-        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit
+        VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit | dp::ShaderStage::AnyHit
     );
 
     std::vector<VkDescriptorImageInfo> textureInfos = modelManager.getTextureDescriptorInfos();
     builder.addImageDescriptor(
         5, textureInfos.data(),
-        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, dp::ShaderStage::ClosestHit,
+        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, dp::ShaderStage::ClosestHit| dp::ShaderStage::AnyHit,
         textureInfos.size()
     );
 
@@ -101,8 +103,8 @@ void dp::Engine::buildPipeline() {
 }
 
 void dp::Engine::buildSBT() {
-    uint32_t missCount = 2;
-    uint32_t chitCount = 1;
+    uint32_t missCount = 2; // 2 miss groups (miss and shadow miss)
+    uint32_t chitCount = 1; // 1 hit group (with closest and any)
     auto handleCount = 1 + missCount + chitCount;
     const uint32_t handleSize = rtProperties.shaderGroupHandleSize;
     sbtStride = dp::Buffer::alignedSize(handleSize, rtProperties.shaderGroupHandleAlignment);

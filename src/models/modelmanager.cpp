@@ -89,7 +89,6 @@ void dp::ModelManager::buildBlas(const dp::Mesh& mesh) {
                 },
             },
         },
-        .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
     };
 
     VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {
@@ -187,7 +186,6 @@ void dp::ModelManager::buildTlas() {
                 },
             },
         },
-        .flags = VK_GEOMETRY_OPAQUE_BIT_KHR,
     };
 
     VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {

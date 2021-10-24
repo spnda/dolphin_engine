@@ -23,33 +23,71 @@ dp::RayTracingPipelineBuilder dp::RayTracingPipelineBuilder::create(Context& con
     return builder;
 }
 
-dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShader(const dp::ShaderModule& module) {
-    shaderStages.push_back(module.getShaderStageCreateInfo());
-
-    // Create the shader group for this shader.
-    // Ray generation and ray miss are both classified as a general shader.
-    // As we only use closest hit, we'll simply switch between the two to 
-    // use the appropriate data.
-    VkRayTracingShaderGroupCreateInfoKHR shaderGroup = { .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR };
-    switch (module.getShaderStage()) {
-        case dp::ShaderStage::RayGeneration:
-        case dp::ShaderStage::RayMiss:
-            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-            shaderGroup.generalShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-            shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
-            break;
-        case dp::ShaderStage::ClosestHit:
-            shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-            shaderGroup.generalShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.closestHitShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-            shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-            shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
-            break;
+dp::RayTracingPipelineBuilder& dp::RayTracingPipelineBuilder::addShaderGroup(RtShaderGroup group,
+                                                                             std::initializer_list<dp::ShaderModule> shaders) {
+    std::map<uint32_t, dp::ShaderStage> modules = {};
+    for (auto& shader : shaders) {
+        shaderStages.push_back(shader.getShaderStageCreateInfo());
+        modules.insert({ static_cast<uint32_t>(shaderStages.size()) - 1, shader.getShaderStage()});
     }
-    shaderGroups.push_back(shaderGroup);
 
+    VkRayTracingShaderGroupCreateInfoKHR shaderGroup = {
+        .sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR,
+        .type = static_cast<VkRayTracingShaderGroupTypeKHR>(group),
+        .generalShader = VK_SHADER_UNUSED_KHR,
+        .closestHitShader = VK_SHADER_UNUSED_KHR,
+        .anyHitShader = VK_SHADER_UNUSED_KHR,
+        .intersectionShader = VK_SHADER_UNUSED_KHR
+    };
+
+    switch (group) {
+        case dp::RtShaderGroup::General:
+            assert(modules.size() == 1);
+            // General shader groups only support a *single* raygen, raymiss or callable shader.
+            shaderGroup.generalShader = (modules.begin())->first;
+            break;
+
+        case dp::RtShaderGroup::TriangleHit: {
+            assert(modules.size() <= 2);
+            for (const auto& module : modules) {
+                assert(module.second != dp::ShaderStage::Intersection);
+                switch (module.second) {
+                    case dp::ShaderStage::ClosestHit:
+                        shaderGroup.closestHitShader = module.first;
+                        break;
+                    case dp::ShaderStage::AnyHit:
+                        shaderGroup.anyHitShader = module.first;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            break;
+        }
+
+        case dp::RtShaderGroup::Procedural: {
+            assert(modules.size() <= 3);
+            for (const auto& module : modules) {
+                switch (module.second) {
+                    case dp::ShaderStage::ClosestHit:
+                        shaderGroup.closestHitShader = module.first;
+                        break;
+                    case dp::ShaderStage::AnyHit:
+                        shaderGroup.anyHitShader = module.first;
+                        break;
+                    case dp::ShaderStage::Intersection:
+                        shaderGroup.intersectionShader = module.first;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            assert(shaderGroup.intersectionShader != VK_SHADER_UNUSED_KHR);
+            break;
+        }
+    }
+
+    shaderGroups.push_back(shaderGroup);
     return *this;
 }
 
