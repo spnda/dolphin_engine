@@ -1,5 +1,6 @@
 build/*
 nsight/*
+vcpkg_installed/*
 
 # We'll include the .vscode launch configurations.
 .vscode/*

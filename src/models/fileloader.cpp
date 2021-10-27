@@ -162,7 +162,7 @@ bool dp::FileLoader::loadFile(const fs::path& fileName) {
                 const aiTexture* embeddedTexture = scene->GetEmbeddedTexture(texturePath.C_Str());
                 if (embeddedTexture != nullptr) {
                     // TODO
-                } else {
+                } else if (texturePath.length != 0) {
                     // Take the path of the model as a relative path.
                     // TODO: Check for duplicate textures somehow?
                     fs::path parentFolder = fs::path(fileName).parent_path();

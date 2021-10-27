@@ -8,12 +8,6 @@ if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
   set(CMAKE_TOOLCHAIN_FILE "${vcpkg_file}" CACHE FILEPATH "")
 endif()
 
-# Define the path to the glsl validator.
-if (NOT DEFINED GLSL_COMPILER)
-  # It's 2021, nobody is using a 32-bit machine anymore.
-  set(GLSL_COMPILER "$ENV{VULKAN_SDK}/Bin/glslc.exe" CACHE FILEPATH "")
-endif()
-
 project("dolphin_engine")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -26,7 +20,6 @@ endif()
 # Set our module path to be the 'cmake' dir and load all files.
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 include(add_files)
-include(compile_shaders)
 
 # Find dependencies
 find_package(assimp CONFIG REQUIRED)

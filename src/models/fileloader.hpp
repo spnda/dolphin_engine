@@ -18,7 +18,8 @@ namespace dp {
             aiProcess_FlipWindingOrder |
             aiProcess_JoinIdenticalVertices |
             aiProcess_Triangulate |
-            aiProcess_SortByPType;
+            aiProcess_SortByPType |
+            aiProcess_GenSmoothNormals;
 
         Assimp::Importer importer;
 

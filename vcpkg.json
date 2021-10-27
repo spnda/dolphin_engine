@@ -1,0 +1,24 @@
+{
+    "name": "dolphin-engine",
+    "version-string": "1.0.0",
+    "port-version": 1,
+    "description": "A vulkan abstraction and engine aimed at hardware accelerated Ray-Tracing using Vulkan.",
+    "homepage": "https://github.com/spnda/dolphin_engine",
+    "dependencies": [
+        "assimp",
+        "fmt",
+        "glm",
+        {
+            "name": "imgui",
+            "features": [ "sdl2-binding", "vulkan-binding" ]
+        },
+        "libpng",
+        {
+            "name": "sdl2",
+            "features": [ "vulkan" ]
+        },
+        "stb",
+        "vulkan-memory-allocator"
+    ],
+    "supports": "linux | windows"
+}
