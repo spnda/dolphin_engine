@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "models/modelmanager.hpp"
 #include "render/camera.hpp"
 #include "render/ui.hpp"
@@ -31,9 +33,11 @@ namespace dp {
         VkStridedDeviceAddressRegionKHR callableRegion = {};
         uint32_t sbtStride = 0;
 
+        std::chrono::time_point<std::chrono::system_clock> startTime;
+
+        // Can't exceed 256 bytes, or 2 mat4s.
         struct PushConstants {
-            glm::vec3 lightPosition = glm::vec3();
-            float lightIntensity = 0.5f;
+            float iTime;
         } pushConstants;
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProperties = {

@@ -7,5 +7,9 @@
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
 
 void main() {
-    hitPayload.hitValue = vec4(0.25, 0.25, 0.25, 1.0);
+    // Give the sky a bit of a gradient
+    vec3 direction = gl_WorldRayDirectionEXT;
+    float t = 0.5 * (direction.y + 1.0);
+    vec3 col = (1.0 - t) * vec3(1.0, 1.0, 1.0) + t * vec3(0.5, 0.7, 1.0);
+    hitPayload.hitValue = vec4(col, 1.0);
 }

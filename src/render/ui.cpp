@@ -98,12 +98,7 @@ void dp::Ui::prepare() {
 void dp::Ui::draw(dp::Engine& engine, const VkCommandBuffer cmdBuffer) {
     ImGui::Begin(ctx.applicationName.c_str());
 
-    // Simple light settings
-    ImGui::SliderFloat3("Light position", reinterpret_cast<float*>(&engine.getConstants().lightPosition), -20.0f, 20.0f);
-    ImGui::SliderFloat("Light intensity", &engine.getConstants().lightIntensity, 0.0f, 32.0f);
-
     // Engine options
-    ImGui::Separator();
     if (ImGui::Combo("",
                  reinterpret_cast<int*>(&engine.options.sceneIndex),
                  reinterpret_cast<const char* const*>(engine.options.scenes.data()),

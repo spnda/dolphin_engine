@@ -8,7 +8,6 @@
 #include "include/raycommon.glsl"
 
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
-layout(location = 1) rayPayloadEXT bool hitPayloadOut; // Shadow payload
 hitAttributeEXT vec2 attribs;
 
 layout(buffer_reference, scalar) buffer Vertices { Vertex v[]; };
@@ -20,65 +19,52 @@ layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]
 layout(binding = 5, set = 0) uniform sampler2D textures[];
 
 layout(push_constant) uniform PushConstants {
-    vec3 lightPosition;
-    float lightIntensity;
+    // The current system time in seconds. Used for RNG seeds.
+    float iTime;
 } constants;
 
-#include "include/utilities.glsl"
+#include "include/rayutilities.glsl"
+#include "include/random.glsl"
 
-vec3 computeDiffuse(Material material, vec3 normal, vec3 lightDir) {
-    float dotNL = max(dot(normal, lightDir), 1.0);
-    return material.diffuse.xyz * dotNL;
+vec3 getBounceRayDirection(in vec3 normal) {
+    // Random direction based on the time and our work group and the ray recursion depth to get pretty random seeds.
+    vec3 randDir = clampRange(randVec3(gl_LaunchIDEXT.xy + hitPayload.rayRecursionDepth, fract(constants.iTime)), 0.0, 1.0, -1.0, 1.0);
+    return normalize(normal + randDir);
 }
 
 void main() {
-    const vec3 barycentrics = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
+    const vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
     Triangle tri = getTriangle(gl_InstanceCustomIndexEXT, gl_PrimitiveID, barycentrics);
     Material material = materials.m[tri.materialIndex];
 
     // Get the position and normals of the hit in world space.
-    const vec3 position = tri.vert[0].position.xyz * barycentrics.x + tri.vert[1].position.xyz * barycentrics.y + tri.vert[2].position.xyz * barycentrics.z;
+    const vec3 position = tri.vert[0].position * barycentrics.x + tri.vert[1].position * barycentrics.y + tri.vert[2].position * barycentrics.z;
     const vec3 worldPos = vec3(gl_ObjectToWorldEXT * vec4(position, 1.0));
-    const vec3 normal = tri.vert[0].normal.xyz * barycentrics.x + tri.vert[1].normal.xyz * barycentrics.y + tri.vert[2].normal.xyz * barycentrics.z;
+    const vec3 normal = tri.vert[0].normal * barycentrics.x + tri.vert[1].normal * barycentrics.y + tri.vert[2].normal * barycentrics.z;
     const vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT));
 
-    // Calculate light direction and distance
-    vec3 lightDirection = constants.lightPosition - worldPos;
-    float lightDistance = length(lightDirection);
-    lightDirection = normalize(lightDirection);
-
-    // Get diffuse
-    float intensity = 1.0;
-    //float intensity = constants.lightIntensity / pow(lightDistance, 2.0);
-    vec3 diffuse = computeDiffuse(material, worldNormal, lightDirection) * intensity;
-
     // Sample texture
-    vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
-    diffuse *= texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
-
-    // Trace a shadow ray
-    if (abs(dot(worldNormal, lightDirection)) > 0) {
-        vec3 shadowRayPosition = gl_WorldRayOriginEXT + gl_WorldRayDirectionEXT * gl_HitTEXT;
-        hitPayloadOut = true;
-        traceRayEXT(
-            topLevelAS,
-            gl_RayFlagsSkipClosestHitShaderEXT,
-            0xFF,
-            0,
-            0,
-            1, // shadow.rmiss
-            shadowRayPosition,
-            0.001,
-            lightDirection,
-            lightDistance,
-            1 // payload (location = 1)
-        );
-
-        if (hitPayloadOut) { // Is shadowed
-            diffuse *= 0.3;
-        }
+    vec4 sampleColor;
+    if (material.textureIndex != 0) {
+        vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
+        sampleColor = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords);
+    } else {
+        sampleColor = material.diffuse;
     }
 
-    hitPayload.hitValue = vec4(diffuse, 1.0);
+    // We don't want to exceed the maximum ray recursion depth of 5.
+    if (hitPayload.rayRecursionDepth >= 2) {
+        hitPayload.hitValue = vec4(0.0);
+        return;
+    }
+
+    // Bounce a random diffuse ray.
+    hitPayload.origin = worldPos;
+    hitPayload.rayDirection = getBounceRayDirection(normal);
+    float tmin = 0.001;
+    float tmax = 10000.0;
+    hitPayload.rayRecursionDepth++;
+    traceRayEXT(topLevelAS, gl_RayFlagsNoneEXT, 0xFF, 0, 0, 0, hitPayload.origin, tmin, hitPayload.rayDirection, tmax, 0);
+    hitPayload.hitValue = sampleColor * (0.5 * hitPayload.hitValue);
 }

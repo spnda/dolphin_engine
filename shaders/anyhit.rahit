@@ -16,7 +16,7 @@ layout(binding = 3, set = 0, scalar) buffer Materials { Material m[]; } material
 layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
 layout(binding = 5, set = 0) uniform sampler2D textures[];
 
-#include "include/utilities.glsl"
+#include "include/rayutilities.glsl"
 
 void main() {
     // We use this any hit shader to test for transparent texture values
@@ -26,9 +26,11 @@ void main() {
     Material material = materials.m[tri.materialIndex];
 
     // Sample texture
-    vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
-    vec4 color = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords);
-    if (color.a < 0.9) {
-        ignoreIntersectionEXT;
+    if (material.textureIndex != 0) {
+        vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
+        vec4 color = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords);
+        if (color.a < 0.9) {
+            ignoreIntersectionEXT;
+        }
     }
 }

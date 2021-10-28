@@ -12,6 +12,8 @@ dp::Engine::Engine(dp::Context& context)
           closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit),
           shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss),
           anyHitShader(ctx, "anyHit", dp::ShaderStage::AnyHit) {
+    startTime = std::chrono::system_clock::now();
+
     this->getProperties();
 
     camera.setPerspective(70.0f, 0.01f, 512.0f);
@@ -59,7 +61,7 @@ void dp::Engine::buildPipeline() {
         .addShaderGroup(dp::RtShaderGroup::General, { shadowMissShader })
         .addShaderGroup(dp::RtShaderGroup::TriangleHit, { closestHitShader, anyHitShader });
 
-    builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit);
+    builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit | dp::ShaderStage::RayGeneration);
 
     auto descriptorAccelerationStructureInfo = modelManager.tlas.getDescriptorWrite();
     builder.addAccelerationStructureDescriptor(
@@ -184,9 +186,17 @@ void dp::Engine::renderLoop() {
         vkCmdBindPipeline(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipeline);
         vkCmdBindDescriptorSets(ctx.drawCommandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, pipeline.pipelineLayout, 0, 1, &pipeline.descriptorSet, 0, nullptr);
 
+        auto now = std::chrono::system_clock::now();
+        auto diff = now.time_since_epoch() - startTime.time_since_epoch();
+        pushConstants.iTime = static_cast<float>(std::chrono::duration_cast<std::chrono::milliseconds>(diff).count()) / 1000; // Convert ms -> s.
         vkCmdPushConstants(ctx.drawCommandBuffer, pipeline.pipelineLayout,
-                           static_cast<VkShaderStageFlags>(dp::ShaderStage::ClosestHit),
+                           static_cast<VkShaderStageFlags>(dp::ShaderStage::ClosestHit | dp::ShaderStage::RayGeneration),
                            0, sizeof(PushConstants), &pushConstants);
+        if (pushConstants.iTime > 60.0f) {
+            // We don't want the counter to exceed 60 seconds for precision purposes.
+            startTime = now;
+            pushConstants.iTime = 0;
+        }
 
         ctx.setCheckpoint(ctx.drawCommandBuffer, "Tracing rays.");
         ctx.traceRays(

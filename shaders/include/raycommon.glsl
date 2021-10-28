@@ -3,6 +3,8 @@
 struct HitPayload {
     vec4 hitValue;
     vec3 origin;
+    vec3 rayDirection;
+    uint rayRecursionDepth;
 };
 
 struct Vertex {
