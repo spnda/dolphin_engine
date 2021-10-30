@@ -33,9 +33,9 @@ namespace dp {
     };
 
     struct Material {
-        glm::vec4 diffuse = glm::vec4(1.0f);
-        glm::vec4 specular = glm::vec4(1.0f);
-        glm::vec4 emissive = glm::vec4(1.0f);
+        glm::vec3 diffuse = glm::vec3(1.0f);
+        glm::vec3 specular = glm::vec3(1.0f);
+        glm::vec3 emissive = glm::vec3(1.0f);
         Index textureIndex = 0; // 0 is just the default white image.
     };
 

@@ -7,7 +7,7 @@
 #include <fmt/core.h>
 #include <stb_image.h> // PNG and more
 
-void getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec4* vec) {
+void getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec3* vec) {
     aiColor4D vec4;
     aiGetMaterialColor(material, key, type, idx, &vec4);
     vec->b = vec4.b;

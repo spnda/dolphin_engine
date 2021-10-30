@@ -19,7 +19,7 @@ namespace dp {
             aiProcess_JoinIdenticalVertices |
             aiProcess_Triangulate |
             aiProcess_SortByPType |
-            aiProcess_GenSmoothNormals;
+            aiProcess_GenNormals;
 
         Assimp::Importer importer;
 

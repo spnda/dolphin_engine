@@ -19,7 +19,8 @@ void dp::ModelManager::createDescriptionBuffers() {
     descriptionBuffer.destroy();
 
     for (auto& mat : fileLoader.materials)
-        mat.textureIndex++; // Because we always have an initial empty image, increment the index by 1.
+        if (mat.textureIndex > 0)
+            mat.textureIndex++; // Because we always have an initial empty image, increment the index by 1.
     auto materialSize = fileLoader.materials.size() * sizeof(Material);
     materialBuffer.create(
         std::max(materialSize, static_cast<uint64_t>(1)),

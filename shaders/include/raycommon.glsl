@@ -1,7 +1,7 @@
 #extension GL_ARB_gpu_shader_int64 : enable
 
 struct HitPayload {
-    vec4 hitValue;
+    vec3 hitValue;
     vec3 origin;
     vec3 rayDirection;
     uint rayRecursionDepth;
@@ -24,9 +24,9 @@ struct ObjectDescription {
 /** Represents a material with different base colours and
  *  associated texture indices */
 struct Material {
-    vec4 diffuse;
-    vec4 specular;
-    vec4 emissive;
+    vec3 diffuse;
+    vec3 specular;
+    vec3 emissive;
     uint textureIndex;
 };
 

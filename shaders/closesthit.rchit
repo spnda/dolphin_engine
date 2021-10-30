@@ -33,6 +33,12 @@ vec3 getBounceRayDirection(in vec3 normal) {
 }
 
 void main() {
+    // We don't want to exceed the maximum ray recursion depth of 5.
+    if (hitPayload.rayRecursionDepth >= 5) {
+        hitPayload.hitValue = vec3(0.0);
+        return;
+    }
+
     const vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
     Triangle tri = getTriangle(gl_InstanceCustomIndexEXT, gl_PrimitiveID, barycentrics);
@@ -45,18 +51,16 @@ void main() {
     const vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT));
 
     // Sample texture
-    vec4 sampleColor;
-    if (material.textureIndex != 0) {
+    vec3 sampleColor;
+    if (material.textureIndex > 0) {
         vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
-        sampleColor = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords);
+        sampleColor = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
+    } else if (material.emissive.x > 0.1) {
+        // If the material is emissive just return that color instead.
+        hitPayload.hitValue = material.emissive;
+        return;
     } else {
         sampleColor = material.diffuse;
-    }
-
-    // We don't want to exceed the maximum ray recursion depth of 5.
-    if (hitPayload.rayRecursionDepth >= 2) {
-        hitPayload.hitValue = vec4(0.0);
-        return;
     }
 
     // Bounce a random diffuse ray.
