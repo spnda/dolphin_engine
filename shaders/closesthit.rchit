@@ -5,6 +5,7 @@
 #extension GL_EXT_scalar_block_layout : enable
 #extension GL_EXT_buffer_reference2 : require
 
+#include "include/descriptors.glsl"
 #include "include/raycommon.glsl"
 
 layout(location = 0) rayPayloadInEXT HitPayload hitPayload;
@@ -13,14 +14,15 @@ hitAttributeEXT vec2 attribs;
 layout(buffer_reference, scalar) buffer Vertices { Vertex v[]; };
 layout(buffer_reference, scalar) buffer Indices { ivec3 i[]; };
 
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-layout(binding = 3, set = 0, scalar) buffer Materials { Material m[]; } materials;
-layout(binding = 4, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
-layout(binding = 5, set = 0) uniform sampler2D textures[];
+layout(binding = tlas_index, set = 0) uniform accelerationStructureEXT topLevelAS;
+layout(binding = material_buffer_index, set = 0, scalar) buffer Materials { Material m[]; } materials;
+layout(binding = descriptor_buffer_index, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
+layout(binding = textures_index, set = 0) uniform sampler2D textures[];
 
 layout(push_constant) uniform PushConstants {
     // The current system time in seconds. Used for RNG seeds.
     float iTime;
+    float gamma;
 } constants;
 
 #include "include/rayutilities.glsl"

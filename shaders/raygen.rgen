@@ -2,13 +2,14 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_EXT_ray_tracing : enable
 
+#include "include/descriptors.glsl"
 #include "include/raycommon.glsl"
 
 layout(location = 0) rayPayloadEXT HitPayload hitPayload;
 
-layout(binding = 0, set = 0) uniform accelerationStructureEXT topLevelAS;
-layout(binding = 1, set = 0, rgba8) uniform image2D storageImage;
-layout(binding = 2, set = 0) uniform CameraProperties {
+layout(binding = tlas_index, set = 0) uniform accelerationStructureEXT topLevelAS;
+layout(binding = storage_image_index, set = 0, rgba8) uniform image2D storageImage;
+layout(binding = camera_buffer_index, set = 0) uniform CameraProperties {
     mat4 viewInverse;
     mat4 projInverse;
 } cam;
@@ -16,6 +17,7 @@ layout(binding = 2, set = 0) uniform CameraProperties {
 layout(push_constant) uniform PushConstants {
     // The current system time in seconds. Used for RNG seeds.
     float iTime;
+    float gamma;
 } constants;
 
 #include "include/random.glsl"
@@ -38,7 +40,7 @@ void main() {
     hitPayload.hitValue = vec3(1.0);
 
     // We take 4 samples with slightly adjusted jitter for anti-aliasing (essentially MSAA with 4 samples).
-    const uint samples = 10;
+    const uint samples = 4;
     vec3 outputColor = vec3(0.0);
     hitPayload.rayRecursionDepth = 0;
     for (uint s = 0; s < samples; s++) {
@@ -56,7 +58,10 @@ void main() {
     vec3 tonemappedColor = ACESFitted(outputColor);
 
     // Gamma correct the output.
-    const float gamma = 2.2; // Usual gamma for common displays
-    tonemappedColor = pow(tonemappedColor, vec3(1.0 / gamma));
-    imageStore(storageImage, ivec2(gl_LaunchIDEXT.xy), vec4(tonemappedColor, 1.0));
+    tonemappedColor = pow(tonemappedColor, vec3(1.0 / constants.gamma));
+
+    // Average the result from the last result in our storage image.
+    vec4 storageColor = imageLoad(storageImage, ivec2(gl_LaunchIDEXT.xy));
+    vec3 movingAverage = .9f * storageColor.xyz + .1 * tonemappedColor; // Get the moving average
+    imageStore(storageImage, ivec2(gl_LaunchIDEXT.xy), vec4(movingAverage, 1.0));
 }

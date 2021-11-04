@@ -77,26 +77,26 @@ void dp::Engine::buildPipeline() {
 
     VkDescriptorBufferInfo cameraBufferInfo = camera.getDescriptorInfo();
     builder.addBufferDescriptor(
-        2, &cameraBufferInfo,
+        3, &cameraBufferInfo,
         VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, dp::ShaderStage::RayGeneration
     );
 
     modelManager.createDescriptionBuffers();
     VkDescriptorBufferInfo materialBufferInfo = modelManager.materialBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
-        3, &materialBufferInfo,
+        4, &materialBufferInfo,
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit | dp::ShaderStage::AnyHit
     );
 
     VkDescriptorBufferInfo descriptionsBufferInfo = modelManager.descriptionBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
-        4, &descriptionsBufferInfo,
+        5, &descriptionsBufferInfo,
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit | dp::ShaderStage::AnyHit
     );
 
     std::vector<VkDescriptorImageInfo> textureInfos = modelManager.getTextureDescriptorInfos();
     builder.addImageDescriptor(
-        5, textureInfos.data(),
+        6, textureInfos.data(),
         VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, dp::ShaderStage::ClosestHit| dp::ShaderStage::AnyHit,
         textureInfos.size()
     );

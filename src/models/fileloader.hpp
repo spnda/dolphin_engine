@@ -25,8 +25,8 @@ namespace dp {
 
         void loadMesh(const aiMesh* mesh, aiMatrix4x4 transform, const aiScene* scene);
         void loadNode(const aiNode* node, const aiScene* scene);
-        /** Loads a texture into local memory. */
-        [[nodiscard]] bool loadTexture(const std::string& path);
+        /** Loads a texture into local memory. Returns 0 if failed, the texture index otherwise. */
+        [[nodiscard]] int32_t loadTexture(const std::string& path);
 
     public:
         std::vector<dp::Mesh> meshes;

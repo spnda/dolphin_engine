@@ -36,6 +36,7 @@ namespace dp {
         /** Destroys the image view, frees all memory and destroys the image. */
         void destroy();
 
+        [[nodiscard]] VkDescriptorImageInfo getDescriptorImageInfo();
         [[nodiscard]] VkImageView getImageView() const;
         [[nodiscard]] VkExtent2D getImageSize() const;
         [[nodiscard]] VkExtent3D getImageSize3d() const;

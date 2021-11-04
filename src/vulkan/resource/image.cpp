@@ -93,6 +93,13 @@ void dp::Image::destroy() {
     image = nullptr;
 }
 
+VkDescriptorImageInfo dp::Image::getDescriptorImageInfo() {
+    return {
+        .imageView = getImageView(),
+        .imageLayout = getImageLayout(),
+    };
+}
+
 VkImageView dp::Image::getImageView() const {
     return imageView;
 }

@@ -67,8 +67,14 @@ void dp::FileLoader::loadNode(const aiNode* node, const aiScene* scene) {
     }
 }
 
-bool dp::FileLoader::loadTexture(const std::string& path) {
+int32_t dp::FileLoader::loadTexture(const std::string& path) {
     fs::path filepath = path;
+    // Check if a texture with the same filepath already exists
+    for (auto tex : textures) {
+        if (tex.filePath == filepath) {
+            return static_cast<int32_t>(&tex - &textures[0]);
+        }
+    }
 
     dp::TextureFile textureFile;
     textureFile.filePath = filepath;
@@ -113,7 +119,7 @@ bool dp::FileLoader::loadTexture(const std::string& path) {
     }
 
     textures.push_back(textureFile);
-    return true;
+    return static_cast<int32_t>(textures.size() - 1);
 }
 
 
@@ -166,9 +172,9 @@ bool dp::FileLoader::loadFile(const fs::path& fileName) {
                     // Take the path of the model as a relative path.
                     // TODO: Check for duplicate textures somehow?
                     fs::path parentFolder = fs::path(fileName).parent_path();
-                    bool loaded = loadTexture(parentFolder.string() + "\\" + texturePath.C_Str());
-                    if (loaded) {
-                        material.textureIndex = static_cast<int32_t>(textures.size() - 1);
+                    int32_t textureIndex = loadTexture(parentFolder.string() + "\\" + texturePath.C_Str());
+                    if (textureIndex) {
+                        material.textureIndex = textureIndex;
                     }
                 }
             }

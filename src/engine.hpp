@@ -38,7 +38,8 @@ namespace dp {
         // Can't exceed 256 bytes, or 2 mat4s.
         struct PushConstants {
             float iTime;
-        } pushConstants;
+            float gamma = 2.2;
+        } pushConstants = {};
 
         VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProperties = {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR,

@@ -109,6 +109,7 @@ void dp::Ui::draw(dp::Engine& engine, const VkCommandBuffer cmdBuffer) {
             engine.modelManager.loadScene(engine.options.scenes[engine.options.sceneIndex]);
         }
     }
+    ImGui::SliderFloat("Gamma", &engine.getConstants().gamma, 1.0f, 4.0f);
 
     ImGui::End();
 

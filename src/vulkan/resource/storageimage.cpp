@@ -5,13 +5,6 @@ dp::StorageImage::StorageImage(const dp::Context& context)
 
 }
 
-VkDescriptorImageInfo dp::StorageImage::getDescriptorImageInfo() {
-    return {
-        .imageView = getImageView(),
-        .imageLayout = getImageLayout(),
-    };
-}
-
 void dp::StorageImage::create() {
     dp::Image::create(imageFormat, imageUsage, VK_IMAGE_LAYOUT_UNDEFINED);
 }
