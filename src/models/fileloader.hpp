@@ -27,6 +27,7 @@ namespace dp {
         void loadNode(const aiNode* node, const aiScene* scene);
         /** Loads a texture into local memory. Returns 0 if failed, the texture index otherwise. */
         [[nodiscard]] int32_t loadTexture(const std::string& path);
+        [[nodiscard]] int32_t loadEmbeddedTexture(const aiTexture* texture);
 
     public:
         std::vector<dp::Mesh> meshes;

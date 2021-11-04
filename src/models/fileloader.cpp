@@ -122,6 +122,42 @@ int32_t dp::FileLoader::loadTexture(const std::string& path) {
     return static_cast<int32_t>(textures.size() - 1);
 }
 
+int32_t dp::FileLoader::loadEmbeddedTexture(const aiTexture* texture) {
+    // Check if a texture with the same filepath already exists
+    std::string textureFileName = texture->mFilename.C_Str();
+    if (!textureFileName.empty()) { // Embedded textures might not be named in some formats
+        for (auto tex: textures) {
+            if (strcmp(reinterpret_cast<const char*>(tex.filePath.c_str()), textureFileName.c_str()) == 0) {
+                return static_cast<int32_t>(&tex - &textures[0]);
+            }
+        }
+    }
+
+    int tWidth, tHeight, channels;
+    stbi_uc* pixels;
+    if (texture->mHeight == 0) {
+        pixels = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth, &tWidth, &tHeight, &channels, STBI_rgb_alpha);
+    } else {
+        pixels = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth * texture->mHeight, &tWidth, &tHeight, &channels, STBI_rgb_alpha);
+    }
+    if (!pixels) {
+        fmt::print(stderr, "Failed to load texture file {}\n", texture->mFilename.C_Str());
+        return false;
+    }
+
+    dp::TextureFile textureFile;
+    textureFile.filePath = texture->mFilename.C_Str();
+    textureFile.width = tWidth;
+    textureFile.height = tHeight;
+    textureFile.format = VK_FORMAT_R8G8B8A8_SRGB;
+
+    textureFile.pixels.resize(tWidth * tHeight * 4);
+    memcpy(textureFile.pixels.data(), pixels, textureFile.pixels.size());
+
+    textures.push_back(textureFile);
+    return static_cast<int32_t>(textures.size() - 1);
+}
+
 
 dp::FileLoader::FileLoader(const FileLoader& loader) :
         meshes(loader.meshes),
@@ -167,7 +203,10 @@ bool dp::FileLoader::loadFile(const fs::path& fileName) {
 
                 const aiTexture* embeddedTexture = scene->GetEmbeddedTexture(texturePath.C_Str());
                 if (embeddedTexture != nullptr) {
-                    // TODO
+                    auto textureIndex = loadEmbeddedTexture(embeddedTexture);
+                    if (textureIndex) {
+                        material.textureIndex = textureIndex;
+                    }
                 } else if (texturePath.length != 0) {
                     // Take the path of the model as a relative path.
                     // TODO: Check for duplicate textures somehow?
