@@ -15,7 +15,7 @@ namespace dp {
         VmaAllocation allocation = nullptr;
         VkImage image = nullptr;
         VkImageView imageView = nullptr;
-        VkFormat format;
+        VkFormat format = VK_FORMAT_UNDEFINED;
 
     protected:
         const Context& ctx;

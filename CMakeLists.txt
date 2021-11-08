@@ -29,6 +29,7 @@ find_package(imgui CONFIG REQUIRED)
 find_package(PNG REQUIRED)
 find_package(SDL2 CONFIG REQUIRED)
 find_path(STB_INCLUDE_DIRS "stb.h")
+find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 find_package(Vulkan REQUIRED)
 
 add_executable(dolphin_engine)
@@ -70,8 +71,9 @@ target_link_libraries(dolphin_engine PRIVATE imgui::imgui)
 target_link_libraries(dolphin_engine PRIVATE SDL2::SDL2 SDL2::SDL2main)
 target_include_directories(dolphin_engine PRIVATE ${STB_INCLUDE_DIRS})
 target_link_libraries(dolphin_engine PRIVATE PNG::PNG)
-target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan)
+target_include_directories(dolphin_engine PRIVATE ${TINYGLTF_INCLUDE_DIRS})
 target_link_libraries(dolphin_engine PRIVATE vk-bootstrap::vk-bootstrap)
+target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan)
 
 # Copy shaders to bin directory.
 set(SHADER_FILES anyhit.rahit closesthit.rchit miss.rmiss raygen.rgen shadow.rmiss include/descriptors.glsl include/random.glsl include/raycommon.glsl include/rayutilities.glsl)

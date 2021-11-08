@@ -251,7 +251,7 @@ void dp::Context::destroyAccelerationStructure(const VkAccelerationStructureKHR 
     vkDestroyAccelerationStructureKHR(device, handle, nullptr);
 }
 
-auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR {
+auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t* primitiveCount, const VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo) const -> VkAccelerationStructureBuildSizesInfoKHR {
     VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo = {};
     buildSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
@@ -259,7 +259,7 @@ auto dp::Context::getAccelerationStructureBuildSizes(const uint32_t primitiveCou
         device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
         buildGeometryInfo,
-        &primitiveCount,
+        primitiveCount,
         &buildSizeInfo);
 
     return buildSizeInfo;

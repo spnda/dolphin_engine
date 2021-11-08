@@ -38,7 +38,7 @@ namespace dp {
         void createStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
         void destroy();
         /** Returns already aligned build sizes. */
-        auto getBuildSizes(uint64_t primitiveCount,
+        auto getBuildSizes(const uint32_t* primitiveCount,
                            VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo,
                            VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) -> VkAccelerationStructureBuildSizesInfoKHR;
         auto getDescriptorWrite() const -> VkWriteDescriptorSetAccelerationStructureKHR;
@@ -47,16 +47,21 @@ namespace dp {
     struct BottomLevelAccelerationStructure final : public AccelerationStructure {
         dp::Mesh mesh;
         dp::StagingBuffer transformStagingBuffer;
-        dp::StagingBuffer meshStagingBuffer;
+        dp::StagingBuffer vertexStagingBuffer;
+        dp::StagingBuffer indexStagingBuffer;
 
     public:
         dp::Buffer transformBuffer;
-        dp::Buffer meshBuffer;
-        uint64_t vertexOffset;
-        uint64_t indexOffset;
+        dp::Buffer vertexBuffer;
+        dp::Buffer indexBuffer;
+
+        std::vector<dp::GeometryDescription> geometryDescriptions = {};
+        /** A buffer containing instanceDescriptions of geometries inside BLASes. */
+        dp::Buffer geometryDescriptionBuffer;
 
         explicit BottomLevelAccelerationStructure(const dp::Context& ctx, const dp::Mesh& mesh);
 
+        void createGeometryDescriptionBuffer();
         void createMeshBuffers(VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties);
         void copyMeshBuffers(VkCommandBuffer cmdBuffer);
         void destroyMeshBuffers();

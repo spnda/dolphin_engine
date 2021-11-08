@@ -13,10 +13,11 @@ hitAttributeEXT vec2 attribs;
 
 layout(buffer_reference, scalar) buffer Vertices { Vertex v[]; };
 layout(buffer_reference, scalar) buffer Indices { ivec3 i[]; };
+layout(buffer_reference, scalar) buffer GeometryDescriptions { GeometryDescription d[]; };
 
 layout(binding = tlas_index, set = 0) uniform accelerationStructureEXT topLevelAS;
 layout(binding = material_buffer_index, set = 0, scalar) buffer Materials { Material m[]; } materials;
-layout(binding = descriptor_buffer_index, set = 0, scalar) buffer Descriptions { ObjectDescription d[]; } descriptions;
+layout(binding = descriptor_buffer_index, set = 0, scalar) buffer Descriptions { InstanceDescription d[]; } instances;
 layout(binding = textures_index, set = 0) uniform sampler2D textures[];
 
 layout(push_constant) uniform PushConstants {
@@ -43,26 +44,29 @@ void main() {
 
     const vec3 barycentrics = vec3(1.0 - attribs.x - attribs.y, attribs.x, attribs.y);
 
-    Triangle tri = getTriangle(gl_InstanceCustomIndexEXT, gl_PrimitiveID, barycentrics);
+    Triangle tri = getTriangle(gl_InstanceCustomIndexEXT, gl_GeometryIndexEXT, gl_PrimitiveID, barycentrics);
     Material material = materials.m[tri.materialIndex];
 
     // Get the position and normals of the hit in world space.
     const vec3 position = tri.vert[0].position * barycentrics.x + tri.vert[1].position * barycentrics.y + tri.vert[2].position * barycentrics.z;
     const vec3 worldPos = vec3(gl_ObjectToWorldEXT * vec4(position, 1.0));
-    const vec3 normal = tri.vert[0].normal * barycentrics.x + tri.vert[1].normal * barycentrics.y + tri.vert[2].normal * barycentrics.z;
+
+    vec3 normal;
+    if (material.normalTextureIndex > 0) {
+        vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
+        normal = texture(textures[nonuniformEXT(material.normalTextureIndex)], textureCoords).xyz;
+    } else {
+        normal = tri.vert[0].normal * barycentrics.x + tri.vert[1].normal * barycentrics.y + tri.vert[2].normal * barycentrics.z;
+    }
     const vec3 worldNormal = normalize(vec3(normal * gl_ObjectToWorldEXT));
 
     // Sample texture
     vec3 sampleColor;
-    if (material.textureIndex > 0) {
+    if (material.baseTextureIndex > 0) {
         vec2 textureCoords = tri.vert[0].uv * barycentrics.x + tri.vert[1].uv * barycentrics.y + tri.vert[2].uv * barycentrics.z;
-        sampleColor = texture(textures[nonuniformEXT(material.textureIndex)], textureCoords).xyz;
-    } else if (material.emissive.x > 0.1) {
-        // If the material is emissive just return that color instead.
-        hitPayload.hitValue = material.emissive;
-        return;
+        sampleColor = texture(textures[nonuniformEXT(material.baseTextureIndex)], textureCoords).xyz;
     } else {
-        sampleColor = material.diffuse;
+        sampleColor = material.baseColor;
     }
 
     // Bounce a random diffuse ray.

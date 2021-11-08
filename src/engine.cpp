@@ -88,7 +88,7 @@ void dp::Engine::buildPipeline() {
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit | dp::ShaderStage::AnyHit
     );
 
-    VkDescriptorBufferInfo descriptionsBufferInfo = modelManager.descriptionBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
+    VkDescriptorBufferInfo descriptionsBufferInfo = modelManager.instanceDescriptionBuffer.getDescriptorInfo(VK_WHOLE_SIZE);
     builder.addBufferDescriptor(
         5, &descriptionsBufferInfo,
         VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, dp::ShaderStage::ClosestHit | dp::ShaderStage::AnyHit

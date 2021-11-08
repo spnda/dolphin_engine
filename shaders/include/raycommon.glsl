@@ -14,20 +14,29 @@ struct Vertex {
     float padding;
 };
 
-/** A single mesh/BLAS. */
-struct ObjectDescription {
+/** A single BLAS. */
+struct InstanceDescription {
     uint64_t vertexBufferAddress;
     uint64_t indexBufferAddress;
+    uint64_t geometryBufferAddress;
+};
+
+/** A single geometry inside a BLAS */
+struct GeometryDescription {
+    uint64_t vertexOffset;
+    uint64_t indexOffset;
     uint materialIndex;
 };
 
 /** Represents a material with different base colours and
  *  associated texture indices */
 struct Material {
-    vec3 diffuse;
-    vec3 specular;
-    vec3 emissive;
-    uint textureIndex;
+    vec3 baseColor;
+    float metallicFactor;
+    float roughnessFactor;
+    int baseTextureIndex;
+    int normalTextureIndex;
+    int pbrTextureIndex;
 };
 
 /** Represents three vertices and their properties. */

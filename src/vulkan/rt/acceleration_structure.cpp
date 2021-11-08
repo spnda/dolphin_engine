@@ -48,7 +48,7 @@ void dp::AccelerationStructure::destroy() {
     scratchBuffer.destroy();
 }
 
-VkAccelerationStructureBuildSizesInfoKHR dp::AccelerationStructure::getBuildSizes(uint64_t primitiveCount,
+VkAccelerationStructureBuildSizesInfoKHR dp::AccelerationStructure::getBuildSizes(const uint32_t* primitiveCount,
                                                                                   VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo,
                                                                                   VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
     VkAccelerationStructureBuildSizesInfoKHR buildSizes = ctx.getAccelerationStructureBuildSizes(primitiveCount, buildGeometryInfo);
@@ -69,42 +69,92 @@ VkWriteDescriptorSetAccelerationStructureKHR dp::AccelerationStructure::getDescr
 dp::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(const dp::Context& context, const dp::Mesh& mesh)
         : AccelerationStructure(context, dp::AccelerationStructureType::BottomLevel, mesh.name),
           mesh(mesh),
-          meshBuffer(ctx, "meshBuffer"),
+          vertexBuffer(ctx, "vertexBuffer"),
+          indexBuffer(ctx, "indexBuffer"),
           transformBuffer(ctx, "transformBuffer"),
-          meshStagingBuffer(ctx, "meshStagingBuffer"),
-          transformStagingBuffer(ctx, "transformStagingBufer") {
+          vertexStagingBuffer(ctx, "vertexStagingBuffer"),
+          indexStagingBuffer(ctx, "indexStagingBuffer"),
+          transformStagingBuffer(ctx, "transformStagingBuffer"),
+          geometryDescriptionBuffer(ctx, "geometryDescriptionBuffer") {
+}
+
+void dp::BottomLevelAccelerationStructure::createGeometryDescriptionBuffer() {
+    geometryDescriptionBuffer.destroy();
+
+    geometryDescriptions.clear();
+    for (const auto& prim : mesh.primitives) {
+        geometryDescriptions.push_back({
+            .meshBufferVertexOffset = prim.meshBufferVertexOffset,
+            .meshBufferIndexOffset = prim.meshBufferIndexOffset,
+            .materialIndex = prim.materialIndex,
+        });
+    }
+
+    auto descriptionSize = geometryDescriptions.size() * sizeof(dp::GeometryDescription);
+    geometryDescriptionBuffer.create(
+        descriptionSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+        VMA_MEMORY_USAGE_CPU_TO_GPU,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+    );
+    if (descriptionSize != 0)
+        geometryDescriptionBuffer.memoryCopy(geometryDescriptions.data(), descriptionSize);
 }
 
 void dp::BottomLevelAccelerationStructure::createMeshBuffers(const VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
-    uint64_t vertexSize = mesh.vertices.size() * dp::Mesh::vertexStride;
-    uint64_t indexSize = mesh.indices.size() * sizeof(Index);
-    uint64_t totalSize = vertexSize + indexSize;
-    vertexOffset = 0;
-    indexOffset = vertexSize;
-    meshStagingBuffer.create(totalSize);
+    // We want to squash every primitive of the mesh into a single long buffer.
+    // This will make the buffer quite convoluted, as there are vertices and indices
+    // over and over again, but it should help for simplicity’s sake.
+
+    // First, we compute the total size of our mesh buffer.
+    uint64_t totalVertexSize = 0, totalIndexSize = 0;
+    for (const auto& prim : mesh.primitives) {
+        totalVertexSize += prim.vertices.size() * dp::Primitive::vertexStride;
+        totalIndexSize += prim.indices.size() * sizeof(dp::Index);
+    }
+
+    vertexStagingBuffer.create(totalVertexSize);
+    indexStagingBuffer.create(totalIndexSize);
     transformStagingBuffer.create(sizeof(VkTransformMatrixKHR));
 
-    meshStagingBuffer.memoryCopy(mesh.vertices.data(), vertexSize, vertexOffset);
-    meshStagingBuffer.memoryCopy(mesh.indices.data(), indexSize, indexOffset);
+    // Copy the data into the big buffer at an offset.
+    uint64_t currentVertexOffset = 0, currentIndexOffset = 0;
+    for (auto& prim : mesh.primitives) {
+        uint64_t vertexSize = prim.vertices.size() * dp::Primitive::vertexStride;
+        uint64_t indexSize = prim.indices.size() * sizeof(dp::Index);
+
+        prim.meshBufferVertexOffset = currentVertexOffset;
+        prim.meshBufferIndexOffset = currentIndexOffset;
+
+        vertexStagingBuffer.memoryCopy(prim.vertices.data(), vertexSize, prim.meshBufferVertexOffset);
+        indexStagingBuffer.memoryCopy(prim.indices.data(), indexSize, prim.meshBufferIndexOffset);
+
+        currentVertexOffset += vertexSize;
+        currentIndexOffset += indexSize;
+    }
+
     transformStagingBuffer.memoryCopy(&mesh.transform, sizeof(VkTransformMatrixKHR));
 
-    VkBufferUsageFlags asInputBufferUsage = VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-    meshBuffer.create(totalSize,
-                      asInputBufferUsage,
-                      VMA_MEMORY_USAGE_GPU_ONLY);
-
-    transformBuffer.create(sizeof(VkTransformMatrixKHR),
-                           asInputBufferUsage,
-                           VMA_MEMORY_USAGE_GPU_ONLY);
+    // At last, we create the real buffers that reside on the GPU.
+    VkBufferUsageFlags asInputBufferUsage =
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+        VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+        VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+    vertexBuffer.create(totalVertexSize, asInputBufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
+    indexBuffer.create(totalIndexSize, asInputBufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
+    transformBuffer.create(sizeof(VkTransformMatrixKHR), asInputBufferUsage, VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
 void dp::BottomLevelAccelerationStructure::copyMeshBuffers(VkCommandBuffer const cmdBuffer) {
-    meshStagingBuffer.copyToBuffer(cmdBuffer, meshBuffer);
+    vertexStagingBuffer.copyToBuffer(cmdBuffer, vertexBuffer);
+    indexStagingBuffer.copyToBuffer(cmdBuffer, indexBuffer);
     transformStagingBuffer.copyToBuffer(cmdBuffer, transformBuffer);
 }
 
 void dp::BottomLevelAccelerationStructure::destroyMeshBuffers() {
-    meshStagingBuffer.destroy();
+    vertexStagingBuffer.destroy();
+    indexStagingBuffer.destroy();
 }
 
 dp::TopLevelAccelerationStructure::TopLevelAccelerationStructure(const dp::Context& ctx)

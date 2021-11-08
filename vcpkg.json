@@ -18,6 +18,7 @@
             "features": [ "vulkan" ]
         },
         "stb",
+        "tinygltf",
         "vulkan-memory-allocator"
     ],
     "supports": "linux | windows"

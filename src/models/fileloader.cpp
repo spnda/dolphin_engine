@@ -1,11 +1,14 @@
 #include "fileloader.hpp"
 
 #define DDS_USE_STD_FILESYSTEM
+#define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
+#define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <dds.hpp> // DirectDraw Surface
 #include <fmt/core.h>
-#include <stb_image.h> // PNG and more
+#include <glm/gtc/type_ptr.hpp> // glm::make_vec3
+#include <tiny_gltf.h> // Already includes stb_image.h
 
 void getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsigned int idx, glm::vec3* vec) {
     aiColor4D vec4;
@@ -15,13 +18,13 @@ void getMatColor3(aiMaterial* material, const char* key, unsigned int type, unsi
     vec->g = vec4.g;
 }
 
-void dp::FileLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, const aiScene* scene) {
+void dp::FileLoader::loadAssimpMesh(const aiMesh* mesh, aiMatrix4x4 transform, const aiScene* scene) {
     if (!mesh->HasFaces()) return;
 
     auto meshVertices = mesh->mVertices;
     auto meshFaces = mesh->mFaces;
 
-    dp::Mesh newMesh;
+    dp::Mesh newMesh = {};
     newMesh.name = mesh->mName.data;
     newMesh.transform = {
         transform.a1, transform.a2, transform.a3, transform.a4,
@@ -29,45 +32,47 @@ void dp::FileLoader::loadMesh(const aiMesh* mesh, const aiMatrix4x4 transform, c
         transform.c1, transform.c2, transform.c3, transform.c4,
     };
 
+    dp::Primitive newPrimitive = {};
+    newPrimitive.materialIndex = mesh->mMaterialIndex;
+
     for (int i = 0; i < mesh->mNumVertices; i++) {
-        Vertex vertex;
+        dp::Vertex vertex;
         vertex.pos = glm::vec3(meshVertices[i].x, meshVertices[i].y, meshVertices[i].z);
         if (mesh->HasNormals()) {
             vertex.normals = glm::vec3(mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z);
         }
         vertex.uv = mesh->mTextureCoords[0] == nullptr
-              ? glm::vec2(0.0)
-              : glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y),
-        newMesh.vertices.push_back(vertex);
+                    ? glm::vec2(0.0)
+                    : glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y),
+            newPrimitive.vertices.push_back(vertex);
     }
 
     for (int i = 0; i < mesh->mNumFaces; i++) {
         for (int j = 0; j < meshFaces[i].mNumIndices; j++) {
             aiFace face = meshFaces[i];
-            newMesh.indices.push_back(face.mIndices[j]);
+            newPrimitive.indices.push_back(face.mIndices[j]);
         }
     }
 
-    newMesh.materialIndex = mesh->mMaterialIndex;
-
+    newMesh.primitives.push_back(newPrimitive);
     meshes.push_back(newMesh);
 }
 
-void dp::FileLoader::loadNode(const aiNode* node, const aiScene* scene) {
+void dp::FileLoader::loadAssimpNode(const aiNode* node, const aiScene* scene) {
     if (node->mMeshes != nullptr) {
         for (int i = 0; i < node->mNumMeshes; i++) {
-            loadMesh(scene->mMeshes[node->mMeshes[i]], node->mTransformation, scene);
+            loadAssimpMesh(scene->mMeshes[node->mMeshes[i]], node->mTransformation, scene);
         }
     }
 
     if (node->mChildren != nullptr) {
         for (int i = 0; i < node->mNumChildren; i++) {
-            loadNode(node->mChildren[i], scene);
+            loadAssimpNode(node->mChildren[i], scene);
         }
     }
 }
 
-int32_t dp::FileLoader::loadTexture(const std::string& path) {
+int32_t dp::FileLoader::loadAssimpTexture(const std::string& path) {
     fs::path filepath = path;
     // Check if a texture with the same filepath already exists
     for (auto tex : textures) {
@@ -122,7 +127,7 @@ int32_t dp::FileLoader::loadTexture(const std::string& path) {
     return static_cast<int32_t>(textures.size() - 1);
 }
 
-int32_t dp::FileLoader::loadEmbeddedTexture(const aiTexture* texture) {
+int32_t dp::FileLoader::loadEmbeddedAssimpTexture(const aiTexture* texture) {
     // Check if a texture with the same filepath already exists
     std::string textureFileName = texture->mFilename.C_Str();
     if (!textureFileName.empty()) { // Embedded textures might not be named in some formats
@@ -136,9 +141,9 @@ int32_t dp::FileLoader::loadEmbeddedTexture(const aiTexture* texture) {
     int tWidth, tHeight, channels;
     stbi_uc* pixels;
     if (texture->mHeight == 0) {
-        pixels = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth, &tWidth, &tHeight, &channels, STBI_rgb_alpha);
+        pixels = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), static_cast<int>(texture->mWidth), &tWidth, &tHeight, &channels, STBI_rgb_alpha);
     } else {
-        pixels = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), texture->mWidth * texture->mHeight, &tWidth, &tHeight, &channels, STBI_rgb_alpha);
+        pixels = stbi_load_from_memory(reinterpret_cast<unsigned char*>(texture->pcData), static_cast<int>(texture->mWidth * texture->mHeight), &tWidth, &tHeight, &channels, STBI_rgb_alpha);
     }
     if (!pixels) {
         fmt::print(stderr, "Failed to load texture file {}\n", texture->mFilename.C_Str());
@@ -158,12 +163,258 @@ int32_t dp::FileLoader::loadEmbeddedTexture(const aiTexture* texture) {
     return static_cast<int32_t>(textures.size() - 1);
 }
 
+bool dp::FileLoader::loadAssimpFile(const fs::path& fileName) {
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(fileName.string(), importFlags);
+    if (!scene || scene->mRootNode == nullptr) {
+        fmt::print("{}\n", importer.GetErrorString());
+        return false;
+    }
 
-dp::FileLoader::FileLoader(const FileLoader& loader) :
-        meshes(loader.meshes),
-        materials(loader.materials),
-        textures(loader.textures) {
+    // Load Meshes
+    loadAssimpNode(scene->mRootNode, scene);
+
+    // Load Materials
+    if (scene->HasMaterials()) {
+        for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
+            dp::Material material;
+            aiMaterial* mat = scene->mMaterials[i];
+            /* getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &material.diffuse);
+            getMatColor3(mat, AI_MATKEY_COLOR_SPECULAR, &material.specular);
+            getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &material.emissive); */
+
+            // Load each diffuse texture. For now, we only support a single texture here.
+            for (uint32_t j = 0; j < 1 /* mat->GetTextureCount(aiTextureType_DIFFUSE) */; j++) {
+                aiString texturePath;
+                mat->GetTexture(aiTextureType_DIFFUSE, j, &texturePath);
+
+                const aiTexture* embeddedTexture = scene->GetEmbeddedTexture(texturePath.C_Str());
+                if (embeddedTexture != nullptr) {
+                    auto textureIndex = loadEmbeddedAssimpTexture(embeddedTexture);
+                    if (textureIndex) {
+                        material.baseTextureIndex = textureIndex;
+                    }
+                } else if (texturePath.length != 0) {
+                    // Take the path of the model as a relative path.
+                    fs::path parentFolder = fs::path(fileName).parent_path();
+                    int32_t textureIndex = loadAssimpTexture(parentFolder.string() + "\\" + texturePath.C_Str());
+                    if (textureIndex) {
+                        material.baseTextureIndex = textureIndex;
+                    }
+                }
+            }
+            materials.push_back(material);
+        }
+    }
+
+    return true;
 }
+
+
+void dp::FileLoader::loadGlftMesh(tinygltf::Model& model, const tinygltf::Mesh& mesh) {
+    dp::Mesh newMesh;
+    newMesh.name = mesh.name;
+
+    // Simple helper for writing a pointer of data into a vector. We specifically
+    // don't memcpy the data as the source data might be using a different type,
+    // e.g. short.
+    auto writeToVector = [&]<typename T, typename S>(const T* src, const uint32_t count, std::vector<S>& out) {
+        out.resize(count);
+        for (size_t i = 0; i < count; ++i)
+            out[i] = static_cast<T>(src[i]);
+    };
+
+    auto getTypeSizeInBytes = [](uint32_t type) -> int32_t {
+        return tinygltf::GetNumComponentsInType(type) * tinygltf::GetComponentSizeInBytes(TINYGLTF_COMPONENT_TYPE_FLOAT);
+    };
+
+    for (const auto& primitive : mesh.primitives) {
+        dp::Primitive newPrimitive = {};
+        newPrimitive.materialIndex = primitive.material;
+
+        // Load primitive attributes (pos, normals, uv, ...)
+        {
+            // We require a position attribute.
+            if (primitive.attributes.find("POSITION") == primitive.attributes.end())
+                continue;
+
+            // We will first load all the different buffers (possibly the same buffer at a different
+            // offset) and store them as pointers.
+            struct PrimitiveBufferValue {
+                const float* data = nullptr;
+                uint64_t stride = 0;
+            };
+
+            // Vertex positions
+            uint32_t vertexCount;
+            PrimitiveBufferValue positions = {};
+            {
+                const auto& posAccessor = model.accessors[primitive.attributes.find("POSITION")->second];
+                const auto& posBufferView = model.bufferViews[posAccessor.bufferView];
+                positions.data = reinterpret_cast<const float*>(&(model.buffers[posBufferView.buffer].data[posAccessor.byteOffset + posBufferView.byteOffset]));
+                positions.stride = posAccessor.ByteStride(posBufferView)
+                    ? (posAccessor.ByteStride(posBufferView) / sizeof(float))
+                    : getTypeSizeInBytes(TINYGLTF_TYPE_VEC3);
+                vertexCount = posAccessor.count;
+            }
+
+            // Normals
+            PrimitiveBufferValue normals = {};
+            if (primitive.attributes.find("NORMAL") != primitive.attributes.end()) {
+                const auto& normalsAccessor = model.accessors[primitive.attributes.find("NORMAL")->second];
+                const auto& normalsBufferView = model.bufferViews[normalsAccessor.bufferView];
+                normals.data = reinterpret_cast<const float*>(&(model.buffers[normalsBufferView.buffer].data[normalsAccessor.byteOffset + normalsBufferView.byteOffset]));
+                normals.stride = normalsAccessor.ByteStride(normalsBufferView)
+                    ? (normalsAccessor.ByteStride(normalsBufferView) / sizeof(float))
+                    : getTypeSizeInBytes(TINYGLTF_TYPE_VEC3);
+            }
+
+            // Texture coordinates
+            PrimitiveBufferValue uvs = {};
+            if (primitive.attributes.find("TEXCOORD_0") != primitive.attributes.end()) {
+                const auto& uvsAccessor = model.accessors[primitive.attributes.find("TEXCOORD_0")->second];
+                const auto& uvsBufferView = model.bufferViews[uvsAccessor.bufferView];
+                uvs.data = reinterpret_cast<const float*>(&(model.buffers[uvsBufferView.buffer].data[uvsAccessor.byteOffset + uvsBufferView.byteOffset]));
+                uvs.stride = uvsAccessor.ByteStride(uvsBufferView)
+                    ? (uvsAccessor.ByteStride(uvsBufferView) / sizeof(float))
+                    : getTypeSizeInBytes(TINYGLTF_TYPE_VEC2);
+            }
+
+            // Get the data for each Vertex and store the data as a new Vertex.
+            for (size_t i = 0; i < vertexCount; ++i) {
+                dp::Vertex newVertex = {};
+                newVertex.pos = glm::make_vec3(&positions.data[i * positions.stride]);
+                if (normals.data != nullptr)
+                    newVertex.normals = glm::make_vec3(&normals.data[i * normals.stride]);
+                if (uvs.data != nullptr)
+                    newVertex.uv = glm::make_vec2(&uvs.data[i * uvs.stride]);
+
+                newPrimitive.vertices.push_back(newVertex);
+            }
+        }
+
+        // Indexed geometry is not a must and is not handled as an attribute for some reason...
+        if (primitive.indices >= 0) {
+            const auto& accessor = model.accessors[primitive.indices];
+            const auto& bufferView = model.bufferViews[accessor.bufferView];
+            const auto& buffer = model.buffers[bufferView.buffer];
+
+            auto indexCount = static_cast<uint32_t>(accessor.count);
+            newPrimitive.indices.reserve(indexCount);
+
+            const void* dataPtr = &(buffer.data[accessor.byteOffset + bufferView.byteOffset]);
+            // The indices could be in a different format. In the future, we should convert these automatically to be safe.
+            switch (accessor.componentType) {
+                case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
+                    const auto* buf = static_cast<const dp::Index*>(dataPtr);
+                    writeToVector(buf, indexCount, newPrimitive.indices);
+                    break;
+                }
+                case TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT: {
+                    const auto* buf = static_cast<const uint16_t*>(dataPtr);
+                    writeToVector(buf, indexCount, newPrimitive.indices);
+                    break;
+                }
+                default: {
+                    fmt::print(stderr, "Index component type {} unsupported", accessor.componentType);
+                    break;
+                }
+            }
+        } else {
+            // Generate indices?
+            newPrimitive.indexType = VK_INDEX_TYPE_NONE_KHR;
+        }
+
+        newMesh.primitives.push_back(newPrimitive);
+    }
+
+    meshes.push_back(newMesh);
+}
+
+void dp::FileLoader::loadGltfNode(tinygltf::Model& model, const tinygltf::Node& node) {
+    // TODO: Add support for node matrices (rotation, translation, scale).
+    if (node.mesh > -1) {
+        loadGlftMesh(model, model.meshes[node.mesh]);
+    }
+
+    for (auto i : node.children) {
+        loadGltfNode(model, model.nodes[i]);
+    }
+}
+
+bool dp::FileLoader::loadGltfFile(const fs::path& fileName) {
+    tinygltf::Model model;
+    tinygltf::TinyGLTF loader;
+    std::string err;
+    std::string warn;
+
+    fs::path ext = fileName.extension();
+    bool success = false;
+    if (ext.compare(".glb") == 0) {
+        success = loader.LoadBinaryFromFile(&model, &err, &warn, fileName.string());
+    } else if (ext.compare(".gltf") == 0) {
+        success = loader.LoadASCIIFromFile(&model, &err, &warn, fileName.string());
+    }
+
+    if (!warn.empty())
+        fmt::print("Warning: {}\n", warn);
+    if (!err.empty())
+        fmt::print("Error: {}\n", err);
+    if (!success)
+        return false;
+
+    const tinygltf::Scene& scene = model.scenes[model.defaultScene];
+    // Load all nodes
+    for (auto node : scene.nodes) {
+        loadGltfNode(model, model.nodes[node]);
+    }
+
+    // Load materials
+    for (const auto& mat : model.materials) {
+        dp::Material material = {};
+
+        {
+            auto glTFPBRMetaillicRoughness = mat.pbrMetallicRoughness;
+
+            // Get the base colour
+            material.baseColor.x = static_cast<float>(glTFPBRMetaillicRoughness.baseColorFactor[0]);
+            material.baseColor.y = static_cast<float>(glTFPBRMetaillicRoughness.baseColorFactor[1]);
+            material.baseColor.z = static_cast<float>(glTFPBRMetaillicRoughness.baseColorFactor[2]);
+            // material.baseColor.w = glTFPBRMetaillicRoughness.baseColorFactor[3];
+
+            auto& baseColourTexture = glTFPBRMetaillicRoughness.baseColorTexture;
+            if (baseColourTexture.index >= 0) {
+                material.baseTextureIndex = baseColourTexture.index;
+            }
+
+            // Get the roughness texture
+            material.metallicFactor = static_cast<float>(glTFPBRMetaillicRoughness.metallicFactor);
+            material.roughnessFactor = static_cast<float>(glTFPBRMetaillicRoughness.roughnessFactor);
+
+            auto& metallicRoughnessTexture = glTFPBRMetaillicRoughness.metallicRoughnessTexture;
+            if (metallicRoughnessTexture.index >= 0) {
+                material.pbrTextureIndex = metallicRoughnessTexture.index;
+            }
+        }
+
+        materials.push_back(material);
+    }
+
+    // Load textures
+    for (const auto& tex : model.textures) {
+        dp::TextureFile textureFile;
+        const auto& image = model.images[tex.source];
+        textureFile.width = image.width;
+        textureFile.height = image.height;
+        textureFile.format = VK_FORMAT_R8G8B8A8_SRGB;
+        textureFile.pixels.resize(image.width * image.height * image.component);
+        memcpy(textureFile.pixels.data(), image.image.data(), textureFile.pixels.size());
+        textures.emplace_back(textureFile);
+    }
+
+    return true;
+}
+
 
 dp::FileLoader& dp::FileLoader::operator=(const dp::FileLoader& fileLoader) {
     meshes.assign(fileLoader.meshes.begin(), fileLoader.meshes.end());
@@ -177,48 +428,21 @@ bool dp::FileLoader::loadFile(const fs::path& fileName) {
     materials.clear();
     textures.clear();
 
-    const aiScene* scene = importer.ReadFile(fileName.string(), importFlags);
-
-    if (!scene || scene->mRootNode == nullptr) {
-        fmt::print("{}\n", importer.GetErrorString());
+    if (!fileName.has_extension()) {
+        fmt::print("File path has no extension.\n");
         return false;
     }
+    fs::path ext = fileName.extension();
+    bool ret;
+    if (ext.compare(".glb") == 0 || ext.compare(".gltf") == 0) {
+        ret = loadGltfFile(fileName);
+    } else {
+        ret = loadAssimpFile(fileName);
+    }
 
-    // Load Meshes
-    loadNode(scene->mRootNode, scene);
-
-    // Load Materials
-    if (scene->HasMaterials()) {
-        for (uint32_t i = 0; i < scene->mNumMaterials; i++) {
-            dp::Material material;
-            aiMaterial* mat = scene->mMaterials[i];
-            getMatColor3(mat, AI_MATKEY_COLOR_DIFFUSE, &material.diffuse);
-            getMatColor3(mat, AI_MATKEY_COLOR_SPECULAR, &material.specular);
-            getMatColor3(mat, AI_MATKEY_COLOR_EMISSIVE, &material.emissive);
-
-            // Load each diffuse texture. For now, we only support a single texture here.
-            for (uint32_t j = 0; j < 1 /* mat->GetTextureCount(aiTextureType_DIFFUSE) */; j++) {
-                aiString texturePath;
-                mat->GetTexture(aiTextureType_DIFFUSE, j, &texturePath);
-
-                const aiTexture* embeddedTexture = scene->GetEmbeddedTexture(texturePath.C_Str());
-                if (embeddedTexture != nullptr) {
-                    auto textureIndex = loadEmbeddedTexture(embeddedTexture);
-                    if (textureIndex) {
-                        material.textureIndex = textureIndex;
-                    }
-                } else if (texturePath.length != 0) {
-                    // Take the path of the model as a relative path.
-                    // TODO: Check for duplicate textures somehow?
-                    fs::path parentFolder = fs::path(fileName).parent_path();
-                    int32_t textureIndex = loadTexture(parentFolder.string() + "\\" + texturePath.C_Str());
-                    if (textureIndex) {
-                        material.textureIndex = textureIndex;
-                    }
-                }
-            }
-            materials.push_back(material);
-        }
+    if (!ret) {
+        fmt::print("Failed to load file!\n");
+        return false;
     }
 
     fmt::print("Finished loading file!\n");

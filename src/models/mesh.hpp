@@ -11,7 +11,7 @@ namespace fs = std::filesystem;
 
 namespace dp {
     // An index type for the mesh.
-    using Index = uint32_t;
+    using Index = int32_t;
 
     struct Vertex {
         // The relative vertex position.
@@ -24,19 +24,27 @@ namespace dp {
 
     /**
      * Struct referencing buffer addresses for various mesh related buffers.
-     * Used for the shader to obtain vertex data per mesh.
+     * Used for the shader to obtain vertex and material data per primitive.
      */
-    struct ObjectDescription {
+    struct InstanceDescription {
         VkDeviceAddress vertexBufferAddress = 0;
         VkDeviceAddress indexBufferAddress = 0;
+        VkDeviceAddress geometryBufferAddress = 0;
+    };
+
+    struct GeometryDescription {
+        uint64_t meshBufferVertexOffset = 0;
+        uint64_t meshBufferIndexOffset = 0;
         Index materialIndex = 0;
     };
 
     struct Material {
-        glm::vec3 diffuse = glm::vec3(1.0f);
-        glm::vec3 specular = glm::vec3(1.0f);
-        glm::vec3 emissive = glm::vec3(1.0f);
-        Index textureIndex = 0; // 0 is just the default white image.
+        glm::vec3 baseColor = glm::vec3(1.0f);
+        float metallicFactor;
+        float roughnessFactor;
+        Index baseTextureIndex = -1; // -1 + 1 is 0, our default white image.
+        Index normalTextureIndex = -1;
+        Index pbrTextureIndex = -1;
     };
 
     /** Represents a single texture file that can be uploaded to a dp::Texture later. */
@@ -48,18 +56,32 @@ namespace dp {
         VkFormat format = VK_FORMAT_UNDEFINED;
     };
 
-    struct Mesh {
-        std::string name = {};
+    /**
+     * Represents a small piece in geometry, with a transform matrix, vertices,
+     * indices and a material.
+     */
+    struct Primitive {
         std::vector<Vertex> vertices = {};
         std::vector<Index> indices = {};
-        VkTransformMatrixKHR transform;
-        VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
-        VkIndexType indexType = VK_INDEX_TYPE_UINT32;
-        // Typically, just the size of a single Vertex.
-        static const uint32_t vertexStride = sizeof(Vertex);
-        // The material index for the material buffer.
-        // We use this together with instanceCustomIndex to provide
-        // material data to ray shaders.
+        /** Accessed through gl_InstanceCustomIndexEXT and gl_GeometryIndexEXT. */
         Index materialIndex = 0;
+        /* Can be set to VK_INDEX_TYPE_NONE_KHR if no indices are provided. */
+        VkIndexType indexType = VK_INDEX_TYPE_UINT32;
+        static const VkFormat vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+        static constexpr uint32_t vertexStride = sizeof(Vertex);
+        /** These are offsets into the resulting mesh buffer for
+         * specifically this primitive. */
+        uint64_t meshBufferVertexOffset;
+        uint64_t meshBufferIndexOffset;
+    };
+
+    struct Mesh {
+        std::string name = {};
+        std::vector<dp::Primitive> primitives = {};
+        VkTransformMatrixKHR transform = {
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0, 0.0
+        };
     };
 }
