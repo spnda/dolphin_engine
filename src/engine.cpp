@@ -10,7 +10,6 @@ dp::Engine::Engine(dp::Context& context)
           rayGenShader(ctx, "raygen", dp::ShaderStage::RayGeneration),
           rayMissShader(ctx, "raymiss", dp::ShaderStage::RayMiss),
           closestHitShader(ctx, "closestHit", dp::ShaderStage::ClosestHit),
-          shadowMissShader(ctx, "shadowMiss", dp::ShaderStage::RayMiss),
           anyHitShader(ctx, "anyHit", dp::ShaderStage::AnyHit) {
     startTime = std::chrono::system_clock::now();
 
@@ -31,7 +30,6 @@ dp::Engine::Engine(dp::Context& context)
 
     rayGenShader.createShader("shaders/raygen.rgen");
     rayMissShader.createShader("shaders/miss.rmiss");
-    shadowMissShader.createShader("shaders/shadow.rmiss");
     closestHitShader.createShader("shaders/closesthit.rchit");
     anyHitShader.createShader("shaders/anyhit.rahit");
 
@@ -58,7 +56,6 @@ void dp::Engine::buildPipeline() {
     auto builder = dp::RayTracingPipelineBuilder::create(ctx, "rt_pipeline")
         .addShaderGroup(dp::RtShaderGroup::General, { rayGenShader })
         .addShaderGroup(dp::RtShaderGroup::General, { rayMissShader })
-        .addShaderGroup(dp::RtShaderGroup::General, { shadowMissShader })
         .addShaderGroup(dp::RtShaderGroup::TriangleHit, { closestHitShader, anyHitShader });
 
     builder.addPushConstants(sizeof(PushConstants), dp::ShaderStage::ClosestHit | dp::ShaderStage::RayGeneration);
@@ -105,9 +102,10 @@ void dp::Engine::buildPipeline() {
 }
 
 void dp::Engine::buildSBT() {
-    uint32_t missCount = 2; // 2 miss groups (miss and shadow miss)
+    uint32_t missCount = 1; // 1 miss groups
     uint32_t chitCount = 1; // 1 hit group (with closest and any)
-    auto handleCount = 1 + missCount + chitCount;
+    uint32_t callCount = 0;
+    auto handleCount = 1 + missCount + chitCount + callCount;
     const uint32_t handleSize = rtProperties.shaderGroupHandleSize;
     sbtStride = dp::Buffer::alignedSize(handleSize, rtProperties.shaderGroupHandleAlignment);
 
@@ -132,7 +130,7 @@ void dp::Engine::buildSBT() {
 
     shaderBindingTable.memoryCopy(handleStorage.data(), sbtSize);
 
-    auto getHandleOffset = [&](uint32_t i) {
+    auto getHandleOffset = [&](uint32_t i) -> auto {
         return handleStorage.data() + i * handleSize;
     };
     uint32_t curHandleIndex = 0;

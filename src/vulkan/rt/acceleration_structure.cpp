@@ -8,10 +8,6 @@ dp::AccelerationStructure::AccelerationStructure(const dp::Context& context, dp:
         resultBuffer(ctx, std::move(name)), scratchBuffer(ctx, std::move(name)) {
 }
 
-void dp::AccelerationStructure::buildStructure(VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo) {
-    ctx.buildAccelerationStructures(cmdBuffer, geometryCount, geometryInfo, rangeInfo);
-}
-
 void dp::AccelerationStructure::createScratchBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes) {
     scratchBuffer.create(
         buildSizes.buildScratchSize,
@@ -66,7 +62,7 @@ VkWriteDescriptorSetAccelerationStructureKHR dp::AccelerationStructure::getDescr
     };
 }
 
-dp::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(const dp::Context& context, const dp::Mesh& mesh)
+dp::BottomLevelAccelerationStructure::BottomLevelAccelerationStructure(const dp::Context& context, dp::Mesh&& mesh)
         : AccelerationStructure(context, dp::AccelerationStructureType::BottomLevel, mesh.name),
           mesh(mesh),
           vertexBuffer(ctx, "vertexBuffer"),
@@ -101,7 +97,7 @@ void dp::BottomLevelAccelerationStructure::createGeometryDescriptionBuffer() {
         geometryDescriptionBuffer.memoryCopy(geometryDescriptions.data(), descriptionSize);
 }
 
-void dp::BottomLevelAccelerationStructure::createMeshBuffers(const VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
+void dp::BottomLevelAccelerationStructure::createMeshBuffers() {
     // We want to squash every primitive of the mesh into a single long buffer.
     // This will make the buffer quite convoluted, as there are vertices and indices
     // over and over again, but it should help for simplicity’s sake.

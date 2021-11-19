@@ -22,7 +22,6 @@ namespace dp {
 
         dp::ShaderModule rayGenShader;
         dp::ShaderModule rayMissShader;
-        dp::ShaderModule shadowMissShader;
         dp::ShaderModule closestHitShader;
         dp::ShaderModule anyHitShader;
 

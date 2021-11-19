@@ -40,10 +40,12 @@ namespace dp {
 
     struct Material {
         glm::vec3 baseColor = glm::vec3(1.0f);
-        float metallicFactor;
-        float roughnessFactor;
+        float metallicFactor = 1.0f;
+        float roughnessFactor = 1.0f;
         Index baseTextureIndex = -1; // -1 + 1 is 0, our default white image.
         Index normalTextureIndex = -1;
+        Index occlusionTextureIndex = -1;
+        Index emissiveTextureIndex = -1;
         Index pbrTextureIndex = -1;
     };
 

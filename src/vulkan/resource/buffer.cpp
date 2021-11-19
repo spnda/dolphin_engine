@@ -28,10 +28,6 @@ dp::Buffer& dp::Buffer::operator=(const dp::Buffer& buffer) {
     return *this;
 }
 
-auto dp::Buffer::alignedSize(size_t value, size_t alignment) -> size_t {
-    return (value + alignment - 1) & -alignment;
-}
-
 void dp::Buffer::create(const VkDeviceSize newSize, const VkBufferUsageFlags bufferUsage, const VmaMemoryUsage usage, const VkMemoryPropertyFlags properties) {
     this->size = newSize;
     auto bufferCreateInfo = getCreateInfo(bufferUsage);

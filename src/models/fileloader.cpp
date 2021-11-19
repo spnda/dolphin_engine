@@ -397,6 +397,14 @@ bool dp::FileLoader::loadGltfFile(const fs::path& fileName) {
             }
         }
 
+        {
+            // Default indices through tinygltf are -1, so we don't have to
+            // check anything.
+            material.normalTextureIndex = mat.normalTexture.index;
+            material.occlusionTextureIndex = mat.occlusionTexture.index;
+            material.emissiveTextureIndex = mat.emissiveTexture.index;
+        }
+
         materials.push_back(material);
     }
 

@@ -76,7 +76,7 @@ target_link_libraries(dolphin_engine PRIVATE vk-bootstrap::vk-bootstrap)
 target_link_libraries(dolphin_engine PRIVATE Vulkan::Vulkan)
 
 # Copy shaders to bin directory.
-set(SHADER_FILES anyhit.rahit closesthit.rchit miss.rmiss raygen.rgen shadow.rmiss include/descriptors.glsl include/random.glsl include/raycommon.glsl include/rayutilities.glsl)
+set(SHADER_FILES anyhit.rahit closesthit.rchit miss.rmiss raygen.rgen include/descriptors.glsl include/random.glsl include/raycommon.glsl include/rayutilities.glsl)
 foreach(SHADER ${SHADER_FILES})
   set(SHADER_FILE "${CMAKE_CURRENT_SOURCE_DIR}/shaders/${SHADER}")
   message(STATUS "Configuring shader ${SHADER_FILE}")

@@ -68,6 +68,9 @@ dp::ShaderCompileResult dp::ShaderModule::compileShader(const std::string& shade
     const std::string preProcessedSource = {preProcessedSourceChars.begin(), preProcessedSourceChars.end()};
 
     // Compile to SPIR-V
+#ifdef _DEBUG
+    options.SetGenerateDebugInfo();
+#endif
     auto compileResult = compiler.CompileGlslToSpv(preProcessedSource, kind, shaderName.c_str(), options);
     auto binary = checkResult(compileResult);
 

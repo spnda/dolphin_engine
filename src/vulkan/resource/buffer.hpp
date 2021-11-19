@@ -34,7 +34,9 @@ namespace dp {
 
         Buffer& operator=(const Buffer& buffer);
 
-        static auto alignedSize(size_t value, size_t alignment) -> size_t;
+        [[nodiscard]] static constexpr auto alignedSize(size_t value, size_t alignment) -> size_t {
+            return (value + alignment - 1) & -alignment;
+        }
 
         void create(VkDeviceSize newSize, VkBufferUsageFlags bufferUsage, VmaMemoryUsage usage, VkMemoryPropertyFlags properties = 0);
         void destroy();

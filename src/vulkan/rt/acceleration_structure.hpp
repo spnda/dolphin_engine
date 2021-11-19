@@ -31,13 +31,10 @@ namespace dp {
         explicit AccelerationStructure(const dp::Context& ctx, dp::AccelerationStructureType type, std::string name);
         AccelerationStructure(const AccelerationStructure& as) = default;
 
-        void buildStructure(VkCommandBuffer cmdBuffer, uint32_t geometryCount,
-                            VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo);
         void createScratchBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
         void createResultBuffer(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
         void createStructure(VkAccelerationStructureBuildSizesInfoKHR buildSizes);
         void destroy();
-        /** Returns already aligned build sizes. */
         auto getBuildSizes(const uint32_t* primitiveCount,
                            VkAccelerationStructureBuildGeometryInfoKHR* buildGeometryInfo,
                            VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) -> VkAccelerationStructureBuildSizesInfoKHR;
@@ -59,10 +56,10 @@ namespace dp {
         /** A buffer containing instanceDescriptions of geometries inside BLASes. */
         dp::Buffer geometryDescriptionBuffer;
 
-        explicit BottomLevelAccelerationStructure(const dp::Context& ctx, const dp::Mesh& mesh);
+        explicit BottomLevelAccelerationStructure(const dp::Context& ctx, dp::Mesh&& mesh);
 
         void createGeometryDescriptionBuffer();
-        void createMeshBuffers(VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties);
+        void createMeshBuffers();
         void copyMeshBuffers(VkCommandBuffer cmdBuffer);
         void destroyMeshBuffers();
     };

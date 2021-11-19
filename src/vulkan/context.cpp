@@ -179,12 +179,12 @@ auto dp::Context::submitFrame(const Swapchain& swapchain) -> VkResult {
 }
 
 
-void dp::Context::buildAccelerationStructures(const VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo) const {
+void dp::Context::buildAccelerationStructures(const VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR* geometryInfos, VkAccelerationStructureBuildRangeInfoKHR** rangeInfos) const {
     vkCmdBuildAccelerationStructuresKHR(
         cmdBuffer,
         geometryCount,
-        &geometryInfo,
-        rangeInfo
+        geometryInfos,
+        rangeInfos
     );
 }
 

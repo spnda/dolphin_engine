@@ -36,6 +36,10 @@ struct Material {
     float roughnessFactor;
     int baseTextureIndex;
     int normalTextureIndex;
+    /** R = occlusion value, where 0.0 means fully-occluded and 1.0 means not occluded. */
+    int occlusionTextureIndex;
+    int emissiveTextureIndex;
+    /** B = metalness; G = roughness; R, A = unused */
     int pbrTextureIndex;
 };
 

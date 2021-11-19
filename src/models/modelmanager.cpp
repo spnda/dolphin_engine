@@ -23,6 +23,8 @@ void dp::ModelManager::createDescriptionBuffers() {
     for (auto& mat : fileLoader.materials) {
         ++mat.baseTextureIndex;
         ++mat.normalTextureIndex;
+        ++mat.emissiveTextureIndex;
+        ++mat.occlusionTextureIndex;
         ++mat.pbrTextureIndex;
     }
 
@@ -63,89 +65,6 @@ void dp::ModelManager::createDescriptionBuffers() {
         instanceDescriptionBuffer.memoryCopy(instanceDescriptions.data(), descriptionSize);
 }
 
-dp::BottomLevelAccelerationStructure buildBlas(const dp::Context& ctx, const dp::Mesh& mesh, VkCommandBuffer cmdBuffer, VkPhysicalDeviceAccelerationStructurePropertiesKHR asProperties) {
-    dp::BottomLevelAccelerationStructure blas(ctx, mesh);
-    fmt::print("Building BLAS {}\n", mesh.name);
-    if (mesh.name == "vase_round") return blas;
-
-    blas.createMeshBuffers(asProperties);
-
-    std::vector<uint64_t> primitiveCounts = {};
-    std::vector<VkAccelerationStructureGeometryKHR> geometries = {};
-
-    // We make it fixed size this as push_back would reallocate the vector and break the stored pointers.
-    std::vector<VkAccelerationStructureBuildRangeInfoKHR> rangeInfos(mesh.primitives.size());
-    std::vector<VkAccelerationStructureBuildRangeInfoKHR*> rangeInfosPtr = {};
-
-    for (const auto& prim : mesh.primitives) {
-        primitiveCounts.push_back(std::min(prim.indices.size() / 3, asProperties.maxPrimitiveCount));
-        geometries.push_back({
-            .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
-            .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
-            .geometry = {
-                .triangles = {
-                    .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-                    .vertexFormat = dp::Primitive::vertexFormat,
-                    .vertexData {
-                        .deviceAddress = blas.vertexBuffer.getDeviceAddress() + prim.meshBufferVertexOffset,
-                    },
-                    .vertexStride = dp::Primitive::vertexStride,
-                    .maxVertex = static_cast<uint32_t>(prim.vertices.size() - 1),
-                    .indexType = prim.indexType,
-                    .indexData = {
-                        .deviceAddress = blas.indexBuffer.getDeviceAddress() + prim.meshBufferIndexOffset,
-                    },
-                    .transformData = {
-                        .deviceAddress = blas.transformBuffer.getDeviceAddress(),
-                    },
-                },
-            },
-        });
-        rangeInfos[&prim - &mesh.primitives[0]] = {
-             .primitiveCount = static_cast<uint32_t>(primitiveCounts[primitiveCounts.size() - 1]),
-             .primitiveOffset = 0, // This offsets both vertexData and indexData, however, we already do that ourselfs.
-             .firstVertex = 0,
-             .transformOffset = 0,
-        };
-    }
-
-    // Get the pointers to each rangeInfo.
-    for (auto& rangeInfo : rangeInfos) {
-        rangeInfosPtr.emplace_back(&rangeInfo);
-    }
-
-    VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {
-        .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
-        .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
-        .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
-        .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
-        .geometryCount = static_cast<uint32_t>(geometries.size()),
-        .pGeometries = geometries.data(),
-    };
-    auto sizes = blas.getBuildSizes(reinterpret_cast<const uint32_t*>(primitiveCounts.data()), &buildGeometryInfo, asProperties);
-    blas.createScratchBuffer(sizes);
-    blas.createResultBuffer(sizes);
-    blas.createStructure(sizes);
-    ctx.setDebugUtilsName(blas.handle, mesh.name);
-
-    buildGeometryInfo.dstAccelerationStructure = blas.handle;
-    buildGeometryInfo.scratchData.deviceAddress = blas.scratchBuffer.getDeviceAddress();
-
-    blas.copyMeshBuffers(cmdBuffer);
-    VkMemoryBarrier memBarrier = {
-        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-        .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-        .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
-    };
-    vkCmdPipelineBarrier(cmdBuffer,
-                         VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0,
-                         1, &memBarrier, 0, nullptr, 0, nullptr);
-    ctx.setCheckpoint(cmdBuffer, "Building BLAS!");
-    ctx.buildAccelerationStructures(cmdBuffer, 1, buildGeometryInfo, rangeInfosPtr.data());
-
-    return blas;
-}
-
 void dp::ModelManager::buildBlases() {
     VkPhysicalDeviceProperties2 deviceProperties = {
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
@@ -153,10 +72,108 @@ void dp::ModelManager::buildBlases() {
     };
     vkGetPhysicalDeviceProperties2(ctx.physicalDevice, &deviceProperties);
 
+    // We store all relevant data we need for the build dispatch, as we use a single build
+    // dispatch for all BLASes we build and the data would obviously otherwise get invalidated
+    // at the end of the scope for the for-loop or the lambda.
+    std::vector<VkAccelerationStructureBuildGeometryInfoKHR> buildGeometryInfos = {};
+    std::vector<std::vector<VkAccelerationStructureBuildRangeInfoKHR>> rangeInfos = {};
+    std::vector<VkAccelerationStructureBuildRangeInfoKHR*> rangeInfoPointers = {};
+    std::vector<std::vector<VkAccelerationStructureGeometryKHR>> geometries = {};
+
     ctx.oneTimeSubmit(ctx.graphicsQueue, ctx.commandPool, [&](VkCommandBuffer cmdBuffer) {
-        for (uint32_t i = 0; i < 350 && i < fileLoader.meshes.size(); i++) {
-            blases.emplace_back(buildBlas(ctx, fileLoader.meshes[i], cmdBuffer, asProperties));
+        buildGeometryInfos.resize(fileLoader.meshes.size());
+        rangeInfos.resize(fileLoader.meshes.size());
+        geometries.resize(fileLoader.meshes.size());
+
+        for (auto& tMesh : fileLoader.meshes) {
+            uint64_t meshIndex = &tMesh - &fileLoader.meshes[0];
+
+            // We move each mesh into the corresponding BLAS struct, therefore, fileLoader.meshes might have
+            // useless values.
+            dp::BottomLevelAccelerationStructure blas(ctx, std::move(tMesh));
+            fmt::print("Building BLAS {}\n", blas.mesh.name);
+
+            blas.createMeshBuffers();
+
+            std::vector<uint32_t> primitiveCounts(blas.mesh.primitives.size());
+            rangeInfos[meshIndex].resize(blas.mesh.primitives.size());
+            geometries[meshIndex].resize(blas.mesh.primitives.size());
+            for (const auto& prim : blas.mesh.primitives) {
+                uint64_t primitiveIndex = &prim - &blas.mesh.primitives[0];
+
+                primitiveCounts[primitiveIndex] = std::min(prim.indices.size() / 3, asProperties.maxPrimitiveCount);
+                geometries[meshIndex][primitiveIndex] = {
+                     .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
+                     .geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR,
+                     .geometry = {
+                         .triangles = {
+                             .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
+                             .vertexFormat = dp::Primitive::vertexFormat,
+                             .vertexData {
+                                 .deviceAddress = blas.vertexBuffer.getDeviceAddress() + prim.meshBufferVertexOffset,
+                             },
+                             .vertexStride = dp::Primitive::vertexStride,
+                             .maxVertex = static_cast<uint32_t>(prim.vertices.size() - 1),
+                             .indexType = prim.indexType,
+                             .indexData = {
+                                 .deviceAddress = blas.indexBuffer.getDeviceAddress() + prim.meshBufferIndexOffset,
+                             },
+                             .transformData = {
+                                 .deviceAddress = blas.transformBuffer.getDeviceAddress(),
+                             },
+                         },
+                     }
+                };
+                rangeInfos[meshIndex][primitiveIndex] = {
+                    .primitiveCount = static_cast<uint32_t>(primitiveCounts[primitiveIndex]),
+                    .primitiveOffset = 0, // This offsets both vertexData and indexData, however, we already do that ourselves.
+                    .firstVertex = 0,
+                    .transformOffset = 0,
+                };
+            }
+
+            VkAccelerationStructureBuildGeometryInfoKHR buildGeometryInfo = {
+                .sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR,
+                .type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR,
+                .flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_UPDATE_BIT_KHR,
+                .mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR,
+                .geometryCount = static_cast<uint32_t>(geometries[meshIndex].size()),
+                .pGeometries = geometries[meshIndex].data(),
+            };
+
+            auto sizes = blas.getBuildSizes(primitiveCounts.data(), &buildGeometryInfo, asProperties);
+            blas.createScratchBuffer(sizes);
+            blas.createResultBuffer(sizes);
+            blas.createStructure(sizes);
+            ctx.setDebugUtilsName(blas.handle, blas.mesh.name);
+
+            buildGeometryInfo.dstAccelerationStructure = blas.handle;
+            buildGeometryInfo.scratchData.deviceAddress = blas.scratchBuffer.getDeviceAddress();
+
+            ctx.setCheckpoint(cmdBuffer, "Copying mesh buffers!");
+            blas.copyMeshBuffers(cmdBuffer);
+            VkMemoryBarrier memBarrier = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR | VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR,
+            };
+            vkCmdPipelineBarrier(cmdBuffer,
+                                 VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0,
+                                 1, &memBarrier, 0, nullptr, 0, nullptr);
+
+            buildGeometryInfos[meshIndex] = buildGeometryInfo;
+            blases.emplace_back(blas);
         }
+
+        // Get the pointers for each vector of range infos. Vulkan wants a 2D pointer array.
+        rangeInfoPointers.resize(rangeInfos.size());
+        std::transform(rangeInfos.begin(),  rangeInfos.end(), rangeInfoPointers.begin(), [](std::vector<VkAccelerationStructureBuildRangeInfoKHR>& vec) {
+            return vec.data();
+        });
+
+        // Finally, build all of the acceleration structures.
+        ctx.setCheckpoint(cmdBuffer, "Building BLASes!");
+        ctx.buildAccelerationStructures(cmdBuffer, static_cast<uint32_t>(buildGeometryInfos.size()), buildGeometryInfos.data(), rangeInfoPointers.data());
     });
 
     for (auto& blas : blases) {
@@ -255,7 +272,7 @@ void dp::ModelManager::buildTlas() {
                              VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR, 0,
                              1, &memBarrier, 0, nullptr, 0, nullptr);
         ctx.setCheckpoint(cmdBuffer, "Building TLAS!");
-        tlas.buildStructure(cmdBuffer, 1, buildGeometryInfo, buildRangeInfos.data());
+        ctx.buildAccelerationStructures(cmdBuffer, 1, &buildGeometryInfo, buildRangeInfos.data());
     });
 
     tlas.scratchBuffer.destroy();

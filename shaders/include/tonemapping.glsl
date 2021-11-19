@@ -1,12 +1,12 @@
 // Simple reinhard tonemapping
-vec3 reinhardSimple(vec3 C) {
+vec3 reinhardSimple(in vec3 C) {
     return C / (1.0 + C);
 }
 
 // Extended reinhard tonemapping. Cwhite
 // is the maximum white value of the scene, also
 // known as 'white point'.
-vec3 reinhardExtended(vec3 C, float Cwhite) {
+vec3 reinhardExtended(in vec3 C, in float Cwhite) {
     return (C * (1.0 + (C / vec3(Cwhite * Cwhite))))
         / (1.0f + C);
 }
@@ -24,13 +24,13 @@ const mat3 ACESOutputMat = mat3(
     -0.53108,  1.10813, -0.07276,
     -0.07367, -0.00605,  1.07602);
 
-vec3 RRTAndODTFit(vec3 v) {
+vec3 RRTAndODTFit(in vec3 v) {
     vec3 a = v * (v + 0.0245786) - 0.000090537;
     vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
     return a / b;
 }
 
-vec3 ACESFitted(vec3 color) {
+vec3 ACESFitted(in vec3 color) {
     color = ACESInputMat * color;
     color = RRTAndODTFit(color);
     color = ACESOutputMat * color;

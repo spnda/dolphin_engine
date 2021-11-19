@@ -81,7 +81,7 @@ namespace dp {
         [[nodiscard]] auto waitForFrame(const Swapchain& swapchain) -> VkResult;
         [[nodiscard]] auto submitFrame(const Swapchain& swapchain) -> VkResult;
 
-        void buildAccelerationStructures(VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR& geometryInfo, VkAccelerationStructureBuildRangeInfoKHR** rangeInfo) const;
+        void buildAccelerationStructures(VkCommandBuffer cmdBuffer, uint32_t geometryCount, VkAccelerationStructureBuildGeometryInfoKHR* geometryInfos, VkAccelerationStructureBuildRangeInfoKHR** rangeInfos) const;
         void setCheckpoint(VkCommandBuffer commandBuffer, const char* marker = nullptr) const;
         void traceRays(VkCommandBuffer commandBuffer, VkStridedDeviceAddressRegionKHR* raygenSbt, VkStridedDeviceAddressRegionKHR* missSbt, VkStridedDeviceAddressRegionKHR* hitSbt, VkStridedDeviceAddressRegionKHR* callableSbt, VkExtent3D size) const;
 
