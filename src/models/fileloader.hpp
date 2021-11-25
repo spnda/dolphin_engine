@@ -33,7 +33,7 @@ namespace dp {
 
         // TINYGLTF
         bool loadGltfFile(const fs::path& fileName);
-        void loadGlftMesh(tinygltf::Model& model, const tinygltf::Mesh& mesh);
+        void loadGlftMesh(tinygltf::Model& model, const tinygltf::Mesh& mesh, const tinygltf::Node& node);
         void loadGltfNode(tinygltf::Model& model, const tinygltf::Node& node);
 
     public:

@@ -211,9 +211,33 @@ bool dp::FileLoader::loadAssimpFile(const fs::path& fileName) {
 }
 
 
-void dp::FileLoader::loadGlftMesh(tinygltf::Model& model, const tinygltf::Mesh& mesh) {
+void dp::FileLoader::loadGlftMesh(tinygltf::Model& model, const tinygltf::Mesh& mesh, const tinygltf::Node& node) {
     dp::Mesh newMesh;
     newMesh.name = mesh.name;
+
+    auto translation = glm::vec3(0.0f);
+    if (node.translation.size() == 3) {
+        translation = glm::make_vec3(node.translation.data());
+    }
+    auto rotation = glm::mat4(1.0f);
+    if (node.rotation.size() == 4) {
+        glm::quat q = glm::make_quat(node.rotation.data());
+    }
+    auto scale = glm::vec3(1.0f);
+    if (node.scale.size() == 3) {
+        scale = glm::make_vec3(node.scale.data());
+    }
+    auto matrix = glm::mat4(1.0f);
+    if (node.matrix.size() == 16) {
+        matrix = glm::make_mat4x4(node.matrix.data());
+    }
+
+    glm::mat4 newMatrix = glm::translate(glm::mat4(1.0f), translation) * glm::mat4(rotation) * glm::scale(glm::mat4(1.0f), scale) * matrix;
+    newMesh.transform = {
+        newMatrix[0][0], newMatrix[1][0], newMatrix[2][0], newMatrix[3][0],
+        newMatrix[0][1], newMatrix[1][1], newMatrix[2][1], newMatrix[3][1],
+        newMatrix[0][2], newMatrix[1][2], newMatrix[2][2], newMatrix[3][2],
+    };
 
     // Simple helper for writing a pointer of data into a vector. We specifically
     // don't memcpy the data as the source data might be using a different type,
@@ -334,7 +358,7 @@ void dp::FileLoader::loadGlftMesh(tinygltf::Model& model, const tinygltf::Mesh& 
 void dp::FileLoader::loadGltfNode(tinygltf::Model& model, const tinygltf::Node& node) {
     // TODO: Add support for node matrices (rotation, translation, scale).
     if (node.mesh > -1) {
-        loadGlftMesh(model, model.meshes[node.mesh]);
+        loadGlftMesh(model, model.meshes[node.mesh], node);
     }
 
     for (auto i : node.children) {
@@ -398,6 +422,8 @@ bool dp::FileLoader::loadGltfFile(const fs::path& fileName) {
         }
 
         {
+            material.emissiveFactor = glm::make_vec3(mat.emissiveFactor.data());
+
             // Default indices through tinygltf are -1, so we don't have to
             // check anything.
             material.normalTextureIndex = mat.normalTexture.index;
